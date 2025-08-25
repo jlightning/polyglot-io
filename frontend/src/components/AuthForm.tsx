@@ -3,19 +3,7 @@ import * as Form from '@radix-ui/react-form';
 import * as Label from '@radix-ui/react-label';
 import * as Tabs from '@radix-ui/react-tabs';
 import { Card, Button, Text, Heading, TextField } from '@radix-ui/themes';
-import axios from 'axios';
-
-interface AuthResponse {
-  success: boolean;
-  message: string;
-  user?: {
-    id: number;
-    email: string;
-    username: string;
-    phone_number?: string;
-  };
-  token?: string;
-}
+import { useAuth } from '../contexts/AuthContext';
 
 const AuthForm: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -23,6 +11,7 @@ const AuthForm: React.FC = () => {
     text: string;
     type: 'success' | 'error';
   } | null>(null);
+  const { login, register } = useAuth();
 
   const handleSubmit = async (
     event: React.FormEvent<HTMLFormElement>,
@@ -36,37 +25,42 @@ const AuthForm: React.FC = () => {
     const data = Object.fromEntries(formData.entries());
 
     try {
-      const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
-      const backendUrl = import.meta.env.VITE_BACKEND_URL;
-      const response = await axios.post<AuthResponse>(
-        `${backendUrl}${endpoint}`,
-        data,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-
-      const result: AuthResponse = response.data;
-
-      if (result.success) {
-        setMessage({ text: result.message, type: 'success' });
-        if (result.token) {
-          localStorage.setItem('authToken', result.token);
-          localStorage.setItem('user', JSON.stringify(result.user));
-          // Here you would typically redirect to the main app
-          console.log('Authentication successful:', result.user);
-        }
+      if (isLogin) {
+        // Use the auth context login method
+        const result = await login(
+          data['email'] as string,
+          data['password'] as string
+        );
+        setMessage({
+          text: result.message,
+          type: result.success ? 'success' : 'error',
+        });
       } else {
-        setMessage({ text: result.message, type: 'error' });
+        // Handle registration using auth context
+        const registrationData: {
+          email: string;
+          username: string;
+          password: string;
+          phone_number?: string;
+        } = {
+          email: data['email'] as string,
+          username: data['username'] as string,
+          password: data['password'] as string,
+        };
+
+        if (data['phone_number']) {
+          registrationData.phone_number = data['phone_number'] as string;
+        }
+
+        const result = await register(registrationData);
+
+        setMessage({
+          text: result.message,
+          type: result.success ? 'success' : 'error',
+        });
       }
     } catch (error) {
-      if (axios.isAxiosError(error) && error.response?.data?.message) {
-        setMessage({ text: error.response.data.message, type: 'error' });
-      } else {
-        setMessage({ text: 'Network error. Please try again.', type: 'error' });
-      }
+      setMessage({ text: 'Network error. Please try again.', type: 'error' });
       console.error('Auth error:', error);
     } finally {
       setIsLoading(false);

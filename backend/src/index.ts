@@ -4,6 +4,11 @@ import helmet from 'helmet';
 import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import authRoutes from './routes/authRoutes';
+import configRoutes from './routes/configRoutes';
+import lessonRoutes from './routes/lessonRoutes';
+import s3Routes from './routes/s3Routes';
+import { S3Service } from './services/s3Service';
+import { authenticateToken } from './middleware/auth';
 
 // Load environment variables
 dotenv.config();
@@ -31,8 +36,22 @@ app.get('/api', (_req, res) => {
   res.json({ message: 'Welcome to polyglotio API' });
 });
 
-// Authentication routes
+// Initialize S3 service
+try {
+  S3Service.initialize();
+  console.log('S3 service initialized successfully');
+} catch (error) {
+  console.warn('S3 service initialization failed:', error);
+  console.warn('File upload functionality will be disabled');
+}
+
+// API routes
 app.use('/api/auth', authRoutes);
+
+// Protected routes - require authentication
+app.use('/api/config', authenticateToken, configRoutes);
+app.use('/api/lessons', authenticateToken, lessonRoutes);
+app.use('/api/s3', authenticateToken, s3Routes);
 
 // Error handling middleware
 app.use(

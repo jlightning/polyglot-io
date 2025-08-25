@@ -82,7 +82,7 @@ export class UserService {
           id: newUser.id,
           email: newUser.email,
           username: newUser.username,
-          phone_number: newUser.phone_number || undefined,
+          ...(newUser.phone_number && { phone_number: newUser.phone_number }),
         },
         token,
       };
@@ -140,7 +140,7 @@ export class UserService {
           id: user.id,
           email: user.email,
           username: user.username,
-          phone_number: user.phone_number || undefined,
+          ...(user.phone_number && { phone_number: user.phone_number }),
         },
         token,
       };

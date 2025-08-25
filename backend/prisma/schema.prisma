@@ -21,5 +21,22 @@ model User {
   created_at   DateTime @default(now()) @db.Timestamp(0)
   updated_at   DateTime @default(now()) @updatedAt @db.Timestamp(0)
 
+  lessons Lesson[]
+
   @@map("user")
+}
+
+model Lesson {
+  id            Int      @id @default(autoincrement())
+  created_by    Int
+  title         String   @db.VarChar(255)
+  language_code String   @db.VarChar(10)
+  image_s3_key  String?  @db.VarChar(500)
+  file_s3_key   String?  @db.VarChar(500)
+  created_at    DateTime @default(now()) @db.Timestamp(0)
+  updated_at    DateTime @default(now()) @updatedAt @db.Timestamp(0)
+
+  user User @relation(fields: [created_by], references: [id])
+
+  @@map("lesson")
 }
