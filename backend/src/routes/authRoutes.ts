@@ -47,7 +47,7 @@ const validateRegistration = (
     });
   }
 
-  next();
+  return next();
 };
 
 const validateLogin = (
@@ -64,7 +64,7 @@ const validateLogin = (
     });
   }
 
-  next();
+  return next();
 };
 
 // Register endpoint
@@ -132,20 +132,20 @@ router.get('/verify', async (req, res) => {
     const verification = await UserService.verifyToken(token);
 
     if (verification.valid) {
-      res.status(200).json({
+      return res.status(200).json({
         success: true,
         message: 'Token is valid',
         userId: verification.userId,
       });
     } else {
-      res.status(401).json({
+      return res.status(401).json({
         success: false,
         message: 'Invalid token',
       });
     }
   } catch (error) {
     console.error('Token verification error:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Internal server error',
     });

@@ -9,25 +9,25 @@ import authRoutes from './routes/authRoutes';
 dotenv.config();
 
 const app = express();
-const port = process.env.PORT || 3001;
+const port = process.env['PORT'] || 3001;
 const prisma = new PrismaClient();
 
 // Middleware
 app.use(helmet());
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+    origin: process.env['CORS_ORIGIN'] || 'http://localhost:5173',
   })
 );
 app.use(express.json());
 
 // Health check endpoint
-app.get('/health', (req, res) => {
+app.get('/health', (_req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
 // API routes
-app.get('/api', (req, res) => {
+app.get('/api', (_req, res) => {
   res.json({ message: 'Welcome to polyglotio API' });
 });
 
@@ -38,9 +38,9 @@ app.use('/api/auth', authRoutes);
 app.use(
   (
     err: Error,
-    req: express.Request,
+    _req: express.Request,
     res: express.Response,
-    next: express.NextFunction
+    _next: express.NextFunction
   ) => {
     console.error(err.stack);
     res.status(500).json({ error: 'Something went wrong!' });
@@ -48,7 +48,7 @@ app.use(
 );
 
 // 404 handler
-app.use('*', (req, res) => {
+app.use('*', (_req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
 

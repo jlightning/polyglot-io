@@ -28,7 +28,7 @@ export interface AuthResponse {
   token?: string;
 }
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+const JWT_SECRET = process.env['JWT_SECRET'] || 'your-secret-key';
 const SALT_ROUNDS = 12;
 
 export class UserService {
