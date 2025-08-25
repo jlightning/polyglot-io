@@ -9,6 +9,7 @@ export interface CreateLessonData {
   languageCode: string;
   imageKey?: string;
   fileKey?: string;
+  audioKey?: string;
 }
 
 export interface LessonResponse {
@@ -20,6 +21,7 @@ export interface LessonResponse {
     languageCode: string;
     imageUrl?: string;
     fileUrl?: string;
+    audioUrl?: string;
     createdAt: Date;
   };
   lessons?: {
@@ -28,6 +30,7 @@ export interface LessonResponse {
     languageCode: string;
     imageUrl?: string;
     fileUrl?: string;
+    audioUrl?: string;
     createdAt: Date;
   }[];
 }
@@ -57,6 +60,7 @@ export class LessonService {
           language_code: lessonData.languageCode,
           image_s3_key: lessonData.imageKey || null,
           file_s3_key: lessonData.fileKey || null,
+          audio_s3_key: lessonData.audioKey || null,
         },
       });
 
@@ -69,6 +73,7 @@ export class LessonService {
           languageCode: lesson.language_code,
           ...(lesson.image_s3_key && { imageUrl: lesson.image_s3_key }),
           ...(lesson.file_s3_key && { fileUrl: lesson.file_s3_key }),
+          ...(lesson.audio_s3_key && { audioUrl: lesson.audio_s3_key }),
           createdAt: lesson.created_at,
         },
       };
@@ -99,6 +104,7 @@ export class LessonService {
         lessons.map(async (lesson: Lesson) => {
           let imageUrl = lesson.image_s3_key;
           let fileUrl = lesson.file_s3_key;
+          let audioUrl = lesson.audio_s3_key;
 
           // Generate signed URLs for S3 keys
           if (lesson.image_s3_key) {
@@ -119,12 +125,22 @@ export class LessonService {
             }
           }
 
+          if (lesson.audio_s3_key) {
+            try {
+              audioUrl = await S3Service.getDownloadUrl(lesson.audio_s3_key);
+            } catch (error) {
+              console.error('Error generating audio download URL:', error);
+              audioUrl = null;
+            }
+          }
+
           return {
             id: lesson.id,
             title: lesson.title,
             languageCode: lesson.language_code,
             ...(imageUrl && { imageUrl }),
             ...(fileUrl && { fileUrl }),
+            ...(audioUrl && { audioUrl }),
             createdAt: lesson.created_at,
           };
         })
@@ -174,6 +190,7 @@ export class LessonService {
         lessons.map(async (lesson: Lesson) => {
           let imageUrl = lesson.image_s3_key;
           let fileUrl = lesson.file_s3_key;
+          let audioUrl = lesson.audio_s3_key;
 
           if (lesson.image_s3_key) {
             try {
@@ -193,12 +210,22 @@ export class LessonService {
             }
           }
 
+          if (lesson.audio_s3_key) {
+            try {
+              audioUrl = await S3Service.getDownloadUrl(lesson.audio_s3_key);
+            } catch (error) {
+              console.error('Error generating audio download URL:', error);
+              audioUrl = null;
+            }
+          }
+
           return {
             id: lesson.id,
             title: lesson.title,
             languageCode: lesson.language_code,
             ...(imageUrl && { imageUrl }),
             ...(fileUrl && { fileUrl }),
+            ...(audioUrl && { audioUrl }),
             createdAt: lesson.created_at,
           };
         })
@@ -247,6 +274,9 @@ export class LessonService {
       }
       if (lesson.file_s3_key) {
         await S3Service.deleteFile(lesson.file_s3_key);
+      }
+      if (lesson.audio_s3_key) {
+        await S3Service.deleteFile(lesson.audio_s3_key);
       }
 
       // Delete lesson from database

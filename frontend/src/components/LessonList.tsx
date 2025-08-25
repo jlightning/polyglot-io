@@ -12,6 +12,7 @@ import {
 import { TrashIcon } from '@radix-ui/react-icons';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
+import AudioPlayer from './AudioPlayer';
 
 interface Lesson {
   id: number;
@@ -19,6 +20,7 @@ interface Lesson {
   languageCode: string;
   imageUrl?: string;
   fileUrl?: string;
+  audioUrl?: string;
   createdAt: string;
 }
 
@@ -151,7 +153,7 @@ const LessonList: React.FC<LessonListProps> = ({
                   {lesson.title}
                 </Text>
 
-                <Flex direction="column" gap="1">
+                <Flex direction="column" gap="2">
                   {lesson.imageUrl && (
                     <Flex align="center" gap="2">
                       <Text size="2" weight="medium">
@@ -182,6 +184,18 @@ const LessonList: React.FC<LessonListProps> = ({
                         <Text size="2">Download File</Text>
                       </a>
                     </Flex>
+                  )}
+
+                  {lesson.audioUrl && (
+                    <Box>
+                      <Text size="2" weight="medium" mb="2" as="div">
+                        Audio:
+                      </Text>
+                      <AudioPlayer
+                        audioUrl={lesson.audioUrl}
+                        title={`${lesson.title} - Audio`}
+                      />
+                    </Box>
                   )}
                 </Flex>
 

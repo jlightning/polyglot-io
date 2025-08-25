@@ -29,6 +29,7 @@ const LessonUpload: React.FC<LessonUploadProps> = ({
   );
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [lessonFile, setLessonFile] = useState<File | null>(null);
+  const [audioFile, setAudioFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -51,6 +52,9 @@ const LessonUpload: React.FC<LessonUploadProps> = ({
       '.gif': 'image/gif',
       '.webp': 'image/webp',
       '.svg': 'image/svg+xml',
+      '.mp3': 'audio/mpeg',
+      '.ogg': 'audio/ogg',
+      '.aac': 'audio/aac',
     };
 
     for (const [ext, mimeType] of Object.entries(extensionMap)) {
@@ -124,6 +128,36 @@ const LessonUpload: React.FC<LessonUploadProps> = ({
     }
   };
 
+  const handleAudioFileChange = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Validate file type using our helper function
+      const fileType = getFileType(file);
+      const validAudioTypes = [
+        'audio/mpeg', // .mp3 files
+        'audio/ogg', // .ogg files
+        'audio/aac', // .aac files
+      ];
+
+      if (!validAudioTypes.includes(fileType)) {
+        setError('Please select a valid audio file (MP3, OGG, or AAC)');
+        return;
+      }
+
+      // 50MB limit for audio files
+      const maxSize = 50 * 1024 * 1024; // 50MB
+      if (file.size > maxSize) {
+        setError('Audio file must be smaller than 50MB');
+        return;
+      }
+
+      setAudioFile(file);
+      setError(null);
+    }
+  };
+
   const uploadFileToS3 = async (file: File): Promise<string> => {
     // Step 1: Get upload URL from backend
     const fileType = getFileType(file);
@@ -163,8 +197,8 @@ const LessonUpload: React.FC<LessonUploadProps> = ({
       return;
     }
 
-    if (!imageFile && !lessonFile) {
-      setError('Please select at least one file to upload');
+    if (!lessonFile) {
+      setError('Please select a lesson file (required)');
       return;
     }
 
@@ -175,6 +209,7 @@ const LessonUpload: React.FC<LessonUploadProps> = ({
 
       let imageKey: string | undefined;
       let fileKey: string | undefined;
+      let audioKey: string | undefined;
 
       // Upload image to S3 if provided
       if (imageFile) {
@@ -187,13 +222,24 @@ const LessonUpload: React.FC<LessonUploadProps> = ({
         }
       }
 
-      // Upload lesson file to S3 if provided
+      // Upload lesson file to S3 (required)
       if (lessonFile) {
         try {
           fileKey = await uploadFileToS3(lessonFile);
         } catch (error) {
           throw new Error(
-            `Failed to upload file: ${error instanceof Error ? error.message : 'Unknown error'}`
+            `Failed to upload lesson file: ${error instanceof Error ? error.message : 'Unknown error'}`
+          );
+        }
+      }
+
+      // Upload audio file to S3 if provided
+      if (audioFile) {
+        try {
+          audioKey = await uploadFileToS3(audioFile);
+        } catch (error) {
+          throw new Error(
+            `Failed to upload audio: ${error instanceof Error ? error.message : 'Unknown error'}`
           );
         }
       }
@@ -204,6 +250,7 @@ const LessonUpload: React.FC<LessonUploadProps> = ({
         languageCode,
         imageKey,
         fileKey,
+        audioKey,
       });
 
       if (response.data.success) {
@@ -211,6 +258,7 @@ const LessonUpload: React.FC<LessonUploadProps> = ({
         setTitle('');
         setImageFile(null);
         setLessonFile(null);
+        setAudioFile(null);
 
         // Reset file inputs
         const imageInput = document.getElementById(
@@ -219,8 +267,12 @@ const LessonUpload: React.FC<LessonUploadProps> = ({
         const fileInput = document.getElementById(
           'file-upload'
         ) as HTMLInputElement;
+        const audioInput = document.getElementById(
+          'audio-upload'
+        ) as HTMLInputElement;
         if (imageInput) imageInput.value = '';
         if (fileInput) fileInput.value = '';
+        if (audioInput) audioInput.value = '';
 
         // Notify parent component to refresh lesson list
         onLessonUploaded();
@@ -326,7 +378,7 @@ const LessonUpload: React.FC<LessonUploadProps> = ({
           {/* Lesson File Upload */}
           <Box>
             <Text size="2" weight="medium" mb="2" as="div">
-              Lesson File (Optional) - Text or Subtitle files only
+              Lesson File (Required) - Text or Subtitle files only
             </Text>
             <input
               id="file-upload"
@@ -344,6 +396,31 @@ const LessonUpload: React.FC<LessonUploadProps> = ({
             {lessonFile && (
               <Text size="1" color="green" mt="1">
                 Selected: {lessonFile.name}
+              </Text>
+            )}
+          </Box>
+
+          {/* Audio File Upload */}
+          <Box>
+            <Text size="2" weight="medium" mb="2" as="div">
+              Audio File (Optional) - MP3, OGG, or AAC files
+            </Text>
+            <input
+              id="audio-upload"
+              type="file"
+              accept=".mp3,.ogg,.aac,audio/mpeg,audio/ogg,audio/aac"
+              onChange={handleAudioFileChange}
+              style={{
+                width: '100%',
+                padding: '8px',
+                border: '1px solid var(--gray-7)',
+                borderRadius: '4px',
+                fontSize: '14px',
+              }}
+            />
+            {audioFile && (
+              <Text size="1" color="green" mt="1">
+                Selected: {audioFile.name}
               </Text>
             )}
           </Box>
@@ -385,10 +462,7 @@ const LessonUpload: React.FC<LessonUploadProps> = ({
                 Cancel
               </Button>
             </Dialog.Close>
-            <Button
-              onClick={handleUpload}
-              disabled={uploading || (!imageFile && !lessonFile)}
-            >
+            <Button onClick={handleUpload} disabled={uploading || !lessonFile}>
               {uploading ? (
                 <>
                   <UploadIcon />

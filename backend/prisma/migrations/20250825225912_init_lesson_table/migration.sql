@@ -6,6 +6,7 @@ CREATE TABLE `lesson` (
     `language_code` VARCHAR(10) NOT NULL,
     `image_s3_key` VARCHAR(500) NULL,
     `file_s3_key` VARCHAR(500) NULL,
+    `audio_s3_key` VARCHAR(500) NULL,
     `created_at` TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0),
     `updated_at` TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0),
 

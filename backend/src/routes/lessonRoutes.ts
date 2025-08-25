@@ -6,7 +6,7 @@ const router = Router();
 // Create a new lesson
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const { title, languageCode, imageKey, fileKey } = req.body;
+    const { title, languageCode, imageKey, fileKey, audioKey } = req.body;
 
     if (!title || !languageCode) {
       return res.status(400).json({
@@ -15,11 +15,20 @@ router.post('/', async (req: Request, res: Response) => {
       });
     }
 
+    // Validate that at least fileKey is provided (lesson file is required)
+    if (!fileKey) {
+      return res.status(400).json({
+        success: false,
+        message: 'Lesson file is required',
+      });
+    }
+
     const result = await LessonService.createLesson(req.userId!, {
       title,
       languageCode,
       imageKey,
       fileKey,
+      audioKey,
     });
 
     if (result.success) {

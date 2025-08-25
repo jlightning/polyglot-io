@@ -15,7 +15,7 @@ router.post('/upload-file', async (req: Request, res: Response) => {
       });
     }
 
-    // Validate file type - only images, text files, and SRT files allowed
+    // Validate file type - images, text files, SRT files, and audio files allowed
     const allowedTypes = [
       // Images
       'image/jpeg',
@@ -27,12 +27,17 @@ router.post('/upload-file', async (req: Request, res: Response) => {
       // Lesson files - only text and subtitles
       'text/plain', // .txt files
       'application/x-subrip', // .srt files
+
+      // Audio files
+      'audio/mpeg', // .mp3 files
+      'audio/ogg', // .ogg files
+      'audio/aac', // .aac files
     ];
 
     if (!allowedTypes.includes(fileType)) {
       return res.status(400).json({
         success: false,
-        message: `Unsupported file type: ${fileType}. Only images (JPEG, PNG, GIF, WebP, SVG) and lesson files (TXT, SRT) are allowed.`,
+        message: `Unsupported file type: ${fileType}. Only images (JPEG, PNG, GIF, WebP, SVG), lesson files (TXT, SRT), and audio files (MP3, OGG, AAC) are allowed.`,
         allowedTypes,
       });
     }
@@ -46,6 +51,8 @@ router.post('/upload-file', async (req: Request, res: Response) => {
       fileType === 'application/x-subrip'
     ) {
       maxSize = 5 * 1024 * 1024; // 5MB for text and subtitle files
+    } else if (fileType.startsWith('audio/')) {
+      maxSize = 50 * 1024 * 1024; // 50MB for audio files
     } else {
       maxSize = 5 * 1024 * 1024; // 5MB default
     }
