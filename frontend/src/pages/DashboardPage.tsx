@@ -11,11 +11,11 @@ import {
 } from '@radix-ui/themes';
 import { ExitIcon } from '@radix-ui/react-icons';
 import { useAuth } from '../contexts/AuthContext';
-import LanguageSwitcher from './LanguageSwitcher';
-import LessonList from './LessonList';
-import LessonUpload from './LessonUpload';
+import LanguageSwitcher from '../components/LanguageSwitcher';
+import LessonList from '../components/LessonList';
+import LessonUpload from '../components/LessonUpload';
 
-const Dashboard: React.FC = () => {
+const DashboardPage: React.FC = () => {
   const { user, logout } = useAuth();
   const [selectedLanguage, setSelectedLanguage] = useState<string>('all');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -103,4 +103,4 @@ const Dashboard: React.FC = () => {
   );
 };
 
-export default Dashboard;
+export default DashboardPage;

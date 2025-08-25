@@ -5,7 +5,7 @@ import * as Tabs from '@radix-ui/react-tabs';
 import { Card, Button, Text, Heading, TextField } from '@radix-ui/themes';
 import { useAuth } from '../contexts/AuthContext';
 
-const AuthForm: React.FC = () => {
+const AuthPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<{
     text: string;
@@ -295,4 +295,4 @@ const AuthForm: React.FC = () => {
   );
 };
 
-export default AuthForm;
+export default AuthPage;
