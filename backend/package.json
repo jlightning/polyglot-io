@@ -8,9 +8,8 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate dev",
-    "db:seed": "tsx src/seed.ts",
-    "db:studio": "prisma studio",
+    "db:migrate": "prisma migrate dev --create-only",
+    "db:migrate:deploy": "prisma migrate deploy",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {

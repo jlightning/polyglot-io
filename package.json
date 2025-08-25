@@ -17,9 +17,13 @@
     "db:seed": "yarn workspace backend db:seed",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "commitlint": "commitlint --edit",
+    "commitlint:check": "commitlint --from HEAD~1 --to HEAD --verbose",
     "prepare": "husky install"
   },
   "devDependencies": {
+    "@commitlint/cli": "^19.8.1",
+    "@commitlint/config-conventional": "^19.8.1",
     "concurrently": "^8.2.2",
     "husky": "^8.0.3",
     "lint-staged": "^13.3.0",
