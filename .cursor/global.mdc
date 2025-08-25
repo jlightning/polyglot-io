@@ -1,0 +1,6 @@
+---
+alwaysApply: true
+---
+# Package manager
+- This project use Yarn workspace. ALWAYS use `yarn` instead of `npm`
+- when using `cd` command, always use it with absolute path

@@ -1,0 +1,15 @@
+node_modules
+dist
+build
+coverage
+*.min.js
+*.min.css
+.env
+.env.local
+.env.production
+.env.test
+docker-compose.yml
+Dockerfile
+*.log
+yarn.lock
+package-lock.json

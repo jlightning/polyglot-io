@@ -1,0 +1,5 @@
+---
+globs: *.ts,*.tsx
+alwaysApply: false
+---
+- DO NOT use `any` type
