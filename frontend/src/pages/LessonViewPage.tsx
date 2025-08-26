@@ -32,7 +32,7 @@ interface Lesson {
   totalSentences: number;
 }
 
-const SENTENCES_PER_PAGE = 10;
+const SENTENCES_PER_PAGE = 5;
 
 const LessonViewPage: React.FC = () => {
   const { lessonId } = useParams<{ lessonId: string }>();
