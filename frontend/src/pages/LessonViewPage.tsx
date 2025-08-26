@@ -14,7 +14,9 @@ import {
 } from '@radix-ui/themes';
 import { ChevronLeftIcon, ChevronRightIcon } from '@radix-ui/react-icons';
 import { useAuth } from '../contexts/AuthContext';
+import { useWordMark } from '../contexts/WordMarkContext';
 import WordSidebar from '../components/WordSidebar';
+import { getDifficultyStyles } from '../constants/difficultyColors';
 import axios from 'axios';
 
 interface WordTranslation {
@@ -52,6 +54,7 @@ const LessonViewPage: React.FC = () => {
   const { lessonId } = useParams<{ lessonId: string }>();
   const navigate = useNavigate();
   const { axiosInstance, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { getWordMark, addWords } = useWordMark();
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -93,7 +96,21 @@ const LessonViewPage: React.FC = () => {
         );
 
         if (response.data.success) {
-          setLesson(response.data.lesson);
+          const lessonData = response.data.lesson;
+          setLesson(lessonData);
+
+          // Collect all unique words from the lesson sentences
+          const allWords = new Set<string>();
+          lessonData.sentences.forEach((sentence: Sentence) => {
+            if (sentence.split_text) {
+              sentence.split_text.forEach((word: string) => allWords.add(word));
+            }
+          });
+
+          // Add words to context - it will automatically fetch marks for unfetched words
+          if (allWords.size > 0 && lessonData.languageCode) {
+            await addWords(Array.from(allWords), lessonData.languageCode);
+          }
         } else {
           setError(response.data.message || 'Failed to load lesson');
         }
@@ -285,27 +302,34 @@ const LessonViewPage: React.FC = () => {
                       Word breakdown:
                     </Text>
                     <Flex gap="2" wrap="wrap">
-                      {sentence.split_text.map((word, wordIndex) => (
-                        <Badge
-                          key={wordIndex}
-                          variant="soft"
-                          size="2"
-                          style={{
-                            cursor: 'pointer',
-                            transition: 'all 0.2s ease',
-                          }}
-                          className="word-badge"
-                          onClick={() =>
-                            handleWordClick(
-                              word,
-                              sentence.word_translations || null,
-                              sentence.word_pronunciations || null
-                            )
-                          }
-                        >
-                          {word}
-                        </Badge>
-                      ))}
+                      {sentence.split_text.map((word, wordIndex) => {
+                        const wordMark = getWordMark(word);
+                        return (
+                          <Badge
+                            key={wordIndex}
+                            variant="soft"
+                            size="2"
+                            style={{
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease',
+                              color: 'white',
+                              ...(wordMark !== undefined
+                                ? getDifficultyStyles(wordMark)
+                                : { border: '2px solid transparent' }),
+                            }}
+                            className="word-badge"
+                            onClick={() =>
+                              handleWordClick(
+                                word,
+                                sentence.word_translations || null,
+                                sentence.word_pronunciations || null
+                              )
+                            }
+                          >
+                            {word}
+                          </Badge>
+                        );
+                      })}
                     </Flex>
                   </Box>
                 )}
@@ -317,6 +341,11 @@ const LessonViewPage: React.FC = () => {
                     size="2"
                     onClick={() => toggleTranslation(sentence.id)}
                     disabled={loadingTranslations[sentence.id]}
+                    style={{
+                      cursor: loadingTranslations[sentence.id]
+                        ? 'not-allowed'
+                        : 'pointer',
+                    }}
                   >
                     {loadingTranslations[sentence.id]
                       ? 'Loading translation...'
@@ -384,6 +413,7 @@ const LessonViewPage: React.FC = () => {
         selectedWord={selectedWord}
         wordTranslations={currentWordTranslations}
         wordPronunciations={currentWordPronunciations}
+        languageCode={lesson?.languageCode}
       />
     </Container>
   );

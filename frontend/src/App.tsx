@@ -7,6 +7,7 @@ import {
 } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LanguageProvider } from './contexts/LanguageContext';
+import { WordMarkProvider } from './contexts/WordMarkContext';
 import { AuthPage, LessonPage, LessonViewPage } from './pages';
 import { Flex, Text } from '@radix-ui/themes';
 import Sidebar from './components/Sidebar';
@@ -33,18 +34,20 @@ const AppContent: React.FC = () => {
 
   return (
     <LanguageProvider>
-      <Router>
-        <Flex style={{ minHeight: '100vh' }}>
-          <Sidebar />
-          <Flex style={{ flex: 1 }}>
-            <Routes>
-              <Route path="/" element={<Navigate to="/lessons" replace />} />
-              <Route path="/lessons" element={<LessonPage />} />
-              <Route path="/lessons/:lessonId" element={<LessonViewPage />} />
-            </Routes>
+      <WordMarkProvider>
+        <Router>
+          <Flex style={{ minHeight: '100vh' }}>
+            <Sidebar />
+            <Flex style={{ flex: 1 }}>
+              <Routes>
+                <Route path="/" element={<Navigate to="/lessons" replace />} />
+                <Route path="/lessons" element={<LessonPage />} />
+                <Route path="/lessons/:lessonId" element={<LessonViewPage />} />
+              </Routes>
+            </Flex>
           </Flex>
-        </Flex>
-      </Router>
+        </Router>
+      </WordMarkProvider>
     </LanguageProvider>
   );
 };

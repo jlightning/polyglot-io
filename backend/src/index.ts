@@ -7,6 +7,7 @@ import authRoutes from './routes/authRoutes';
 import configRoutes from './routes/configRoutes';
 import lessonRoutes from './routes/lessonRoutes';
 import s3Routes from './routes/s3Routes';
+import wordRoutes from './routes/wordRoutes';
 import { S3Service } from './services/s3Service';
 import { authenticateToken } from './middleware/auth';
 
@@ -52,6 +53,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/config', authenticateToken, configRoutes);
 app.use('/api/lessons', authenticateToken, lessonRoutes);
 app.use('/api/s3', authenticateToken, s3Routes);
+app.use('/api/words', authenticateToken, wordRoutes);
 
 // Error handling middleware
 app.use(
