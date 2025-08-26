@@ -37,7 +37,23 @@ model Lesson {
   created_at    DateTime @default(now()) @db.Timestamp(0)
   updated_at    DateTime @default(now()) @updatedAt @db.Timestamp(0)
 
-  user User @relation(fields: [created_by], references: [id])
+  user      User       @relation(fields: [created_by], references: [id])
+  sentences Sentence[]
 
   @@map("lesson")
+}
+
+model Sentence {
+  id            Int       @id @default(autoincrement())
+  lesson_id     Int
+  original_text String    @db.Text
+  split_text    Json?
+  start_time    Decimal?  @db.Decimal(10, 3)
+  end_time      Decimal?  @db.Decimal(10, 3)
+  created_at    DateTime  @default(now()) @db.Timestamp(0)
+  updated_at    DateTime  @default(now()) @updatedAt @db.Timestamp(0)
+
+  lesson Lesson @relation(fields: [lesson_id], references: [id])
+
+  @@map("sentence")
 }

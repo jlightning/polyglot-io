@@ -78,6 +78,35 @@ export class S3Service {
   }
 
   /**
+   * Get file content from S3
+   */
+  static async getFileContent(key: string): Promise<string> {
+    if (!this.s3Client) {
+      this.initialize();
+    }
+
+    try {
+      const command = new GetObjectCommand({
+        Bucket: this.bucketName,
+        Key: key,
+      });
+
+      const response = await this.s3Client.send(command);
+
+      if (!response.Body) {
+        throw new Error('File content is empty');
+      }
+
+      // Convert the stream to string
+      const content = await response.Body.transformToString();
+      return content;
+    } catch (error) {
+      console.error('Error getting file content from S3:', error);
+      throw new Error('Failed to download file content from S3');
+    }
+  }
+
+  /**
    * Delete a file from S3
    */
   static async deleteFile(key: string): Promise<boolean> {

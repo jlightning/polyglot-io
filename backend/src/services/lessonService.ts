@@ -1,6 +1,7 @@
-import { PrismaClient, Lesson } from '@prisma/client';
+import { PrismaClient, Lesson, Prisma } from '@prisma/client';
 import { ConfigService } from './configService';
 import { S3Service } from './s3Service';
+import { TextProcessingService } from './textProcessingService';
 
 const prisma = new PrismaClient();
 
@@ -37,7 +38,7 @@ export interface LessonResponse {
 
 export class LessonService {
   /**
-   * Create a new lesson with optional URLs
+   * Create a new lesson with optional URLs and process lesson file
    */
   static async createLesson(
     userId: number,
@@ -64,6 +65,20 @@ export class LessonService {
         },
       });
 
+      // Process lesson file if provided
+      if (lessonData.fileKey) {
+        try {
+          await this.processLessonFile(lesson.id, lessonData.fileKey);
+        } catch (error) {
+          console.error('Error processing lesson file:', error);
+          // Note: We don't fail the lesson creation if file processing fails
+          // The lesson is still created, but without sentences
+          console.warn(
+            `Lesson ${lesson.id} created but file processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+          );
+        }
+      }
+
       return {
         success: true,
         message: 'Lesson created successfully',
@@ -83,6 +98,57 @@ export class LessonService {
         success: false,
         message: 'Failed to create lesson',
       };
+    }
+  }
+
+  /**
+   * Process a lesson file (SRT or TXT) and create sentence records
+   */
+  private static async processLessonFile(
+    lessonId: number,
+    fileKey: string
+  ): Promise<void> {
+    try {
+      // Download file content from S3
+      const fileContent = await S3Service.getFileContent(fileKey);
+
+      if (!fileContent || fileContent.trim().length === 0) {
+        throw new Error('File content is empty');
+      }
+
+      // Extract filename from S3 key for file type detection
+      const fileName = fileKey.split('/').pop() || '';
+
+      // Process the file content to extract sentences
+      const processedSentences = TextProcessingService.processLessonFile(
+        fileContent,
+        fileName
+      );
+
+      if (processedSentences.length === 0) {
+        throw new Error('No sentences found in the file');
+      }
+
+      // Create sentence records in database
+      const sentenceData = processedSentences.map(sentence => ({
+        lesson_id: lessonId,
+        original_text: sentence.text,
+        split_text: Prisma.JsonNull, // Keep null as requested using Prisma.JsonNull
+        start_time: sentence.startTime ? sentence.startTime / 1000 : null, // Convert milliseconds to seconds for Decimal
+        end_time: sentence.endTime ? sentence.endTime / 1000 : null, // Convert milliseconds to seconds for Decimal
+      }));
+
+      // Create sentence records in database
+      await prisma.sentence.createMany({
+        data: sentenceData,
+      });
+
+      console.log(
+        `Successfully processed ${processedSentences.length} sentences for lesson ${lessonId}`
+      );
+    } catch (error) {
+      console.error('Error in processLessonFile:', error);
+      throw error;
     }
   }
 
@@ -246,7 +312,7 @@ export class LessonService {
   }
 
   /**
-   * Delete a lesson
+   * Delete a lesson with all associated sentences and S3 files
    */
   static async deleteLesson(
     userId: number,
@@ -268,27 +334,50 @@ export class LessonService {
         };
       }
 
-      // Delete files from S3 if they exist
-      if (lesson.image_s3_key) {
-        await S3Service.deleteFile(lesson.image_s3_key);
-      }
-      if (lesson.file_s3_key) {
-        await S3Service.deleteFile(lesson.file_s3_key);
-      }
-      if (lesson.audio_s3_key) {
-        await S3Service.deleteFile(lesson.audio_s3_key);
-      }
+      // Store S3 keys for deletion after database operations
+      const s3KeysToDelete = {
+        imageKey: lesson.image_s3_key,
+        fileKey: lesson.file_s3_key,
+        audioKey: lesson.audio_s3_key,
+      };
 
-      // Delete lesson from database
-      await prisma.lesson.delete({
-        where: {
-          id: lessonId,
-        },
+      // Delete lesson and all associated sentences in a transaction
+      await prisma.$transaction(async tx => {
+        // First, delete all sentences associated with the lesson
+        await tx.sentence.deleteMany({
+          where: {
+            lesson_id: lessonId,
+          },
+        });
+
+        // Then delete the lesson itself
+        await tx.lesson.delete({
+          where: {
+            id: lessonId,
+          },
+        });
       });
+
+      await Promise.all(
+        [
+          s3KeysToDelete.imageKey &&
+            S3Service.deleteFile(s3KeysToDelete.imageKey).catch(error => {
+              console.error('Error deleting image from S3:', error);
+            }),
+          s3KeysToDelete.fileKey &&
+            S3Service.deleteFile(s3KeysToDelete.fileKey).catch(error => {
+              console.error('Error deleting file from S3:', error);
+            }),
+          s3KeysToDelete.audioKey &&
+            S3Service.deleteFile(s3KeysToDelete.audioKey).catch(error => {
+              console.error('Error deleting audio from S3:', error);
+            }),
+        ].filter(Boolean)
+      );
 
       return {
         success: true,
-        message: 'Lesson deleted successfully',
+        message: 'Lesson and all associated data deleted successfully',
       };
     } catch (error) {
       console.error('Delete lesson error:', error);
