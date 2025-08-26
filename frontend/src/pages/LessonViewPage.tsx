@@ -52,6 +52,86 @@ const SENTENCES_PER_PAGE = 5;
 
 const LessonViewPage: React.FC = () => {
   const { lessonId } = useParams<{ lessonId: string }>();
+
+  // Function to reconstruct sentence with word breakdown while preserving punctuation
+  const reconstructSentenceWithWords = (sentence: Sentence) => {
+    const {
+      original_text: originalText,
+      split_text: splitWords,
+      word_translations,
+      word_pronunciations,
+    } = sentence;
+
+    if (!splitWords || splitWords.length === 0) {
+      return null;
+    }
+
+    // Helper function to create a word badge
+    const createWordBadge = (word: string, index: number) => {
+      const wordMark = getWordMark(word);
+      return (
+        <Badge
+          key={index}
+          variant="soft"
+          size="2"
+          style={{
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            color: 'white',
+            margin: '0',
+            padding: '2px 0',
+            fontSize: '18px',
+            ...(wordMark !== undefined
+              ? getDifficultyStyles(wordMark)
+              : { border: '1px solid transparent' }),
+          }}
+          className="word-badge"
+          onClick={() =>
+            handleWordClick(
+              word,
+              word_translations || null,
+              word_pronunciations || null
+            )
+          }
+        >
+          {word}
+        </Badge>
+      );
+    };
+
+    const elements: (string | JSX.Element)[] = [];
+    let currentIndex = 0;
+    let wordIndex = 0;
+
+    // For each word in splitWords, find it in the original text and replace with clickable badge
+    for (const word of splitWords) {
+      // Find the next occurrence of this word starting from currentIndex
+      const wordStartIndex = originalText.indexOf(word, currentIndex);
+
+      if (wordStartIndex !== -1) {
+        // Add any text/punctuation/spaces before this word
+        if (wordStartIndex > currentIndex) {
+          const beforeWord = originalText.slice(currentIndex, wordStartIndex);
+          elements.push(beforeWord);
+        }
+
+        // Move currentIndex to after this word
+        currentIndex = wordStartIndex + word.length;
+      }
+
+      // Add the clickable word badge (whether found in original text or not)
+      elements.push(createWordBadge(word, wordIndex));
+      wordIndex++;
+    }
+
+    // Add any remaining text/punctuation after the last word
+    if (currentIndex < originalText.length) {
+      elements.push(originalText.slice(currentIndex));
+    }
+
+    return elements;
+  };
+
   const navigate = useNavigate();
   const { axiosInstance, isAuthenticated, isLoading: authLoading } = useAuth();
   const { getWordMark, addWords } = useWordMark();
@@ -284,47 +364,17 @@ const LessonViewPage: React.FC = () => {
                   )}
                 </Flex>
 
-                <Text size="4" style={{ lineHeight: '1.6' }}>
-                  {sentence.original_text}
-                </Text>
-
-                {sentence.split_text && sentence.split_text.length > 0 && (
-                  <Box>
-                    <Text size="2" color="gray" mb="2">
-                      Word breakdown:
+                <Box
+                  style={{ lineHeight: '1.6', fontSize: 'var(--font-size-4)' }}
+                >
+                  {sentence.split_text && sentence.split_text.length > 0 ? (
+                    reconstructSentenceWithWords(sentence)
+                  ) : (
+                    <Text size="4" style={{ lineHeight: '1.6' }}>
+                      {sentence.original_text}
                     </Text>
-                    <Flex gap="2" wrap="wrap">
-                      {sentence.split_text.map((word, wordIndex) => {
-                        const wordMark = getWordMark(word);
-                        return (
-                          <Badge
-                            key={wordIndex}
-                            variant="soft"
-                            size="2"
-                            style={{
-                              cursor: 'pointer',
-                              transition: 'all 0.2s ease',
-                              color: 'white',
-                              ...(wordMark !== undefined
-                                ? getDifficultyStyles(wordMark)
-                                : { border: '2px solid transparent' }),
-                            }}
-                            className="word-badge"
-                            onClick={() =>
-                              handleWordClick(
-                                word,
-                                sentence.word_translations || null,
-                                sentence.word_pronunciations || null
-                              )
-                            }
-                          >
-                            {word}
-                          </Badge>
-                        );
-                      })}
-                    </Flex>
-                  </Box>
-                )}
+                  )}
+                </Box>
 
                 {/* Translation Section */}
                 <Box>
