@@ -44,16 +44,43 @@ model Lesson {
 }
 
 model Sentence {
-  id            Int       @id @default(autoincrement())
+  id            Int      @id @default(autoincrement())
   lesson_id     Int
-  original_text String    @db.Text
+  original_text String   @db.Text
   split_text    Json?
-  start_time    Decimal?  @db.Decimal(10, 3)
-  end_time      Decimal?  @db.Decimal(10, 3)
-  created_at    DateTime  @default(now()) @db.Timestamp(0)
-  updated_at    DateTime  @default(now()) @updatedAt @db.Timestamp(0)
+  start_time    Decimal? @db.Decimal(10, 3)
+  end_time      Decimal? @db.Decimal(10, 3)
+  created_at    DateTime @default(now()) @db.Timestamp(0)
+  updated_at    DateTime @default(now()) @updatedAt @db.Timestamp(0)
 
   lesson Lesson @relation(fields: [lesson_id], references: [id])
 
   @@map("sentence")
+}
+
+model Word {
+  id            Int      @id @default(autoincrement())
+  word          String   @db.VarChar(255)
+  language_code String   @db.VarChar(10)
+  created_at    DateTime @default(now()) @db.Timestamp(0)
+  updated_at    DateTime @default(now()) @updatedAt @db.Timestamp(0)
+
+  wordTranslations WordTranslation[]
+
+  @@map("word")
+  @@unique([word, language_code])
+}
+
+model WordTranslation {
+  id            Int      @id @default(autoincrement())
+  word_id       Int
+  language_code String   @db.VarChar(10)
+  translation   String
+  created_at    DateTime @default(now()) @db.Timestamp(0)
+  updated_at    DateTime @default(now()) @updatedAt @db.Timestamp(0)
+
+  word Word @relation(fields: [word_id], references: [id])
+
+  @@map("word_translation")
+  @@unique([word_id, language_code, translation])
 }

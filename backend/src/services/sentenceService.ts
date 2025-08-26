@@ -29,6 +29,66 @@ export class SentenceService {
   private static openAIService = new OpenAIService();
 
   /**
+   * Store words and their translations in the database using upsert operations
+   * @param words - Array of word translation objects from OpenAI
+   * @param sourceLanguage - The source language code
+   * @param targetLanguage - The target language code (default: 'en')
+   */
+  private static async storeWordTranslations(
+    words: Array<{ word: string; translation: string; partOfSpeech?: string }>,
+    sourceLanguage: string,
+    targetLanguage: string = 'en'
+  ): Promise<void> {
+    try {
+      for (const wordObj of words) {
+        // Trim whitespace from word and translation
+        const trimmedWord = wordObj.word?.trim();
+        const trimmedTranslation = wordObj.translation?.trim();
+
+        // Skip empty words after trimming
+        if (!trimmedWord || !trimmedTranslation) {
+          continue;
+        }
+
+        // Upsert the word in the source language
+        const word = await prisma.word.upsert({
+          where: {
+            word_language_code: {
+              word: trimmedWord,
+              language_code: sourceLanguage,
+            },
+          },
+          update: {},
+          create: {
+            word: trimmedWord,
+            language_code: sourceLanguage,
+          },
+        });
+
+        // Upsert the translation
+        await prisma.wordTranslation.upsert({
+          where: {
+            word_id_language_code_translation: {
+              word_id: word.id,
+              language_code: targetLanguage,
+              translation: trimmedTranslation,
+            },
+          },
+          update: {},
+          create: {
+            word_id: word.id,
+            language_code: targetLanguage,
+            translation: trimmedTranslation,
+          },
+        });
+      }
+    } catch (error) {
+      // Log error but don't throw - we don't want word storage to break sentence processing
+      console.error('Error storing word translations:', error);
+    }
+  }
+
+  /**
    * Process multiple sentences to ensure split_text is populated for all
    * @param sentences - Array of sentence data from database
    * @param languageCode - Language code for OpenAI processing
@@ -112,16 +172,18 @@ export class SentenceService {
             // Extract just the words (not translations) for split_text
             const splitText = analysis.words.map(wordObj => wordObj.word);
 
+            // Store words and translations in the database
+            await this.storeWordTranslations(
+              analysis.words,
+              languageCode,
+              'en' // Target language is English
+            );
+
             // Update the database with the split_text
             await prisma.sentence.update({
               where: { id: sentence.id },
               data: { split_text: splitText },
             });
-
-            console.log(
-              `Updated sentence ${sentence.id} with split_text:`,
-              splitText
-            );
 
             return {
               id: sentence.id,
