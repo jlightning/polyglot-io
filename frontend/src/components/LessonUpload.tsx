@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Text,
@@ -11,21 +11,23 @@ import {
 import { PlusIcon, UploadIcon } from '@radix-ui/react-icons';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface LessonUploadProps {
-  selectedLanguage: string;
   onLessonUploaded: () => void;
 }
 
-const LessonUpload: React.FC<LessonUploadProps> = ({
-  selectedLanguage,
-  onLessonUploaded,
-}) => {
+const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
+  const { selectedLanguage, languages } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [title, setTitle] = useState('');
   const [languageCode, setLanguageCode] = useState(
-    selectedLanguage !== 'all' ? selectedLanguage : 'ja'
+    selectedLanguage !== 'all'
+      ? selectedLanguage
+      : languages.length > 0
+        ? languages[0]?.code || 'ja'
+        : 'ja'
   );
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [lessonFile, setLessonFile] = useState<File | null>(null);
@@ -34,6 +36,15 @@ const LessonUpload: React.FC<LessonUploadProps> = ({
   const [success, setSuccess] = useState<string | null>(null);
 
   const { axiosInstance } = useAuth();
+
+  // Update languageCode when selectedLanguage changes
+  useEffect(() => {
+    if (selectedLanguage !== 'all') {
+      setLanguageCode(selectedLanguage);
+    } else if (languages.length > 0 && languages[0]) {
+      setLanguageCode(languages[0].code);
+    }
+  }, [selectedLanguage, languages]);
 
   const getFileType = (file: File): string => {
     // If the browser provided a MIME type, use it
@@ -343,8 +354,14 @@ const LessonUpload: React.FC<LessonUploadProps> = ({
               <Select.Trigger placeholder="Select language" />
               <Select.Content>
                 <Select.Group>
-                  <Select.Item value="ja">🇯🇵 Japanese</Select.Item>
-                  <Select.Item value="ko">🇰🇷 Korean</Select.Item>
+                  {languages.map(language => (
+                    <Select.Item key={language.code} value={language.code}>
+                      {language.localName &&
+                      language.localName !== language.name
+                        ? `${language.localName} (${language.name})`
+                        : language.name}
+                    </Select.Item>
+                  ))}
                 </Select.Group>
               </Select.Content>
             </Select.Root>

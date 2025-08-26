@@ -1,7 +1,9 @@
 import React from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { AuthPage, DashboardPage } from './pages';
+import { LanguageProvider } from './contexts/LanguageContext';
+import { AuthPage, LessonPage } from './pages';
 import { Flex, Text } from '@radix-ui/themes';
+import Sidebar from './components/Sidebar';
 
 const AppContent: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -19,7 +21,20 @@ const AppContent: React.FC = () => {
     );
   }
 
-  return isAuthenticated ? <DashboardPage /> : <AuthPage />;
+  if (!isAuthenticated) {
+    return <AuthPage />;
+  }
+
+  return (
+    <LanguageProvider>
+      <Flex style={{ minHeight: '100vh' }}>
+        <Sidebar />
+        <Flex style={{ flex: 1 }}>
+          <LessonPage />
+        </Flex>
+      </Flex>
+    </LanguageProvider>
+  );
 };
 
 function App() {

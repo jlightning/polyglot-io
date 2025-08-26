@@ -1,57 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { Select, Text, Flex } from '@radix-ui/themes';
-import { useAuth } from '../contexts/AuthContext';
+import React from 'react';
+import { Select, Text, Flex, Button } from '@radix-ui/themes';
+import { useLanguage } from '../contexts/LanguageContext';
 
-interface Language {
-  code: string;
-  name: string;
-  localName?: string;
-  tag: string;
-  enabled: boolean;
-}
-
-interface LanguageSwitcherProps {
-  selectedLanguage: string;
-  onLanguageChange: (languageCode: string) => void;
-}
-
-const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({
-  selectedLanguage,
-  onLanguageChange,
-}) => {
-  const [languages, setLanguages] = useState<Language[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const { axiosInstance, isAuthenticated } = useAuth();
-
-  useEffect(() => {
-    const fetchLanguages = async () => {
-      try {
-        setLoading(true);
-        const response = await axiosInstance.get('/api/config/languages');
-
-        if (response.data.success) {
-          setLanguages(response.data.languages);
-          setError(null);
-        } else {
-          setError('Failed to load languages');
-        }
-      } catch (err) {
-        console.error('Error fetching languages:', err);
-        setError('Failed to load languages');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (isAuthenticated) {
-      fetchLanguages();
-    }
-  }, [isAuthenticated]);
+const LanguageSwitcher: React.FC = () => {
+  const { selectedLanguage, setSelectedLanguage, languages, loading, error } =
+    useLanguage();
 
   if (loading) {
     return (
-      <Flex align="center" gap="2">
+      <Flex direction="column" gap="2">
         <Text size="2" color="gray">
           Loading languages...
         </Text>
@@ -61,7 +18,7 @@ const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({
 
   if (error) {
     return (
-      <Flex align="center" gap="2">
+      <Flex direction="column" gap="2">
         <Text size="2" color="red">
           {error}
         </Text>
@@ -71,7 +28,7 @@ const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({
 
   if (languages.length === 0) {
     return (
-      <Flex align="center" gap="2">
+      <Flex direction="column" gap="2">
         <Text size="2" color="gray">
           No languages available
         </Text>
@@ -80,14 +37,14 @@ const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({
   }
 
   return (
-    <Flex align="center" gap="2">
-      <Text size="2" weight="medium">
-        Language:
-      </Text>
-      <Select.Root value={selectedLanguage} onValueChange={onLanguageChange}>
+    <Flex direction="column" gap="2">
+      <Select.Root value={selectedLanguage} onValueChange={setSelectedLanguage}>
         <Select.Trigger placeholder="Select language" />
         <Select.Content>
           <Select.Group>
+            <Select.Item value="all">
+              <Text>All Languages</Text>
+            </Select.Item>
             {languages.map(language => (
               <Select.Item key={language.code} value={language.code}>
                 <Flex align="center" gap="2">
@@ -102,6 +59,16 @@ const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({
           </Select.Group>
         </Select.Content>
       </Select.Root>
+
+      {selectedLanguage !== 'all' && (
+        <Button
+          variant="soft"
+          size="1"
+          onClick={() => setSelectedLanguage('all')}
+        >
+          Show All Languages
+        </Button>
+      )}
     </Flex>
   );
 };
