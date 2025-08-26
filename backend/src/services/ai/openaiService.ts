@@ -244,4 +244,94 @@ export class OpenAIService {
 
     return results;
   }
+
+  /**
+   * Translate a sentence to English with context from surrounding sentences
+   * @param targetSentence - The sentence to translate
+   * @param contextSentences - Array of surrounding sentences for context (previous 3 + next 3)
+   * @param sourceLanguage - The source language of the sentences
+   * @returns Promise<string> - The English translation
+   */
+  async translateSentenceWithContext(
+    targetSentence: string,
+    contextSentences: string[],
+    sourceLanguage: string
+  ): Promise<string> {
+    try {
+      if (!targetSentence || targetSentence.trim().length === 0) {
+        throw new Error('Target sentence cannot be empty');
+      }
+
+      const systemPrompt = [
+        'You are a professional translator that provides accurate and contextually appropriate English translations.',
+        '',
+        `The text is in ${sourceLanguage}.`,
+        '',
+        'Your task is to:',
+        '1. Translate the target sentence to natural, fluent English',
+        '2. Use the surrounding sentences as context to ensure the translation fits appropriately',
+        '3. Maintain the tone and style of the original text',
+        '4. Provide only the translation without any additional explanation or formatting',
+        '',
+        'Guidelines:',
+        '- Consider the context provided by surrounding sentences',
+        '- Use natural English that flows well',
+        '- Maintain any cultural or contextual nuances where appropriate',
+        '- Keep the same level of formality as the original',
+      ].join('\n');
+
+      let userPrompt = `Context sentences:\n${contextSentences.join('\n')}\n\nTarget sentence to translate: "${targetSentence}"\n\nProvide only the English translation:`;
+
+      const completion = await this.client.chat.completions.create({
+        model: OPENAI_MODEL,
+        messages: [
+          {
+            role: 'system',
+            content: systemPrompt,
+          },
+          {
+            role: 'user',
+            content: userPrompt,
+          },
+        ],
+        temperature: 0.3, // Slightly higher for more natural translations
+        max_tokens: 500, // Reasonable limit for sentence translations
+      });
+
+      const responseContent = completion.choices[0]?.message?.content;
+
+      if (!responseContent) {
+        throw new Error('No translation received from OpenAI');
+      }
+
+      // Clean up the response (remove quotes if present and trim)
+      const translation = responseContent.trim().replace(/^["']|["']$/g, '');
+
+      return translation;
+    } catch (error) {
+      console.error('Error in translateSentenceWithContext:', error);
+
+      if (error instanceof Error) {
+        // Re-throw known errors
+        if (
+          error.message.includes('OPENAI_API_KEY') ||
+          error.message.includes('Target sentence cannot be empty') ||
+          error.message.includes('No translation received')
+        ) {
+          throw error;
+        }
+      }
+
+      // Handle OpenAI API errors
+      if (error && typeof error === 'object' && 'error' in error) {
+        const openaiError = error as {
+          error: { message: string; type: string };
+        };
+        throw new Error(`OpenAI API error: ${openaiError.error.message}`);
+      }
+
+      // Generic error fallback
+      throw new Error('Failed to translate sentence with OpenAI');
+    }
+  }
 }

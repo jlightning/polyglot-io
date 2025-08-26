@@ -197,4 +197,38 @@ router.get('/sentences/:sentenceId', async (req: Request, res: Response) => {
   }
 });
 
+// Get translation for a specific sentence with context
+router.get(
+  '/sentences/:sentenceId/translation',
+  async (req: Request, res: Response) => {
+    try {
+      const sentenceId = parseInt(req.params['sentenceId'] || '0');
+
+      if (isNaN(sentenceId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid sentence ID',
+        });
+      }
+
+      const result = await SentenceService.getSentenceTranslation(
+        sentenceId,
+        req.userId!
+      );
+
+      if (result.success) {
+        return res.json(result);
+      } else {
+        return res.status(404).json(result);
+      }
+    } catch (error) {
+      console.error('Get sentence translation route error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+      });
+    }
+  }
+);
+
 export default router;

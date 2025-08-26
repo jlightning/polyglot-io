@@ -9,6 +9,7 @@ export interface SentenceWithSplitText {
   split_text: string[] | null;
   start_time: number | null;
   end_time: number | null;
+  translation?: string | null;
 }
 
 export interface LessonWithSentences {
@@ -361,6 +362,124 @@ export class SentenceService {
       return {
         success: false,
         message: 'Failed to retrieve sentence',
+      };
+    }
+  }
+
+  /**
+   * Get translation for a sentence with context from surrounding sentences
+   */
+  static async getSentenceTranslation(
+    sentenceId: number,
+    userId: number
+  ): Promise<{
+    success: boolean;
+    message?: string;
+    translation?: string;
+  }> {
+    try {
+      // Get sentence and verify user has access via lesson ownership
+      const sentence = await prisma.sentence.findFirst({
+        where: {
+          id: sentenceId,
+          lesson: {
+            created_by: userId,
+          },
+        },
+        select: {
+          id: true,
+          original_text: true,
+          lesson_id: true,
+          lesson: {
+            select: {
+              language_code: true,
+            },
+          },
+        },
+      });
+
+      if (!sentence) {
+        return {
+          success: false,
+          message: 'Sentence not found or access denied',
+        };
+      }
+
+      // Check if translation already exists
+      const existingTranslation = await prisma.sentenceTranslation.findFirst({
+        where: {
+          sentence_id: sentenceId,
+          language_code: 'en', // English translation
+        },
+      });
+
+      if (existingTranslation) {
+        return {
+          success: true,
+          translation: existingTranslation.translation,
+        };
+      }
+
+      // Get all sentences from the lesson ordered by ID to get context
+      const allSentences = await prisma.sentence.findMany({
+        where: { lesson_id: sentence.lesson_id },
+        orderBy: { id: 'asc' },
+        select: {
+          id: true,
+          original_text: true,
+        },
+      });
+
+      // Find the index of the current sentence
+      const currentIndex = allSentences.findIndex(s => s.id === sentenceId);
+      if (currentIndex === -1) {
+        return {
+          success: false,
+          message: 'Sentence not found in lesson',
+        };
+      }
+
+      // Get context: previous 3 and next 3 sentences
+      const contextStart = Math.max(0, currentIndex - 3);
+      const contextEnd = Math.min(allSentences.length, currentIndex + 4); // +4 because slice is exclusive
+      const contextSentences = allSentences
+        .slice(contextStart, contextEnd)
+        .map(s => s.original_text);
+
+      // Generate translation using OpenAI with context
+      const translation = await this.openAIService.translateSentenceWithContext(
+        sentence.original_text,
+        contextSentences,
+        sentence.lesson.language_code
+      );
+
+      // Store the translation in the database using upsert
+      await prisma.sentenceTranslation.upsert({
+        where: {
+          sentence_id_language_code: {
+            sentence_id: sentenceId,
+            language_code: 'en',
+          },
+        },
+        update: {
+          translation: translation,
+        },
+        create: {
+          sentence_id: sentenceId,
+          language_code: 'en',
+          translation: translation,
+        },
+      });
+
+      return {
+        success: true,
+        translation: translation,
+      };
+    } catch (error) {
+      console.error('Error in getSentenceTranslation:', error);
+      return {
+        success: false,
+        message: 'Failed to get sentence translation',
       };
     }
   }

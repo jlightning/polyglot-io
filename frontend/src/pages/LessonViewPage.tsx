@@ -42,6 +42,12 @@ const LessonViewPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [translations, setTranslations] = useState<{ [key: number]: string }>(
+    {}
+  );
+  const [loadingTranslations, setLoadingTranslations] = useState<{
+    [key: number]: boolean;
+  }>({});
 
   useEffect(() => {
     const fetchLesson = async () => {
@@ -50,6 +56,9 @@ const LessonViewPage: React.FC = () => {
       try {
         setLoading(true);
         setError(null);
+        // Clear translations when changing pages
+        setTranslations({});
+        setLoadingTranslations({});
 
         const response = await axiosInstance.get(
           `/api/lessons/${lessonId}/sentences`,
@@ -94,6 +103,45 @@ const LessonViewPage: React.FC = () => {
   const handleNextPage = () => {
     if (currentPage < totalPages) {
       setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const toggleTranslation = async (sentenceId: number) => {
+    // If translation is already shown, hide it
+    if (translations[sentenceId]) {
+      setTranslations(prev => {
+        const newTranslations = { ...prev };
+        delete newTranslations[sentenceId];
+        return newTranslations;
+      });
+      return;
+    }
+
+    // If already loading, do nothing
+    if (loadingTranslations[sentenceId]) {
+      return;
+    }
+
+    // Fetch translation
+    try {
+      setLoadingTranslations(prev => ({ ...prev, [sentenceId]: true }));
+
+      const response = await axiosInstance.get(
+        `/api/lessons/sentences/${sentenceId}/translation`
+      );
+
+      if (response.data.success) {
+        setTranslations(prev => ({
+          ...prev,
+          [sentenceId]: response.data.translation,
+        }));
+      } else {
+        console.error('Failed to fetch translation:', response.data.message);
+      }
+    } catch (err) {
+      console.error('Error fetching translation:', err);
+    } finally {
+      setLoadingTranslations(prev => ({ ...prev, [sentenceId]: false }));
     }
   };
 
@@ -205,6 +253,40 @@ const LessonViewPage: React.FC = () => {
                     </Flex>
                   </Box>
                 )}
+
+                {/* Translation Section */}
+                <Box>
+                  <Button
+                    variant="soft"
+                    size="2"
+                    onClick={() => toggleTranslation(sentence.id)}
+                    disabled={loadingTranslations[sentence.id]}
+                  >
+                    {loadingTranslations[sentence.id]
+                      ? 'Loading translation...'
+                      : translations[sentence.id]
+                        ? 'Hide translation'
+                        : 'Show translation'}
+                  </Button>
+
+                  {translations[sentence.id] && (
+                    <Box
+                      mt="3"
+                      p="3"
+                      style={{
+                        backgroundColor: 'var(--gray-2)',
+                        borderRadius: '8px',
+                      }}
+                    >
+                      <Text size="2" color="gray" mb="1">
+                        Translation:
+                      </Text>
+                      <Text size="3" style={{ fontStyle: 'italic' }}>
+                        {translations[sentence.id]}
+                      </Text>
+                    </Box>
+                  )}
+                </Box>
               </Flex>
             </Card>
           ))}

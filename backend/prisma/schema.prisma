@@ -53,9 +53,24 @@ model Sentence {
   created_at    DateTime @default(now()) @db.Timestamp(0)
   updated_at    DateTime @default(now()) @updatedAt @db.Timestamp(0)
 
-  lesson Lesson @relation(fields: [lesson_id], references: [id])
+  lesson               Lesson                @relation(fields: [lesson_id], references: [id])
+  sentenceTranslations SentenceTranslation[]
 
   @@map("sentence")
+}
+
+model SentenceTranslation {
+  id            Int      @id @default(autoincrement())
+  sentence_id   Int
+  language_code String   @db.VarChar(10)
+  translation   String   @db.Text
+  created_at    DateTime @default(now()) @db.Timestamp(0)
+  updated_at    DateTime @default(now()) @updatedAt @db.Timestamp(0)
+
+  sentence Sentence @relation(fields: [sentence_id], references: [id])
+
+  @@unique([sentence_id, language_code])
+  @@map("sentence_translation")
 }
 
 model Word {
@@ -67,8 +82,8 @@ model Word {
 
   wordTranslations WordTranslation[]
 
-  @@map("word")
   @@unique([word, language_code])
+  @@map("word")
 }
 
 model WordTranslation {
@@ -81,6 +96,6 @@ model WordTranslation {
 
   word Word @relation(fields: [word_id], references: [id])
 
-  @@map("word_translation")
   @@unique([word_id, language_code, translation])
+  @@map("word_translation")
 }
