@@ -337,7 +337,10 @@ const LessonViewPage: React.FC = () => {
                       <Text size="2" color="gray" mb="1">
                         Translation:
                       </Text>
-                      <Text size="3" style={{ fontStyle: 'italic' }}>
+                      <Text
+                        size="3"
+                        style={{ fontStyle: 'italic', marginLeft: 10 }}
+                      >
                         {translations[sentence.id]}
                       </Text>
                     </Box>
