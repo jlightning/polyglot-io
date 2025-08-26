@@ -1,13 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import {
-  Box,
-  Flex,
-  Text,
-  Button,
-  Card,
-  Separator,
-  TextArea,
-} from '@radix-ui/themes';
+import React, { useState, useEffect } from 'react';
+import { Box, Flex, Text, Button, Card, Separator } from '@radix-ui/themes';
 import { Cross2Icon, TrashIcon } from '@radix-ui/react-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { useWordMark } from '../contexts/WordMarkContext';
@@ -15,7 +7,7 @@ import {
   getDifficultyStyles,
   getDifficultyLabel,
 } from '../constants/difficultyColors';
-import { useDebounce } from '../hooks/useDebounce';
+import DebounceTextArea from './DebounceTextArea';
 
 interface WordTranslation {
   word: string;
@@ -113,23 +105,11 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
     }
   };
 
-  // Debounced function to save note changes
-  const debouncedNoteSave = useCallback(
-    async (noteValue: string, mark: number) => {
-      if (!selectedWord || !languageCode) return;
-      await saveWordMark(selectedWord, mark, noteValue, languageCode);
-    },
-    [selectedWord, languageCode, saveWordMark]
-  );
-
-  // Use debounce hook with 500ms delay
-  const debouncedNoteSaveWithDelay = useDebounce(debouncedNoteSave, 500);
-
   const handleNoteChange = (newNote: string) => {
     setNote(newNote);
-    // Auto-save note if there's already a mark (debounced)
+    // Auto-save note if there's already a mark
     if (currentMark !== null) {
-      debouncedNoteSaveWithDelay(newNote, currentMark);
+      saveWordMark(selectedWord!, currentMark, newNote, languageCode!);
     }
   };
 
@@ -234,12 +214,13 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
         <Text size="2" color="gray" mb="2" as="div">
           Your Note
         </Text>
-        <TextArea
+        <DebounceTextArea
           placeholder="Add a note about this word..."
           value={note}
-          onChange={e => onNoteChange(e.target.value)}
+          onChange={onNoteChange}
           disabled={isSaving || loadingMark}
           rows={3}
+          debounceDelay={1500}
         />
       </Box>
 
