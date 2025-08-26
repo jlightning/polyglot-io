@@ -129,5 +129,6 @@ model WordUserMark {
   user User @relation(fields: [user_id], references: [id])
   word Word @relation(fields: [word_id], references: [id])
 
+  @@unique([user_id, word_id])
   @@map("word_user_mark")
 }

@@ -27,68 +27,48 @@ export class WordService {
         };
       }
 
-      // First, find or create the word
-      let word = await prisma.word.findUnique({
+      // Use upsert to find or create the word
+      const word = await prisma.word.upsert({
         where: {
           word_language_code: {
             word: data.word,
             language_code: data.languageCode,
           },
         },
-      });
-
-      if (!word) {
-        // Create the word if it doesn't exist
-        word = await prisma.word.create({
-          data: {
-            word: data.word,
-            language_code: data.languageCode,
-          },
-        });
-      }
-
-      // Check if user already has a mark for this word
-      const existingMark = await prisma.wordUserMark.findFirst({
-        where: {
-          user_id: userId,
-          word_id: word.id,
+        update: {}, // No updates needed for existing words
+        create: {
+          word: data.word,
+          language_code: data.languageCode,
         },
       });
 
-      let wordUserMark;
-      if (existingMark) {
-        // Update existing mark
-        wordUserMark = await prisma.wordUserMark.update({
-          where: { id: existingMark.id },
-          data: {
-            note: data.note,
-            mark: data.mark,
-          },
-          include: {
-            word: true,
-          },
-        });
-      } else {
-        // Create new mark
-        wordUserMark = await prisma.wordUserMark.create({
-          data: {
+      // Use proper upsert with the unique constraint on user_id + word_id
+      const wordUserMark = await prisma.wordUserMark.upsert({
+        where: {
+          user_id_word_id: {
             user_id: userId,
             word_id: word.id,
-            note: data.note,
-            mark: data.mark,
           },
-          include: {
-            word: true,
-          },
-        });
-      }
+        },
+        update: {
+          note: data.note,
+          mark: data.mark,
+        },
+        create: {
+          user_id: userId,
+          word_id: word.id,
+          note: data.note,
+          mark: data.mark,
+        },
+        include: {
+          word: true,
+        },
+      });
 
       return {
         success: true,
         data: wordUserMark,
-        message: existingMark
-          ? 'Word mark updated successfully'
-          : 'Word mark created successfully',
+        message: 'Word mark saved successfully',
       };
     } catch (error) {
       console.error('Error creating/updating word user mark:', error);
@@ -143,7 +123,8 @@ export class WordService {
     languageCode: string
   ) {
     try {
-      const wordUserMark = await prisma.wordUserMark.findFirst({
+      // Use deleteMany to avoid the need for a separate find operation
+      const deleteResult = await prisma.wordUserMark.deleteMany({
         where: {
           user_id: userId,
           word: {
@@ -153,16 +134,12 @@ export class WordService {
         },
       });
 
-      if (!wordUserMark) {
+      if (deleteResult.count === 0) {
         return {
           success: false,
           message: 'Word mark not found',
         };
       }
-
-      await prisma.wordUserMark.delete({
-        where: { id: wordUserMark.id },
-      });
 
       return {
         success: true,

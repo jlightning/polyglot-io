@@ -10,12 +10,12 @@ import {
   Card,
   Badge,
   Separator,
-  IconButton,
 } from '@radix-ui/themes';
-import { ChevronLeftIcon, ChevronRightIcon } from '@radix-ui/react-icons';
+
 import { useAuth } from '../contexts/AuthContext';
 import { useWordMark } from '../contexts/WordMarkContext';
 import WordSidebar from '../components/WordSidebar';
+import Pagination from '../components/Pagination';
 import { getDifficultyStyles } from '../constants/difficultyColors';
 import axios from 'axios';
 
@@ -133,16 +133,8 @@ const LessonViewPage: React.FC = () => {
     ? Math.ceil(lesson.totalSentences / SENTENCES_PER_PAGE)
     : 0;
 
-  const handlePreviousPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
-    }
-  };
-
-  const handleNextPage = () => {
-    if (currentPage < totalPages) {
-      setCurrentPage(currentPage + 1);
-    }
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
   };
 
   const handleWordClick = (
@@ -382,29 +374,12 @@ const LessonViewPage: React.FC = () => {
       </Box>
 
       {/* Pagination */}
-      {totalPages > 1 && (
-        <Flex align="center" justify="center" gap="4">
-          <IconButton
-            variant="soft"
-            disabled={currentPage === 1}
-            onClick={handlePreviousPage}
-          >
-            <ChevronLeftIcon />
-          </IconButton>
-
-          <Text size="3">
-            Page {currentPage} of {totalPages}
-          </Text>
-
-          <IconButton
-            variant="soft"
-            disabled={currentPage === totalPages}
-            onClick={handleNextPage}
-          >
-            <ChevronRightIcon />
-          </IconButton>
-        </Flex>
-      )}
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={handlePageChange}
+        disabled={loading}
+      />
 
       {/* Word Translation Sidebar */}
       <WordSidebar

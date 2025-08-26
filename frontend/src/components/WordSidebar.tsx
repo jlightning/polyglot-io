@@ -107,10 +107,14 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
 
   const handleNoteChange = (newNote: string) => {
     setNote(newNote);
+    if (currentMark === null) setCurrentMark(1);
     // Auto-save note if there's already a mark
-    if (currentMark !== null) {
-      saveWordMark(selectedWord!, currentMark, newNote, languageCode!);
-    }
+    saveWordMark(
+      selectedWord!,
+      currentMark === null ? 1 : currentMark,
+      newNote,
+      languageCode!
+    );
   };
 
   // Reusable pronunciation component
