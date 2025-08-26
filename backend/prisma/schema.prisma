@@ -80,7 +80,8 @@ model Word {
   created_at    DateTime @default(now()) @db.Timestamp(0)
   updated_at    DateTime @default(now()) @updatedAt @db.Timestamp(0)
 
-  wordTranslations WordTranslation[]
+  wordTranslations   WordTranslation[]
+  wordPronunciations WordPronunciation[]
 
   @@unique([word, language_code])
   @@map("word")
@@ -98,4 +99,18 @@ model WordTranslation {
 
   @@unique([word_id, language_code, translation])
   @@map("word_translation")
+}
+
+model WordPronunciation {
+  id                  Int      @id @default(autoincrement())
+  word_id             Int
+  pronunciation       String   @db.VarChar(255)
+  pronunciation_type  String?  @db.VarChar(20) // e.g., 'hiragana', 'romanji', 'ipa', etc.
+  created_at          DateTime @default(now()) @db.Timestamp(0)
+  updated_at          DateTime @default(now()) @updatedAt @db.Timestamp(0)
+
+  word Word @relation(fields: [word_id], references: [id])
+
+  @@unique([word_id, pronunciation, pronunciation_type])
+  @@map("word_pronunciation")
 }

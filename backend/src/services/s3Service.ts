@@ -34,8 +34,7 @@ export class S3Service {
   static async getUploadUrl(
     fileName: string,
     fileType: string,
-    userId: number,
-    maxSize?: number
+    userId: number
   ): Promise<{ uploadUrl: string; key: string }> {
     if (!this.s3Client) {
       this.initialize();

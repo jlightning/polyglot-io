@@ -8,11 +8,18 @@ export interface WordWithTranslation {
   translation: string;
 }
 
+export interface WordWithPronunciation {
+  word: string;
+  pronunciation: string;
+  pronunciationType: string;
+}
+
 export interface SentenceWithSplitText {
   id: number;
   original_text: string;
   split_text: string[] | null;
   word_translations?: WordWithTranslation[] | null;
+  word_pronunciations?: WordWithPronunciation[] | null;
   start_time: number | null;
   end_time: number | null;
   translation?: string | null;
@@ -36,13 +43,19 @@ export class SentenceService {
   private static openAIService = new OpenAIService();
 
   /**
-   * Store words and their translations in the database using upsert operations
+   * Store words, their translations, and pronunciations in the database using upsert operations
    * @param words - Array of word translation objects from OpenAI
    * @param sourceLanguage - The source language code
    * @param targetLanguage - The target language code (default: 'en')
    */
   private static async storeWordTranslations(
-    words: Array<{ word: string; translation: string; partOfSpeech?: string }>,
+    words: Array<{
+      word: string;
+      translation: string;
+      pronunciation?: string;
+      pronunciationType?: string;
+      partOfSpeech?: string;
+    }>,
     sourceLanguage: string,
     targetLanguage: string = 'en'
   ): Promise<void> {
@@ -88,6 +101,30 @@ export class SentenceService {
             translation: trimmedTranslation,
           },
         });
+
+        // Store pronunciation if provided
+        if (wordObj.pronunciation && wordObj.pronunciationType) {
+          const trimmedPronunciation = wordObj.pronunciation.trim();
+          const trimmedPronunciationType = wordObj.pronunciationType.trim();
+
+          if (trimmedPronunciation && trimmedPronunciationType) {
+            await prisma.wordPronunciation.upsert({
+              where: {
+                word_id_pronunciation_pronunciation_type: {
+                  word_id: word.id,
+                  pronunciation: trimmedPronunciation,
+                  pronunciation_type: trimmedPronunciationType,
+                },
+              },
+              update: {},
+              create: {
+                word_id: word.id,
+                pronunciation: trimmedPronunciation,
+                pronunciation_type: trimmedPronunciationType,
+              },
+            });
+          }
+        }
       }
     } catch (error) {
       // Log error but don't throw - we don't want word storage to break sentence processing
@@ -133,8 +170,10 @@ export class SentenceService {
           `Sentence ${sentence.id} already has split_text, fetching word translations`
         );
 
-        // Fetch word translations for existing split_text
+        // Fetch word translations and pronunciations for existing split_text
         const wordTranslations: WordWithTranslation[] = [];
+        const wordPronunciations: WordWithPronunciation[] = [];
+
         for (const word of splitText) {
           const trimmedWord = word.trim();
           if (!trimmedWord) continue;
@@ -151,6 +190,7 @@ export class SentenceService {
                   language_code: 'en', // English translations
                 },
               },
+              wordPronunciations: true, // Include all pronunciations
             },
           });
 
@@ -165,6 +205,18 @@ export class SentenceService {
               translation: '', // Empty translation indicates not found
             });
           }
+
+          // Add pronunciations separately
+          if (wordRecord && wordRecord.wordPronunciations.length > 0) {
+            wordRecord.wordPronunciations.forEach(pronunciation => {
+              wordPronunciations.push({
+                word: trimmedWord,
+                pronunciation: pronunciation.pronunciation,
+                pronunciationType:
+                  pronunciation.pronunciation_type || 'unknown',
+              });
+            });
+          }
         }
 
         processedResults.push({
@@ -172,6 +224,7 @@ export class SentenceService {
           original_text: sentence.original_text,
           split_text: splitText,
           word_translations: wordTranslations,
+          word_pronunciations: wordPronunciations,
           start_time: sentence.start_time ? Number(sentence.start_time) : null,
           end_time: sentence.end_time ? Number(sentence.end_time) : null,
         });
@@ -224,6 +277,17 @@ export class SentenceService {
               })
             );
 
+            // Create word pronunciations array from analysis
+            const wordPronunciations: WordWithPronunciation[] = analysis.words
+              .filter(
+                wordObj => wordObj.pronunciation && wordObj.pronunciationType
+              )
+              .map(wordObj => ({
+                word: wordObj.word,
+                pronunciation: wordObj.pronunciation!,
+                pronunciationType: wordObj.pronunciationType!,
+              }));
+
             // Store words and translations in the database
             await this.storeWordTranslations(
               analysis.words,
@@ -242,6 +306,7 @@ export class SentenceService {
               original_text: sentence.original_text,
               split_text: splitText,
               word_translations: wordTranslations,
+              word_pronunciations: wordPronunciations,
               start_time: sentence.start_time
                 ? Number(sentence.start_time)
                 : null,
@@ -260,6 +325,7 @@ export class SentenceService {
           original_text: sentence.original_text,
           split_text: null as string[] | null,
           word_translations: null as WordWithTranslation[] | null,
+          word_pronunciations: null as WordWithPronunciation[] | null,
           start_time: sentence.start_time ? Number(sentence.start_time) : null,
           end_time: sentence.end_time ? Number(sentence.end_time) : null,
         }));

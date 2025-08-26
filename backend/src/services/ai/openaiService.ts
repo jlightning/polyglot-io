@@ -4,11 +4,15 @@ import { OPENAI_MODEL } from './consts';
 
 dotenv.config();
 
-// Interface for individual word with translation
+// Enum for pronunciation types
+export type PronunciationType = 'hiragana' | 'romanization' | 'pinyin' | 'ipa';
+
+// Interface for individual word with translation and pronunciation
 export interface WordTranslation {
   word: string;
   translation: string;
-  partOfSpeech?: string; // Optional part of speech (noun, verb, adjective, etc.)
+  pronunciation?: string;
+  pronunciationType?: PronunciationType;
 }
 
 // Interface for the complete sentence analysis
@@ -45,25 +49,18 @@ const wordTranslationSchema = {
             type: 'string',
             description: 'English translation of the word',
           },
-          partOfSpeech: {
+          pronunciation: {
             type: 'string',
             description:
-              'Part of speech (noun, verb, adjective, adverb, preposition, etc.)',
-            enum: [
-              'noun',
-              'verb',
-              'adjective',
-              'adverb',
-              'preposition',
-              'conjunction',
-              'pronoun',
-              'interjection',
-              'article',
-              'other',
-            ],
+              'Pronunciation of the word (hiragana for Japanese, romanji for Korean)',
+          },
+          pronunciationType: {
+            type: 'string',
+            enum: ['hiragana', 'romanization', 'pinyin', 'ipa'],
+            description: 'Type of pronunciation provided',
           },
         },
-        required: ['word', 'translation', 'partOfSpeech'],
+        required: ['word', 'translation'],
         additionalProperties: false,
       },
     },
@@ -101,29 +98,69 @@ export class OpenAIService {
         throw new Error('Sentence cannot be empty');
       }
 
+      // Determine pronunciation instructions based on source language
+      const getPronunciationInstructions = (language: string) => {
+        const lowerLang = language.toLowerCase();
+
+        if (lowerLang.includes('japanese') || lowerLang === 'ja') {
+          return {
+            instruction: '   - For Japanese: provide pronunciation in hiragana',
+            guideline:
+              '- For Japanese words, always provide hiragana pronunciation',
+            type: 'hiragana',
+          };
+        } else if (lowerLang.includes('korean') || lowerLang === 'ko') {
+          return {
+            instruction:
+              '   - For Korean: provide pronunciation in romanized form (romanization)',
+            guideline:
+              '- For Korean words, always provide romanized pronunciation',
+            type: 'romanization',
+          };
+        } else if (lowerLang.includes('chinese') || lowerLang === 'zh') {
+          return {
+            instruction: '   - For Chinese: provide pronunciation in pinyin',
+            guideline:
+              '- For Chinese words, always provide pinyin pronunciation',
+            type: 'pinyin',
+          };
+        }
+
+        // Default case for other languages
+        return {
+          instruction:
+            '   - Provide pronunciation in IPA (International Phonetic Alphabet) or romanized form',
+          guideline: '- Provide clear pronunciation guidance when possible',
+          type: 'ipa',
+        };
+      };
+
+      const pronunciationInfo = getPronunciationInstructions(sourceLanguage);
+
       const systemPrompt = [
-        'You are a language learning assistant that helps break down sentences into individual words and provides English translations.',
+        'You are a language learning assistant that helps break down sentences into individual words and provides English translations and pronunciations.',
         '',
         `The sentence is in ${sourceLanguage}.`,
         '',
         'Your task is to:',
         '1. Split the given sentence into individual meaningful words (excluding punctuation marks)',
         '2. Provide accurate English translations for each word',
-        '3. Identify the part of speech for each word',
+        '3. Provide pronunciations for each word based on the language:',
+        pronunciationInfo.instruction,
         '',
         'Guidelines:',
         '- Split compound words appropriately for the language',
         '- For languages with no spaces (like Chinese/Japanese), segment into meaningful units',
         '- Provide English translation for the word in the context of the sentence',
-        '- Use standard grammatical terms for parts of speech',
         '- Be consistent with word segmentation',
         '- Exclude punctuation marks from the word list',
+        pronunciationInfo.guideline,
       ].join('\n');
 
       const userPrompt = [
         `Please analyze this sentence: "${sentence}"`,
         '',
-        'Split it into individual words and provide English translations for each word.',
+        'Split it into individual words and provide English translations and pronunciations for each word.',
       ].join('\n');
 
       const completion = await this.client.chat.completions.create({
@@ -175,7 +212,10 @@ export class OpenAIService {
       analysis.words = analysis.words.map(word => ({
         word: word.word || '',
         translation: word.translation || '',
-        partOfSpeech: word.partOfSpeech || 'other',
+        ...(word.pronunciation && { pronunciation: word.pronunciation }),
+        ...(word.pronunciationType && {
+          pronunciationType: word.pronunciationType,
+        }),
       }));
 
       // Override the language with the provided source language

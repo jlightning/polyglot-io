@@ -60,8 +60,7 @@ router.post('/upload-file', async (req: Request, res: Response) => {
     const result = await S3Service.getUploadUrl(
       fileName,
       fileType,
-      req.userId!,
-      maxSize
+      req.userId!
     );
 
     return res.json({

@@ -22,11 +22,18 @@ interface WordTranslation {
   translation: string;
 }
 
+interface WordPronunciation {
+  word: string;
+  pronunciation: string;
+  pronunciationType: string;
+}
+
 interface Sentence {
   id: number;
   original_text: string;
   split_text: string[] | null;
   word_translations?: WordTranslation[] | null;
+  word_pronunciations?: WordPronunciation[] | null;
   start_time: number | null;
   end_time: number | null;
 }
@@ -59,6 +66,9 @@ const LessonViewPage: React.FC = () => {
   const [selectedWord, setSelectedWord] = useState<string | null>(null);
   const [currentWordTranslations, setCurrentWordTranslations] = useState<
     WordTranslation[] | null
+  >(null);
+  const [currentWordPronunciations, setCurrentWordPronunciations] = useState<
+    WordPronunciation[] | null
   >(null);
 
   useEffect(() => {
@@ -120,10 +130,12 @@ const LessonViewPage: React.FC = () => {
 
   const handleWordClick = (
     word: string,
-    sentenceTranslations: WordTranslation[] | null
+    sentenceTranslations: WordTranslation[] | null,
+    sentencePronunciations: WordPronunciation[] | null
   ) => {
     setSelectedWord(word);
     setCurrentWordTranslations(sentenceTranslations);
+    setCurrentWordPronunciations(sentencePronunciations);
     setIsSidebarOpen(true);
   };
 
@@ -131,6 +143,7 @@ const LessonViewPage: React.FC = () => {
     setIsSidebarOpen(false);
     setSelectedWord(null);
     setCurrentWordTranslations(null);
+    setCurrentWordPronunciations(null);
   };
 
   const toggleTranslation = async (sentenceId: number) => {
@@ -285,7 +298,8 @@ const LessonViewPage: React.FC = () => {
                           onClick={() =>
                             handleWordClick(
                               word,
-                              sentence.word_translations || null
+                              sentence.word_translations || null,
+                              sentence.word_pronunciations || null
                             )
                           }
                         >
@@ -366,6 +380,7 @@ const LessonViewPage: React.FC = () => {
         onClose={handleCloseSidebar}
         selectedWord={selectedWord}
         wordTranslations={currentWordTranslations}
+        wordPronunciations={currentWordPronunciations}
       />
     </Container>
   );

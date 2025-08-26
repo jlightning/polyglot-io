@@ -7,11 +7,18 @@ interface WordTranslation {
   translation: string;
 }
 
+interface WordPronunciation {
+  word: string;
+  pronunciation: string;
+  pronunciationType: string;
+}
+
 interface WordSidebarProps {
   isOpen: boolean;
   onClose: () => void;
   selectedWord: string | null;
   wordTranslations: WordTranslation[] | null;
+  wordPronunciations?: WordPronunciation[] | null;
   loading?: boolean;
 }
 
@@ -20,10 +27,13 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
   onClose,
   selectedWord,
   wordTranslations,
+  wordPronunciations,
   loading = false,
 }) => {
   const selectedTranslations =
     wordTranslations?.filter(wt => wt.word === selectedWord) || [];
+  const selectedPronunciations =
+    wordPronunciations?.filter(wp => wp.word === selectedWord) || [];
 
   return (
     <Box
@@ -84,6 +94,32 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
 
               <Separator size="4" />
 
+              {/* Pronunciation Section */}
+              {selectedPronunciations.length > 0 && (
+                <>
+                  <Box>
+                    <Text size="2" color="gray" mb="2" as="div">
+                      {selectedPronunciations.length > 1
+                        ? 'Pronunciations'
+                        : 'Pronunciation'}
+                    </Text>
+                    <Flex direction="column" gap="2">
+                      {selectedPronunciations.map((pronunciation, index) => (
+                        <Box key={index}>
+                          <Text size="4" color="green" weight="medium">
+                            {pronunciation.pronunciation}
+                          </Text>
+                          <Text size="2" color="gray" ml="2">
+                            ({pronunciation.pronunciationType})
+                          </Text>
+                        </Box>
+                      ))}
+                    </Flex>
+                  </Box>
+                  <Separator size="4" />
+                </>
+              )}
+
               <Box>
                 <Text size="2" color="gray" mb="2" as="div">
                   {selectedTranslations.length > 1
@@ -113,6 +149,32 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
               </Box>
 
               <Separator size="4" />
+
+              {/* Pronunciation Section */}
+              {selectedPronunciations.length > 0 && (
+                <>
+                  <Box>
+                    <Text size="2" color="gray" mb="2" as="div">
+                      {selectedPronunciations.length > 1
+                        ? 'Pronunciations'
+                        : 'Pronunciation'}
+                    </Text>
+                    <Flex direction="column" gap="2">
+                      {selectedPronunciations.map((pronunciation, index) => (
+                        <Box key={index}>
+                          <Text size="4" color="green" weight="medium">
+                            {pronunciation.pronunciation}
+                          </Text>
+                          <Text size="2" color="gray" ml="2">
+                            ({pronunciation.pronunciationType})
+                          </Text>
+                        </Box>
+                      ))}
+                    </Flex>
+                  </Box>
+                  <Separator size="4" />
+                </>
+              )}
 
               <Box>
                 <Text size="2" color="gray" mb="1" as="div">
