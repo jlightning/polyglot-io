@@ -14,12 +14,19 @@ import {
 } from '@radix-ui/themes';
 import { ChevronLeftIcon, ChevronRightIcon } from '@radix-ui/react-icons';
 import { useAuth } from '../contexts/AuthContext';
+import WordSidebar from '../components/WordSidebar';
 import axios from 'axios';
+
+interface WordTranslation {
+  word: string;
+  translation: string;
+}
 
 interface Sentence {
   id: number;
   original_text: string;
   split_text: string[] | null;
+  word_translations?: WordTranslation[] | null;
   start_time: number | null;
   end_time: number | null;
 }
@@ -48,6 +55,11 @@ const LessonViewPage: React.FC = () => {
   const [loadingTranslations, setLoadingTranslations] = useState<{
     [key: number]: boolean;
   }>({});
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [selectedWord, setSelectedWord] = useState<string | null>(null);
+  const [currentWordTranslations, setCurrentWordTranslations] = useState<
+    WordTranslation[] | null
+  >(null);
 
   useEffect(() => {
     const fetchLesson = async () => {
@@ -104,6 +116,21 @@ const LessonViewPage: React.FC = () => {
     if (currentPage < totalPages) {
       setCurrentPage(currentPage + 1);
     }
+  };
+
+  const handleWordClick = (
+    word: string,
+    sentenceTranslations: WordTranslation[] | null
+  ) => {
+    setSelectedWord(word);
+    setCurrentWordTranslations(sentenceTranslations);
+    setIsSidebarOpen(true);
+  };
+
+  const handleCloseSidebar = () => {
+    setIsSidebarOpen(false);
+    setSelectedWord(null);
+    setCurrentWordTranslations(null);
   };
 
   const toggleTranslation = async (sentenceId: number) => {
@@ -246,7 +273,22 @@ const LessonViewPage: React.FC = () => {
                     </Text>
                     <Flex gap="2" wrap="wrap">
                       {sentence.split_text.map((word, wordIndex) => (
-                        <Badge key={wordIndex} variant="soft" size="2">
+                        <Badge
+                          key={wordIndex}
+                          variant="soft"
+                          size="2"
+                          style={{
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                          }}
+                          className="word-badge"
+                          onClick={() =>
+                            handleWordClick(
+                              word,
+                              sentence.word_translations || null
+                            )
+                          }
+                        >
                           {word}
                         </Badge>
                       ))}
@@ -317,6 +359,14 @@ const LessonViewPage: React.FC = () => {
           </IconButton>
         </Flex>
       )}
+
+      {/* Word Translation Sidebar */}
+      <WordSidebar
+        isOpen={isSidebarOpen}
+        onClose={handleCloseSidebar}
+        selectedWord={selectedWord}
+        wordTranslations={currentWordTranslations}
+      />
     </Container>
   );
 };

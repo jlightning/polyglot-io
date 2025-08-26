@@ -15,3 +15,11 @@
     -moz-osx-font-smoothing: grayscale;
   }
 }
+
+/* Word badge hover effects */
+.word-badge:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  background-color: var(--blue-3) !important;
+  color: var(--blue-11) !important;
+}

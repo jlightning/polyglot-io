@@ -3,10 +3,16 @@ import { OpenAIService } from './ai/openaiService';
 
 const prisma = new PrismaClient();
 
+export interface WordWithTranslation {
+  word: string;
+  translation: string;
+}
+
 export interface SentenceWithSplitText {
   id: number;
   original_text: string;
   split_text: string[] | null;
+  word_translations?: WordWithTranslation[] | null;
   start_time: number | null;
   end_time: number | null;
   translation?: string | null;
@@ -122,14 +128,50 @@ export class SentenceService {
       if (!splitText || !Array.isArray(splitText) || splitText.length === 0) {
         sentencesToProcess.push(sentence);
       } else {
-        // Sentence already has split_text, no need to process
+        // Sentence already has split_text, fetch word translations from database
         console.log(
-          `Sentence ${sentence.id} already has split_text, skipping processing`
+          `Sentence ${sentence.id} already has split_text, fetching word translations`
         );
+
+        // Fetch word translations for existing split_text
+        const wordTranslations: WordWithTranslation[] = [];
+        for (const word of splitText) {
+          const trimmedWord = word.trim();
+          if (!trimmedWord) continue;
+
+          // Find the word translation in the database
+          const wordRecord = await prisma.word.findFirst({
+            where: {
+              word: trimmedWord,
+              language_code: languageCode,
+            },
+            include: {
+              wordTranslations: {
+                where: {
+                  language_code: 'en', // English translations
+                },
+              },
+            },
+          });
+
+          if (wordRecord && wordRecord.wordTranslations.length > 0) {
+            wordTranslations.push({
+              word: trimmedWord,
+              translation: wordRecord.wordTranslations[0]?.translation || '',
+            });
+          } else {
+            wordTranslations.push({
+              word: trimmedWord,
+              translation: '', // Empty translation indicates not found
+            });
+          }
+        }
+
         processedResults.push({
           id: sentence.id,
           original_text: sentence.original_text,
           split_text: splitText,
+          word_translations: wordTranslations,
           start_time: sentence.start_time ? Number(sentence.start_time) : null,
           end_time: sentence.end_time ? Number(sentence.end_time) : null,
         });
@@ -163,6 +205,7 @@ export class SentenceService {
                 id: sentence.id,
                 original_text: sentence.original_text,
                 split_text: null,
+                word_translations: null,
                 start_time: sentence.start_time
                   ? Number(sentence.start_time)
                   : null,
@@ -172,6 +215,14 @@ export class SentenceService {
 
             // Extract just the words (not translations) for split_text
             const splitText = analysis.words.map(wordObj => wordObj.word);
+
+            // Create word translations array from analysis
+            const wordTranslations: WordWithTranslation[] = analysis.words.map(
+              wordObj => ({
+                word: wordObj.word,
+                translation: wordObj.translation,
+              })
+            );
 
             // Store words and translations in the database
             await this.storeWordTranslations(
@@ -190,6 +241,7 @@ export class SentenceService {
               id: sentence.id,
               original_text: sentence.original_text,
               split_text: splitText,
+              word_translations: wordTranslations,
               start_time: sentence.start_time
                 ? Number(sentence.start_time)
                 : null,
@@ -207,6 +259,7 @@ export class SentenceService {
           id: sentence.id,
           original_text: sentence.original_text,
           split_text: null as string[] | null,
+          word_translations: null as WordWithTranslation[] | null,
           start_time: sentence.start_time ? Number(sentence.start_time) : null,
           end_time: sentence.end_time ? Number(sentence.end_time) : null,
         }));
