@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Card,
   Text,
@@ -9,7 +10,7 @@ import {
   IconButton,
   Box,
 } from '@radix-ui/themes';
-import { TrashIcon } from '@radix-ui/react-icons';
+import { TrashIcon, EyeOpenIcon } from '@radix-ui/react-icons';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import AudioPlayer from './AudioPlayer';
@@ -38,6 +39,7 @@ const LessonList: React.FC<LessonListProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [deletingLessonId, setDeletingLessonId] = useState<number | null>(null);
   const { axiosInstance, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
 
   const fetchLessons = async () => {
     try {
@@ -202,6 +204,17 @@ const LessonList: React.FC<LessonListProps> = ({
                 <Text size="1" color="gray">
                   Created: {new Date(lesson.createdAt).toLocaleDateString()}
                 </Text>
+
+                <Flex gap="2" mt="3">
+                  <Button
+                    variant="soft"
+                    size="2"
+                    onClick={() => navigate(`/lessons/${lesson.id}`)}
+                  >
+                    <EyeOpenIcon />
+                    View Lesson
+                  </Button>
+                </Flex>
               </Flex>
 
               <Dialog.Root>
