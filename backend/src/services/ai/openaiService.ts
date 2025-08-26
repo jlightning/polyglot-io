@@ -114,7 +114,7 @@ export class OpenAIService {
         'Guidelines:',
         '- Split compound words appropriately for the language',
         '- For languages with no spaces (like Chinese/Japanese), segment into meaningful units',
-        '- Provide the most common/contextually appropriate English translation',
+        '- Provide English translation for the word in the context of the sentence',
         '- Use standard grammatical terms for parts of speech',
         '- Be consistent with word segmentation',
         '- Exclude punctuation marks from the word list',
