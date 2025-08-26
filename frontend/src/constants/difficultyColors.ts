@@ -1,9 +1,9 @@
 // Difficulty rating colors and labels
 export const DIFFICULTY_COLORS = {
   0: '#222222', // gray - Ignore
-  1: '#FF980033', // 40% opacity orange - Don't remember
+  1: '#FF9800CC', // 40% opacity orange - Don't remember
   2: '#FF980066', // 60% opacity orange - Hard to remember
-  3: '#FF9800CC', // 80% opacity orange - Remembered
+  3: '#FF980033', // 80% opacity orange - Remembered
   4: 'transparent', // transparent - Easy to remember (dotted underline)
   5: 'transparent', // transparent - No problem (no styling)
 } as const;
