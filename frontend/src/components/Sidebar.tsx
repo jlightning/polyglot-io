@@ -9,7 +9,7 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, dailyScore } = useAuth();
 
   const handleLogout = () => {
     logout();
@@ -34,6 +34,9 @@ const Sidebar: React.FC<SidebarProps> = () => {
           </Text>
           <Text size="2" color="gray">
             Welcome, {user?.username}
+          </Text>
+          <Text size="2" color="green" weight="medium">
+            Today's Score: {dailyScore}
           </Text>
         </Flex>
       </Box>

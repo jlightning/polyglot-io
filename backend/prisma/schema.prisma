@@ -89,6 +89,7 @@ model Word {
 
   @@unique([word, language_code])
   @@map("word")
+  @@index([word])
 }
 
 model WordTranslation {

@@ -5,6 +5,7 @@ import React, {
   useEffect,
   ReactNode,
   useMemo,
+  useCallback,
 } from 'react';
 import axios, { AxiosInstance } from 'axios';
 
@@ -32,6 +33,8 @@ interface AuthContextType {
   logout: () => void;
   isLoading: boolean;
   isAuthenticated: boolean;
+  dailyScore: number;
+  fetchDailyScore: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -52,6 +55,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [dailyScore, setDailyScore] = useState<number>(0);
 
   const backendUrl =
     import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
@@ -59,6 +63,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const logout = () => {
     setUser(null);
     setToken(null);
+    setDailyScore(0);
     localStorage.removeItem('authToken');
     localStorage.removeItem('user');
   };
@@ -97,6 +102,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return instance;
   }, [token, backendUrl]);
 
+  const fetchDailyScore = useCallback(async () => {
+    if (!token) return;
+
+    try {
+      const response = await axios.get('/api/user-score/daily', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (response.data.success) {
+        setDailyScore(response.data.score || 0);
+      }
+    } catch (error) {
+      console.error('Error fetching daily score:', error);
+      setDailyScore(0);
+    }
+  }, [token, axiosInstance]);
+
   // Check for existing authentication on mount
   useEffect(() => {
     const storedToken = localStorage.getItem('authToken');
@@ -115,6 +138,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
     setIsLoading(false);
   }, []);
+
+  // Fetch daily score when user is authenticated
+  useEffect(() => {
+    if (user && token) {
+      fetchDailyScore();
+    }
+  }, [user, token, fetchDailyScore]);
 
   const login = async (email: string, password: string) => {
     try {
@@ -194,6 +224,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     logout,
     isLoading,
     isAuthenticated,
+    dailyScore,
+    fetchDailyScore,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

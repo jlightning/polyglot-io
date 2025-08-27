@@ -46,7 +46,7 @@ interface WordMarkProviderProps {
 export const WordMarkProvider: React.FC<WordMarkProviderProps> = ({
   children,
 }) => {
-  const { axiosInstance } = useAuth();
+  const { axiosInstance, fetchDailyScore } = useAuth();
   const [wordMarks, setWordMarks] = useState<Record<string, number>>({});
   const [fetchedWords, setFetchedWords] = useState<Set<string>>(new Set());
   const [isFetching, setIsFetching] = useState(false);
@@ -85,6 +85,8 @@ export const WordMarkProvider: React.FC<WordMarkProviderProps> = ({
           }));
           // Mark this word as fetched since we now have its data
           setFetchedWords(prev => new Set([...prev, word]));
+          // Update daily score after successfully saving word mark
+          fetchDailyScore();
           return true;
         }
         return false;
@@ -95,7 +97,7 @@ export const WordMarkProvider: React.FC<WordMarkProviderProps> = ({
         setIsSaving(false);
       }
     },
-    [axiosInstance]
+    [axiosInstance, fetchDailyScore]
   );
 
   const addWords = useCallback(
