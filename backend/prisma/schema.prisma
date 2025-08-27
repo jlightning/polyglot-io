@@ -21,8 +21,9 @@ model User {
   created_at   DateTime @default(now()) @db.Timestamp(0)
   updated_at   DateTime @default(now()) @updatedAt @db.Timestamp(0)
 
-  lessons       Lesson[]
-  wordUserMarks WordUserMark[]
+  lessons              Lesson[]
+  wordUserMarks        WordUserMark[]
+  userLessonProgresses UserLessonProgress[]
 
   @@map("user")
 }
@@ -38,10 +39,33 @@ model Lesson {
   created_at    DateTime @default(now()) @db.Timestamp(0)
   updated_at    DateTime @default(now()) @updatedAt @db.Timestamp(0)
 
-  user      User       @relation(fields: [created_by], references: [id])
-  sentences Sentence[]
+  user                 User                 @relation(fields: [created_by], references: [id])
+  sentences            Sentence[]
+  userLessonProgresses UserLessonProgress[]
 
   @@map("lesson")
+}
+
+enum UserLessonProgressStatus {
+  reading
+  finished
+}
+
+model UserLessonProgress {
+  id                    Int                      @id @default(autoincrement())
+  user_id               Int
+  lesson_id             Int
+  status                UserLessonProgressStatus
+  read_till_sentence_id Int
+  created_at    DateTime @default(now()) @db.Timestamp(0)
+  updated_at    DateTime @default(now()) @updatedAt @db.Timestamp(0)
+
+  user     User     @relation(fields: [user_id], references: [id])
+  lesson   Lesson   @relation(fields: [lesson_id], references: [id])
+  sentence Sentence @relation(fields: [read_till_sentence_id], references: [id])
+
+  @@unique([user_id, lesson_id])
+  @@map("user_lesson_progress")
 }
 
 model Sentence {
@@ -57,6 +81,7 @@ model Sentence {
   lesson               Lesson                @relation(fields: [lesson_id], references: [id])
   sentenceTranslations SentenceTranslation[]
   sentenceWords        SentenceWord[]
+  userLessonProgresses UserLessonProgress[]
 
   @@map("sentence")
 }
@@ -88,8 +113,8 @@ model Word {
   sentenceWords      SentenceWord[]
 
   @@unique([word, language_code])
-  @@map("word")
   @@index([word])
+  @@map("word")
 }
 
 model WordTranslation {

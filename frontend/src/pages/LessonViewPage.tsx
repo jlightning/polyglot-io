@@ -46,6 +46,11 @@ interface Lesson {
   languageCode: string;
   sentences: Sentence[];
   totalSentences: number;
+  userProgress?: {
+    status: string;
+    readTillSentenceId: number;
+    shouldNavigateToPage: number;
+  } | null;
 }
 
 const SENTENCES_PER_PAGE = 5;
@@ -153,10 +158,46 @@ const LessonViewPage: React.FC = () => {
   const [currentWordPronunciations, setCurrentWordPronunciations] = useState<
     WordPronunciation[] | null
   >(null);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [progressLoaded, setProgressLoaded] = useState(false);
 
+  // First useEffect: Load progress and determine initial page
+  useEffect(() => {
+    const loadInitialProgress = async () => {
+      if (!lessonId || !isAuthenticated || !isInitialLoad) return;
+
+      try {
+        const progressResponse = await axiosInstance.get(
+          `/api/lessons/${lessonId}/progress`,
+          {
+            params: {
+              sentencesPerPage: SENTENCES_PER_PAGE,
+            },
+          }
+        );
+
+        if (progressResponse.data.success && progressResponse.data.progress) {
+          const targetPage = progressResponse.data.shouldNavigateToPage || 1;
+          if (targetPage !== currentPage) {
+            setCurrentPage(targetPage);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading initial progress:', error);
+        // Continue with page 1 if progress loading fails
+      } finally {
+        setProgressLoaded(true);
+        setIsInitialLoad(false);
+      }
+    };
+
+    loadInitialProgress();
+  }, [lessonId, isAuthenticated, isInitialLoad, axiosInstance]);
+
+  // Second useEffect: Load sentences after progress is determined
   useEffect(() => {
     const fetchLesson = async () => {
-      if (!lessonId || !isAuthenticated) return;
+      if (!lessonId || !isAuthenticated || !progressLoaded) return;
 
       try {
         setLoading(true);
@@ -207,7 +248,40 @@ const LessonViewPage: React.FC = () => {
     };
 
     fetchLesson();
-  }, [lessonId, currentPage, isAuthenticated, axiosInstance]);
+  }, [lessonId, currentPage, isAuthenticated, axiosInstance, progressLoaded]);
+
+  // Track progress when page changes (but not on initial load)
+  useEffect(() => {
+    const updateProgress = async () => {
+      if (
+        !lessonId ||
+        !isAuthenticated ||
+        isInitialLoad ||
+        !progressLoaded ||
+        !currentPage
+      )
+        return;
+
+      try {
+        await axiosInstance.post(`/api/lessons/${lessonId}/progress`, {
+          currentPage,
+          sentencesPerPage: SENTENCES_PER_PAGE,
+        });
+      } catch (error) {
+        console.error('Error updating progress:', error);
+        // Don't show error to user for progress tracking failures
+      }
+    };
+
+    updateProgress();
+  }, [
+    currentPage,
+    lessonId,
+    isAuthenticated,
+    isInitialLoad,
+    progressLoaded,
+    axiosInstance,
+  ]);
 
   const totalPages = lesson
     ? Math.ceil(lesson.totalSentences / SENTENCES_PER_PAGE)
@@ -339,9 +413,21 @@ const LessonViewPage: React.FC = () => {
           <Heading size="6">{lesson.title}</Heading>
           <Badge variant="soft">{lesson.languageCode.toUpperCase()}</Badge>
         </Flex>
-        <Text size="3" color="gray">
-          {lesson.totalSentences} sentences total
-        </Text>
+        <Flex direction="column" gap="1">
+          <Text size="3" color="gray">
+            {lesson.totalSentences} sentences total
+          </Text>
+          {lesson.userProgress && (
+            <Text size="2" color="blue">
+              Status:{' '}
+              {lesson.userProgress.status === 'reading'
+                ? 'In Progress'
+                : 'Completed'}
+              {lesson.userProgress.status === 'reading' &&
+                ` • Last read: Page ${lesson.userProgress.shouldNavigateToPage}`}
+            </Text>
+          )}
+        </Flex>
       </Flex>
 
       <Separator size="4" mb="4" />

@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { LessonService } from '../services/lessonService';
 import { SentenceService } from '../services/sentenceService';
+import { UserLessonProgressService } from '../services/userLessonProgressService';
 
 const router = Router();
 
@@ -230,5 +231,132 @@ router.get(
     }
   }
 );
+
+// Update user progress for a lesson (when page changes)
+router.post('/:lessonId/progress', async (req: Request, res: Response) => {
+  try {
+    const lessonId = parseInt(req.params['lessonId'] || '0');
+    const { currentPage, sentencesPerPage } = req.body;
+
+    if (isNaN(lessonId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid lesson ID',
+      });
+    }
+
+    if (!currentPage || currentPage < 1) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current page is required and must be >= 1',
+      });
+    }
+
+    const result = await UserLessonProgressService.updateProgress(
+      req.userId!,
+      lessonId,
+      currentPage,
+      sentencesPerPage || 5
+    );
+
+    if (result.success) {
+      return res.json(result);
+    } else {
+      return res.status(400).json(result);
+    }
+  } catch (error) {
+    console.error('Update progress route error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+});
+
+// Get user progress for a lesson
+router.get('/:lessonId/progress', async (req: Request, res: Response) => {
+  try {
+    const lessonId = parseInt(req.params['lessonId'] || '0');
+    const sentencesPerPage =
+      parseInt(req.query['sentencesPerPage'] as string) || 5;
+
+    if (isNaN(lessonId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid lesson ID',
+      });
+    }
+
+    const result = await UserLessonProgressService.getProgress(
+      req.userId!,
+      lessonId,
+      sentencesPerPage
+    );
+
+    if (result.success) {
+      return res.json(result);
+    } else {
+      return res.status(400).json(result);
+    }
+  } catch (error) {
+    console.error('Get progress route error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+});
+
+// Reset user progress for a lesson
+router.delete('/:lessonId/progress', async (req: Request, res: Response) => {
+  try {
+    const lessonId = parseInt(req.params['lessonId'] || '0');
+
+    if (isNaN(lessonId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid lesson ID',
+      });
+    }
+
+    const result = await UserLessonProgressService.resetProgress(
+      req.userId!,
+      lessonId
+    );
+
+    if (result.success) {
+      return res.json(result);
+    } else {
+      return res.status(400).json(result);
+    }
+  } catch (error) {
+    console.error('Reset progress route error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+});
+
+// Get user progress overview for all lessons
+router.get('/progress/overview', async (req: Request, res: Response) => {
+  try {
+    const result = await UserLessonProgressService.getUserProgressOverview(
+      req.userId!
+    );
+
+    if (result.success) {
+      return res.json(result);
+    } else {
+      return res.status(400).json(result);
+    }
+  } catch (error) {
+    console.error('Get progress overview route error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+});
 
 export default router;

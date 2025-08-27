@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { OpenAIService } from './ai/openaiService';
+import { UserLessonProgressService } from './userLessonProgressService';
 
 const prisma = new PrismaClient();
 
@@ -31,6 +32,11 @@ export interface LessonWithSentences {
   languageCode: string;
   sentences: SentenceWithSplitText[];
   totalSentences: number;
+  userProgress?: {
+    status: string;
+    readTillSentenceId: number;
+    shouldNavigateToPage: number;
+  } | null;
 }
 
 export interface GetSentencesResponse {
@@ -423,6 +429,22 @@ export class SentenceService {
         lesson.language_code
       );
 
+      // Get user progress for this lesson
+      const progressResult = await UserLessonProgressService.getProgress(
+        userId,
+        lessonId,
+        limit
+      );
+
+      let userProgress = null;
+      if (progressResult.success && progressResult.progress) {
+        userProgress = {
+          status: progressResult.progress.status,
+          readTillSentenceId: progressResult.progress.readTillSentenceId,
+          shouldNavigateToPage: progressResult.shouldNavigateToPage || 1,
+        };
+      }
+
       return {
         success: true,
         lesson: {
@@ -431,6 +453,7 @@ export class SentenceService {
           languageCode: lesson.language_code,
           sentences: processedSentences,
           totalSentences,
+          userProgress,
         },
       };
     } catch (error) {
