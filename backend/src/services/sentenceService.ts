@@ -47,6 +47,7 @@ export class SentenceService {
    * @param words - Array of word translation objects from OpenAI
    * @param sourceLanguage - The source language code
    * @param targetLanguage - The target language code (default: 'en')
+   * @param sentenceId - Optional sentence ID to link words to the sentence via SentenceWord
    */
   private static async storeWordTranslations(
     words: Array<{
@@ -57,7 +58,8 @@ export class SentenceService {
       partOfSpeech?: string;
     }>,
     sourceLanguage: string,
-    targetLanguage: string = 'en'
+    targetLanguage: string = 'en',
+    sentenceId?: number
   ): Promise<void> {
     try {
       for (const wordObj of words) {
@@ -123,6 +125,28 @@ export class SentenceService {
                 pronunciation_type: trimmedPronunciationType,
               },
             });
+          }
+        }
+
+        // Link word to sentence if sentenceId is provided
+        if (sentenceId) {
+          try {
+            await prisma.sentenceWord.upsert({
+              where: {
+                word_id_sentence_id: {
+                  word_id: word.id,
+                  sentence_id: sentenceId,
+                },
+              },
+              update: {}, // No updates needed, just ensure the link exists
+              create: {
+                word_id: word.id,
+                sentence_id: sentenceId,
+              },
+            });
+          } catch (linkError) {
+            // Log error but continue - word linking shouldn't break word storage
+            console.error('Error linking word to sentence:', linkError);
           }
         }
       }
@@ -292,7 +316,8 @@ export class SentenceService {
             await this.storeWordTranslations(
               analysis.words,
               languageCode,
-              'en' // Target language is English
+              'en', // Target language is English
+              sentence.id // Link words to this sentence
             );
 
             // Update the database with the split_text

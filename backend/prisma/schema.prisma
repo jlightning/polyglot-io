@@ -56,6 +56,7 @@ model Sentence {
 
   lesson               Lesson                @relation(fields: [lesson_id], references: [id])
   sentenceTranslations SentenceTranslation[]
+  sentenceWords        SentenceWord[]
 
   @@map("sentence")
 }
@@ -84,6 +85,7 @@ model Word {
   wordTranslations   WordTranslation[]
   wordPronunciations WordPronunciation[]
   wordUserMarks      WordUserMark[]
+  sentenceWords      SentenceWord[]
 
   @@unique([word, language_code])
   @@map("word")
@@ -131,4 +133,18 @@ model WordUserMark {
 
   @@unique([user_id, word_id])
   @@map("word_user_mark")
+}
+
+model SentenceWord {
+  id          Int      @id @default(autoincrement())
+  word_id     Int
+  sentence_id Int
+  created_at  DateTime @default(now()) @db.Timestamp(0)
+  updated_at  DateTime @default(now()) @updatedAt @db.Timestamp(0)
+
+  word     Word     @relation(fields: [word_id], references: [id])
+  sentence Sentence @relation(fields: [sentence_id], references: [id])
+
+  @@unique([word_id, sentence_id])
+  @@map("sentence_word")
 }
