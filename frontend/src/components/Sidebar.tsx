@@ -60,7 +60,7 @@ const Sidebar: React.FC<SidebarProps> = () => {
             color={userScore >= 200 ? 'green' : 'yellow'}
             weight="medium"
           >
-            User Stats: {userScore} / 200
+            Today's Score: {userScore} / 200
           </Text>
           <Text size="2" color="blue" weight="medium">
             Known Words: {knownWordsCount}
