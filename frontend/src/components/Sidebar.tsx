@@ -41,7 +41,7 @@ const Sidebar: React.FC<SidebarProps> = () => {
           </Text>
           <Text
             size="2"
-            color={dailyScore > 200 ? 'green' : 'yellow'}
+            color={dailyScore >= 200 ? 'green' : 'yellow'}
             weight="medium"
           >
             Today's Score: {dailyScore} / 200
