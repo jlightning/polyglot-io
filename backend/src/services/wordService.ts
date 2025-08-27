@@ -200,4 +200,104 @@ export class WordService {
       };
     }
   }
+
+  /**
+   * Get detailed word marks with related sentences and lessons
+   */
+  static async getUserWordMarksWithDetails(
+    userId: number,
+    page: number = 1,
+    limit: number = 50,
+    markFilter?: number
+  ) {
+    try {
+      const skip = (page - 1) * limit;
+
+      // Build where clause
+      const whereClause: any = { user_id: userId };
+      if (markFilter !== undefined && markFilter >= 0 && markFilter <= 5) {
+        whereClause.mark = markFilter;
+      }
+
+      const [wordUserMarks, total] = await Promise.all([
+        prisma.wordUserMark.findMany({
+          where: whereClause,
+          include: {
+            word: {
+              include: {
+                sentenceWords: {
+                  include: {
+                    sentence: {
+                      include: {
+                        lesson: {
+                          select: {
+                            id: true,
+                            title: true,
+                            language_code: true,
+                          },
+                        },
+                      },
+                    },
+                  },
+                  take: 3, // Limit to 3 sentences per word
+                },
+              },
+            },
+          },
+          orderBy: { updated_at: 'desc' },
+          skip,
+          take: limit,
+        }),
+        prisma.wordUserMark.count({
+          where: whereClause,
+        }),
+      ]);
+
+      // Transform the data to include unique lessons per word
+      const transformedData = wordUserMarks.map(wordMark => {
+        const sentences = wordMark.word.sentenceWords.map(sw => ({
+          id: sw.sentence.id,
+          original_text: sw.sentence.original_text,
+          lesson: sw.sentence.lesson,
+        }));
+
+        // Get unique lessons from sentences
+        const lessonMap = new Map();
+        sentences.forEach(sentence => {
+          if (sentence.lesson && !lessonMap.has(sentence.lesson.id)) {
+            lessonMap.set(sentence.lesson.id, sentence.lesson);
+          }
+        });
+        const lessons = Array.from(lessonMap.values()).slice(0, 3); // Limit to 3 lessons
+
+        return {
+          ...wordMark,
+          word: {
+            ...wordMark.word,
+            sentences: sentences.slice(0, 3), // Limit to 3 sentences
+            lessons,
+          },
+        };
+      });
+
+      return {
+        success: true,
+        data: {
+          wordUserMarks: transformedData,
+          pagination: {
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit),
+          },
+        },
+      };
+    } catch (error) {
+      console.error('Error getting user word marks with details:', error);
+      return {
+        success: false,
+        message: 'Failed to get user word marks with details',
+      };
+    }
+  }
 }

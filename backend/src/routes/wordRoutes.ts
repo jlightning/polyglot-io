@@ -140,4 +140,49 @@ router.get('/marks', async (req: Request, res: Response) => {
   }
 });
 
+// Get user word marks with details (sentences and lessons)
+router.get('/marks/details', async (req: Request, res: Response) => {
+  try {
+    const page = parseInt(req.query['page'] as string) || 1;
+    const limit = parseInt(req.query['limit'] as string) || 50;
+    const markFilter = req.query['mark']
+      ? parseInt(req.query['mark'] as string)
+      : undefined;
+
+    if (page < 1 || limit < 1 || limit > 100) {
+      return res.status(400).json({
+        success: false,
+        message:
+          'Invalid pagination parameters. Page must be >= 1, limit must be 1-100',
+      });
+    }
+
+    if (markFilter !== undefined && (markFilter < 0 || markFilter > 5)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mark filter must be between 0 and 5',
+      });
+    }
+
+    const result = await WordService.getUserWordMarksWithDetails(
+      req.userId!,
+      page,
+      limit,
+      markFilter
+    );
+
+    if (result.success) {
+      return res.json(result);
+    } else {
+      return res.status(400).json(result);
+    }
+  } catch (error) {
+    console.error('Get user word marks with details route error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+});
+
 export default router;

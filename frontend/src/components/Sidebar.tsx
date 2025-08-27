@@ -1,19 +1,23 @@
 import React from 'react';
 import { Box, Flex, Text, Button, Separator } from '@radix-ui/themes';
-import { ReaderIcon, ExitIcon } from '@radix-ui/react-icons';
+import { ReaderIcon, ExitIcon, BookmarkIcon } from '@radix-ui/react-icons';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import LanguageSwitcher from './LanguageSwitcher';
 
-interface SidebarProps {
-  // No navigation props needed since we only have lessons
-}
+interface SidebarProps {}
 
 const Sidebar: React.FC<SidebarProps> = () => {
   const { user, logout, dailyScore } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const handleLogout = () => {
     logout();
   };
+
+  const isLessonsActive = location.pathname.startsWith('/lessons');
+  const isWordsActive = location.pathname === '/words';
 
   return (
     <Box
@@ -53,19 +57,27 @@ const Sidebar: React.FC<SidebarProps> = () => {
 
       <Separator size="4" />
 
-      {/* Current View */}
+      {/* Navigation */}
       <Box p="4" flexGrow="1">
         <Text size="2" weight="medium" mb="3" as="div">
-          Current View
+          Navigation
         </Text>
         <Flex direction="column" gap="2">
           <Button
-            variant="solid"
+            variant={isLessonsActive ? 'solid' : 'soft'}
             style={{ justifyContent: 'flex-start' }}
-            disabled
+            onClick={() => navigate('/lessons')}
           >
             <ReaderIcon />
             Lessons
+          </Button>
+          <Button
+            variant={isWordsActive ? 'solid' : 'soft'}
+            style={{ justifyContent: 'flex-start' }}
+            onClick={() => navigate('/words')}
+          >
+            <BookmarkIcon />
+            Words
           </Button>
         </Flex>
       </Box>
