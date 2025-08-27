@@ -367,6 +367,35 @@ export class SentenceService {
     // Sort results by original order (by id)
     processedResults.sort((a, b) => a.id - b.id);
 
+    // Deduplicate word_translations and word_pronunciations for each sentence
+    processedResults.forEach(sentence => {
+      if (sentence.word_translations) {
+        // Deduplicate translations by word + translation combination
+        const uniqueTranslations = new Map<string, WordWithTranslation>();
+        sentence.word_translations.forEach(translation => {
+          const key = `${translation.word}|${translation.translation}`;
+          if (!uniqueTranslations.has(key)) {
+            uniqueTranslations.set(key, translation);
+          }
+        });
+        sentence.word_translations = Array.from(uniqueTranslations.values());
+      }
+
+      if (sentence.word_pronunciations) {
+        // Deduplicate pronunciations by word + pronunciation combination
+        const uniquePronunciations = new Map<string, WordWithPronunciation>();
+        sentence.word_pronunciations.forEach(pronunciation => {
+          const key = `${pronunciation.word}|${pronunciation.pronunciation}`;
+          if (!uniquePronunciations.has(key)) {
+            uniquePronunciations.set(key, pronunciation);
+          }
+        });
+        sentence.word_pronunciations = Array.from(
+          uniquePronunciations.values()
+        );
+      }
+    });
+
     return processedResults;
   }
 
