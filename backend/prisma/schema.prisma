@@ -57,8 +57,8 @@ model UserLessonProgress {
   lesson_id             Int
   status                UserLessonProgressStatus
   read_till_sentence_id Int
-  created_at    DateTime @default(now()) @db.Timestamp(0)
-  updated_at    DateTime @default(now()) @updatedAt @db.Timestamp(0)
+  created_at            DateTime                 @default(now()) @db.Timestamp(0)
+  updated_at            DateTime                 @default(now()) @updatedAt @db.Timestamp(0)
 
   user     User     @relation(fields: [user_id], references: [id])
   lesson   Lesson   @relation(fields: [lesson_id], references: [id])
@@ -145,14 +145,21 @@ model WordPronunciation {
   @@map("word_pronunciation")
 }
 
+enum WordUserMarkSource {
+  lesson
+  import
+  ling_q
+}
+
 model WordUserMark {
-  id         Int      @id @default(autoincrement())
+  id         Int                @id @default(autoincrement())
   user_id    Int
   word_id    Int
-  note       String   @db.VarChar(512)
+  note       String             @db.VarChar(512)
   mark       Int // from 0 -> 5, 0: ignore, 1: don't remember, 2: hard to remember, 3: remembered, 4: easy to remember, 5: no problem remembering
-  created_at DateTime @default(now()) @db.Timestamp(0)
-  updated_at DateTime @default(now()) @updatedAt @db.Timestamp(0)
+  source     WordUserMarkSource @default(lesson)
+  created_at DateTime           @default(now()) @db.Timestamp(0)
+  updated_at DateTime           @default(now()) @updatedAt @db.Timestamp(0)
 
   user User @relation(fields: [user_id], references: [id])
   word Word @relation(fields: [word_id], references: [id])

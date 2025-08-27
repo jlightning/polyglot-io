@@ -13,8 +13,15 @@ import {
   Heading,
   Card,
   Link,
+  Dialog,
+  Tabs,
 } from '@radix-ui/themes';
-import { MagnifyingGlassIcon, ReloadIcon } from '@radix-ui/react-icons';
+import {
+  MagnifyingGlassIcon,
+  ReloadIcon,
+  DownloadIcon,
+  CrossCircledIcon,
+} from '@radix-ui/react-icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -94,6 +101,13 @@ const WordsPage: React.FC = () => {
     totalPages: 0,
   });
 
+  // Import dialog state
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [lingqApiKey, setLingqApiKey] = useState('');
+  const [importLoading, setImportLoading] = useState(false);
+  const [importError, setImportError] = useState('');
+  const [importSuccess, setImportSuccess] = useState('');
+
   const fetchWords = async (
     page: number = 1,
     search: string = '',
@@ -165,16 +179,91 @@ const WordsPage: React.FC = () => {
     return text.substring(0, maxLength) + '...';
   };
 
+  const handleLingqImport = async () => {
+    if (!lingqApiKey.trim()) {
+      setImportError('Please enter your LingQ API key');
+      return;
+    }
+
+    if (!selectedLanguage) {
+      setImportError('Please select a language first');
+      return;
+    }
+
+    try {
+      setImportLoading(true);
+      setImportError('');
+      setImportSuccess('');
+
+      // Call our backend endpoint which will handle the LingQ API calls
+      const importResponse = await axiosInstance.post('/api/import/lingq', {
+        apiKey: lingqApiKey,
+        languageCode: selectedLanguage,
+      });
+
+      if (importResponse.data.success) {
+        const { data } = importResponse.data;
+        let message = importResponse.data.message;
+
+        if (data && data.totalProcessed > 0) {
+          message = `Successfully processed ${data.totalProcessed} words: ${data.imported} imported, ${data.updated} updated`;
+          if (data.errors > 0) {
+            message += `, ${data.errors} errors`;
+          }
+        }
+
+        setImportSuccess(message);
+        // Refresh the words list
+        fetchWords(currentPage, searchTerm, difficultyFilter);
+      } else {
+        throw new Error(
+          importResponse.data.message || 'Failed to import words'
+        );
+      }
+    } catch (error: any) {
+      console.error('LingQ import error:', error);
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        'Failed to import from LingQ. Please check your API key and try again.';
+      setImportError(errorMessage);
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  const resetImportDialog = () => {
+    setLingqApiKey('');
+    setImportError('');
+    setImportSuccess('');
+    setImportLoading(false);
+  };
+
+  const handleImportDialogClose = () => {
+    setImportDialogOpen(false);
+    resetImportDialog();
+  };
+
   return (
     <Container size="4" p="4">
       {/* Header */}
       <Flex direction="column" gap="4" mb="6">
         <Flex align="center" justify="between">
           <Heading size="6">My Words</Heading>
-          <Button variant="ghost" onClick={handleRefresh} disabled={loading}>
-            <ReloadIcon />
-            Refresh
-          </Button>
+          <Flex gap="2">
+            <Button
+              variant="soft"
+              onClick={() => setImportDialogOpen(true)}
+              disabled={loading}
+            >
+              <DownloadIcon />
+              Import
+            </Button>
+            <Button variant="ghost" onClick={handleRefresh} disabled={loading}>
+              <ReloadIcon />
+              Refresh
+            </Button>
+          </Flex>
         </Flex>
 
         <Text size="3" color="gray">
@@ -398,6 +487,174 @@ const WordsPage: React.FC = () => {
           </Flex>
         </>
       )}
+
+      {/* Import Dialog */}
+      <Dialog.Root open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+        <Dialog.Content style={{ maxWidth: '600px' }}>
+          <Dialog.Title>Import Words</Dialog.Title>
+          <Dialog.Description>
+            Import words from various sources to add to your vocabulary.
+          </Dialog.Description>
+
+          <Tabs.Root defaultValue="csv" style={{ marginTop: '20px' }}>
+            <Tabs.List>
+              <Tabs.Trigger value="csv">Upload CSV</Tabs.Trigger>
+              <Tabs.Trigger value="lingq">Import from LingQ</Tabs.Trigger>
+            </Tabs.List>
+
+            <Box pt="4">
+              {/* CSV Upload Tab */}
+              <Tabs.Content value="csv">
+                <Flex direction="column" gap="4">
+                  <Text size="3" color="gray">
+                    Upload a CSV file containing your words and their difficulty
+                    marks.
+                  </Text>
+
+                  <Box
+                    style={{
+                      border: '2px dashed var(--gray-6)',
+                      borderRadius: '8px',
+                      padding: '40px',
+                      textAlign: 'center',
+                      backgroundColor: 'var(--gray-2)',
+                    }}
+                  >
+                    <Text size="3" color="gray">
+                      CSV upload functionality will be implemented soon.
+                    </Text>
+                    <Text
+                      size="2"
+                      color="gray"
+                      style={{ display: 'block', marginTop: '8px' }}
+                    >
+                      Expected format: word, language_code, mark, note
+                    </Text>
+                  </Box>
+                </Flex>
+              </Tabs.Content>
+
+              {/* LingQ Import Tab */}
+              <Tabs.Content value="lingq">
+                <Flex direction="column" gap="4">
+                  <Text size="3" color="gray">
+                    Import your LingQs from LingQ.com using your API key.
+                  </Text>
+
+                  {!selectedLanguage && (
+                    <Box
+                      style={{
+                        padding: '12px',
+                        backgroundColor: 'var(--amber-2)',
+                        border: '1px solid var(--amber-6)',
+                        borderRadius: '6px',
+                      }}
+                    >
+                      <Text size="2" color="amber">
+                        Please select a language first before importing from
+                        LingQ.
+                      </Text>
+                    </Box>
+                  )}
+
+                  <Box>
+                    <Text
+                      size="2"
+                      weight="bold"
+                      mb="2"
+                      style={{ display: 'block' }}
+                    >
+                      LingQ API Key
+                    </Text>
+                    <TextField.Root
+                      placeholder="Enter your LingQ API key..."
+                      value={lingqApiKey}
+                      onChange={e => setLingqApiKey(e.target.value)}
+                      disabled={importLoading}
+                      type="password"
+                    />
+                    <Text
+                      size="2"
+                      color="gray"
+                      style={{ display: 'block', marginTop: '4px' }}
+                    >
+                      You can find your API key in your LingQ account settings.
+                      The key will not be stored and is only used for this
+                      import.
+                    </Text>
+                  </Box>
+
+                  {importError && (
+                    <Box
+                      style={{
+                        padding: '12px',
+                        backgroundColor: 'var(--red-2)',
+                        border: '1px solid var(--red-6)',
+                        borderRadius: '6px',
+                      }}
+                    >
+                      <Flex align="center" gap="2">
+                        <CrossCircledIcon color="var(--red-9)" />
+                        <Text size="2" color="red">
+                          {importError}
+                        </Text>
+                      </Flex>
+                    </Box>
+                  )}
+
+                  {importSuccess && (
+                    <Box
+                      style={{
+                        padding: '12px',
+                        backgroundColor: 'var(--green-2)',
+                        border: '1px solid var(--green-6)',
+                        borderRadius: '6px',
+                      }}
+                    >
+                      <Text size="2" color="green">
+                        {importSuccess}
+                      </Text>
+                    </Box>
+                  )}
+
+                  <Flex gap="2" justify="end">
+                    <Button
+                      variant="soft"
+                      onClick={resetImportDialog}
+                      disabled={importLoading}
+                    >
+                      Reset
+                    </Button>
+                    <Button
+                      onClick={handleLingqImport}
+                      disabled={
+                        importLoading ||
+                        !selectedLanguage ||
+                        !lingqApiKey.trim()
+                      }
+                      loading={importLoading}
+                    >
+                      {importLoading ? 'Importing...' : 'Import from LingQ'}
+                    </Button>
+                  </Flex>
+                </Flex>
+              </Tabs.Content>
+            </Box>
+          </Tabs.Root>
+
+          <Flex gap="3" mt="4" justify="end">
+            <Dialog.Close>
+              <Button
+                variant="soft"
+                color="gray"
+                onClick={handleImportDialogClose}
+              >
+                Close
+              </Button>
+            </Dialog.Close>
+          </Flex>
+        </Dialog.Content>
+      </Dialog.Root>
     </Container>
   );
 };

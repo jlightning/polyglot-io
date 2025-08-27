@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, WordUserMarkSource } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -7,6 +7,7 @@ interface CreateWordUserMarkData {
   languageCode: string;
   note: string;
   mark: number;
+  source?: WordUserMarkSource;
 }
 
 export class WordService {
@@ -59,6 +60,7 @@ export class WordService {
           word_id: word.id,
           note: data.note,
           mark: data.mark,
+          ...(data.source ? { source: data.source } : {}),
         },
         include: {
           word: true,
@@ -236,14 +238,12 @@ export class WordService {
               ...wordConditions,
               word: {
                 contains: searchTerm,
-                mode: 'insensitive',
               },
             },
           },
           {
             note: {
               contains: searchTerm,
-              mode: 'insensitive',
             },
             ...(Object.keys(wordConditions).length > 0 && {
               word: wordConditions,

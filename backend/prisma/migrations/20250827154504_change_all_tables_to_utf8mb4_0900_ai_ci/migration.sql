@@ -1,0 +1,10 @@
+ALTER TABLE `user` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_ja_0900_as_cs_ks;
+ALTER TABLE `lesson` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_ja_0900_as_cs_ks;
+ALTER TABLE `user_lesson_progress` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_ja_0900_as_cs_ks;
+ALTER TABLE `sentence` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_ja_0900_as_cs_ks;
+ALTER TABLE `sentence_translation` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_ja_0900_as_cs_ks;
+ALTER TABLE `word` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_ja_0900_as_cs_ks;
+ALTER TABLE `word_translation` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_ja_0900_as_cs_ks;
+ALTER TABLE `word_pronunciation` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_ja_0900_as_cs_ks;
+ALTER TABLE `word_user_mark` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_ja_0900_as_cs_ks;
+ALTER TABLE `sentence_word` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_ja_0900_as_cs_ks;
