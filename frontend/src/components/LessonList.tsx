@@ -12,6 +12,7 @@ import {
 } from '@radix-ui/themes';
 import { TrashIcon, EyeOpenIcon } from '@radix-ui/react-icons';
 import axios from 'axios';
+import dayjs from 'dayjs';
 import { useAuth } from '../contexts/AuthContext';
 import AudioPlayer from './AudioPlayer';
 
@@ -202,7 +203,7 @@ const LessonList: React.FC<LessonListProps> = ({
                 </Flex>
 
                 <Text size="1" color="gray">
-                  Created: {new Date(lesson.createdAt).toLocaleDateString()}
+                  Created: {dayjs(lesson.createdAt).format('MM/DD/YYYY')}
                 </Text>
 
                 <Flex gap="2" mt="3">

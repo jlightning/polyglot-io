@@ -3373,6 +3373,11 @@ date-fns@^2.30.0:
   dependencies:
     "@babel/runtime" "^7.21.0"
 
+dayjs@^1.11.14:
+  version "1.11.14"
+  resolved "https://registry.yarnpkg.com/dayjs/-/dayjs-1.11.14.tgz#aa47cd445471acac25d55deb101557dd827eff60"
+  integrity sha512-E8fIdSxUlyqSA8XYGnNa3IkIzxtEmFjI+JU/6ic0P1zmSqyL6HyG5jHnpPjRguDNiaHLpfvHKWFiohNsJLqcJQ==
+
 debug@2.6.9:
   version "2.6.9"
   resolved "https://registry.npmjs.org/debug/-/debug-2.6.9.tgz"

@@ -5,6 +5,7 @@ import {
   DeleteObjectCommand,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import dayjs from 'dayjs';
 
 export class S3Service {
   private static s3Client: S3Client;
@@ -40,7 +41,7 @@ export class S3Service {
       this.initialize();
     }
 
-    const key = `lessons/${userId}/${Date.now()}-${fileName}`;
+    const key = `lessons/${userId}/${dayjs().valueOf()}-${fileName}`;
 
     const command = new PutObjectCommand({
       Bucket: this.bucketName,

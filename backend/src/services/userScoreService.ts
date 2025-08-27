@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import dayjs from 'dayjs';
 
 const prisma = new PrismaClient();
 
@@ -18,14 +19,11 @@ export class UserScoreService {
     date?: Date
   ): Promise<UserScoreResponse> {
     try {
-      const targetDate = date || new Date();
+      const targetDate = date ? dayjs(date) : dayjs();
 
       // Get start and end of the target day
-      const startOfDay = new Date(targetDate);
-      startOfDay.setHours(0, 0, 0, 0);
-
-      const endOfDay = new Date(targetDate);
-      endOfDay.setHours(23, 59, 59, 999);
+      const startOfDay = targetDate.startOf('day').toDate();
+      const endOfDay = targetDate.endOf('day').toDate();
 
       // Sum all marks for the user for the target day
       const result = await prisma.wordUserMark.aggregate({

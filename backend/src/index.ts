@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
+import dayjs from 'dayjs';
 import authRoutes from './routes/authRoutes';
 import configRoutes from './routes/configRoutes';
 import lessonRoutes from './routes/lessonRoutes';
@@ -30,7 +31,7 @@ app.use(express.json());
 
 // Health check endpoint
 app.get('/health', (_req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+  res.json({ status: 'OK', timestamp: dayjs().toISOString() });
 });
 
 // API routes

@@ -18,13 +18,13 @@ router.get('/daily', authenticateToken, async (req, res) => {
     const result = await UserScoreService.getDailyScore(userId);
 
     if (result.success) {
-      res.json(result);
+      return res.json(result);
     } else {
-      res.status(500).json(result);
+      return res.status(500).json(result);
     }
   } catch (error) {
     console.error('Error getting daily score:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Internal server error',
     });
