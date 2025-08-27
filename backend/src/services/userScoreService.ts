@@ -7,14 +7,16 @@ export interface UserScoreResponse {
   success: boolean;
   message: string;
   score?: number;
+  knownWordsCount?: number;
 }
 
 export class UserScoreService {
   /**
-   * Calculate user's daily score based on word_user_mark entries for today
-   * Score for each day = sum of all marks for that day
+   * Get user statistics including daily score and known words count
+   * Daily score = sum of all marks for today divided by 2 (rounded up)
+   * Known words count = count of words marked 4 or 5
    */
-  static async getDailyScore(
+  static async getUserStats(
     userId: number,
     date?: Date
   ): Promise<UserScoreResponse> {
@@ -39,18 +41,29 @@ export class UserScoreService {
         },
       });
 
+      // Count known words (marks 4 or 5) for this user
+      const knownWordsCount = await prisma.wordUserMark.count({
+        where: {
+          user_id: userId,
+          mark: {
+            in: [4, 5],
+          },
+        },
+      });
+
       const score = Math.ceil((result._sum.mark || 0) / 2);
 
       return {
         success: true,
-        message: 'Daily score retrieved successfully',
+        message: 'User statistics retrieved successfully',
         score,
+        knownWordsCount,
       };
     } catch (error) {
-      console.error('Error calculating daily score:', error);
+      console.error('Error retrieving user statistics:', error);
       return {
         success: false,
-        message: 'Failed to calculate daily score',
+        message: 'Failed to retrieve user statistics',
       };
     }
   }

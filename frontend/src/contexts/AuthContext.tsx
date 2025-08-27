@@ -34,6 +34,7 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   dailyScore: number;
+  knownWordsCount: number;
   fetchDailyScore: () => Promise<void>;
 }
 
@@ -56,6 +57,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [dailyScore, setDailyScore] = useState<number>(0);
+  const [knownWordsCount, setKnownWordsCount] = useState<number>(0);
 
   const backendUrl =
     import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
@@ -64,6 +66,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUser(null);
     setToken(null);
     setDailyScore(0);
+    setKnownWordsCount(0);
     localStorage.removeItem('authToken');
     localStorage.removeItem('user');
   };
@@ -106,19 +109,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (!token) return;
 
     try {
-      const response = await axios.get('/api/user-score/daily', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await axios.get(
+        `${backendUrl}/api/user-score/getUserStats`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
       if (response.data.success) {
         setDailyScore(response.data.score || 0);
+        setKnownWordsCount(response.data.knownWordsCount || 0);
       }
     } catch (error) {
       console.error('Error fetching daily score:', error);
       setDailyScore(0);
+      setKnownWordsCount(0);
     }
-  }, [token, axiosInstance]);
+  }, [token, backendUrl]);
 
   // Check for existing authentication on mount
   useEffect(() => {
@@ -225,6 +233,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isLoading,
     isAuthenticated,
     dailyScore,
+    knownWordsCount,
     fetchDailyScore,
   };
 

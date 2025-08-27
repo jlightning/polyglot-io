@@ -8,7 +8,7 @@ import LanguageSwitcher from './LanguageSwitcher';
 interface SidebarProps {}
 
 const Sidebar: React.FC<SidebarProps> = () => {
-  const { user, logout, dailyScore } = useAuth();
+  const { user, logout, dailyScore, knownWordsCount } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -39,8 +39,15 @@ const Sidebar: React.FC<SidebarProps> = () => {
           <Text size="2" color="gray">
             Welcome, {user?.username}
           </Text>
-          <Text size="2" color="green" weight="medium">
-            Today's Score: {dailyScore}
+          <Text
+            size="2"
+            color={dailyScore > 200 ? 'green' : 'yellow'}
+            weight="medium"
+          >
+            Today's Score: {dailyScore} / 200
+          </Text>
+          <Text size="2" color="blue" weight="medium">
+            Known Words: {knownWordsCount}
           </Text>
         </Flex>
       </Box>
