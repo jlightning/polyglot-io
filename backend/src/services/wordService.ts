@@ -208,7 +208,9 @@ export class WordService {
     userId: number,
     page: number = 1,
     limit: number = 50,
-    markFilter?: number
+    markFilter?: number,
+    languageFilter?: string,
+    searchFilter?: string
   ) {
     try {
       const skip = (page - 1) * limit;
@@ -217,6 +219,39 @@ export class WordService {
       const whereClause: any = { user_id: userId };
       if (markFilter !== undefined && markFilter >= 0 && markFilter <= 5) {
         whereClause.mark = markFilter;
+      }
+
+      // Build word filter conditions
+      const wordConditions: any = {};
+      if (languageFilter) {
+        wordConditions.language_code = languageFilter;
+      }
+
+      // Add search filter for word text or user notes
+      if (searchFilter) {
+        const searchTerm = searchFilter.toLowerCase();
+        whereClause.OR = [
+          {
+            word: {
+              ...wordConditions,
+              word: {
+                contains: searchTerm,
+                mode: 'insensitive',
+              },
+            },
+          },
+          {
+            note: {
+              contains: searchTerm,
+              mode: 'insensitive',
+            },
+            ...(Object.keys(wordConditions).length > 0 && {
+              word: wordConditions,
+            }),
+          },
+        ];
+      } else if (Object.keys(wordConditions).length > 0) {
+        whereClause.word = wordConditions;
       }
 
       const [wordUserMarks, total] = await Promise.all([

@@ -1,13 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import {
-  Card,
-  Text,
-  Flex,
-  Button,
-  Dialog,
-  Select,
-  Box,
-} from '@radix-ui/themes';
+import React, { useState } from 'react';
+import { Card, Text, Flex, Button, Dialog, Box } from '@radix-ui/themes';
 import { PlusIcon, UploadIcon } from '@radix-ui/react-icons';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
@@ -18,17 +10,10 @@ interface LessonUploadProps {
 }
 
 const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
-  const { selectedLanguage, languages } = useLanguage();
+  const { selectedLanguage } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [title, setTitle] = useState('');
-  const [languageCode, setLanguageCode] = useState(
-    selectedLanguage !== 'all'
-      ? selectedLanguage
-      : languages.length > 0
-        ? languages[0]?.code || 'ja'
-        : 'ja'
-  );
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [lessonFile, setLessonFile] = useState<File | null>(null);
   const [audioFile, setAudioFile] = useState<File | null>(null);
@@ -36,15 +21,6 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
   const [success, setSuccess] = useState<string | null>(null);
 
   const { axiosInstance } = useAuth();
-
-  // Update languageCode when selectedLanguage changes
-  useEffect(() => {
-    if (selectedLanguage !== 'all') {
-      setLanguageCode(selectedLanguage);
-    } else if (languages.length > 0 && languages[0]) {
-      setLanguageCode(languages[0].code);
-    }
-  }, [selectedLanguage, languages]);
 
   const getFileType = (file: File): string => {
     // If the browser provided a MIME type, use it
@@ -203,7 +179,7 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
       return;
     }
 
-    if (!languageCode) {
+    if (!selectedLanguage) {
       setError('Please select a language');
       return;
     }
@@ -258,7 +234,7 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
       // Step 3: Create lesson record with S3 keys
       const response = await axiosInstance.post('/api/lessons', {
         title: title.trim(),
-        languageCode,
+        languageCode: selectedLanguage,
         imageKey,
         fileKey,
         audioKey,
@@ -343,28 +319,6 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
                 fontSize: '14px',
               }}
             />
-          </Box>
-
-          {/* Language Selection */}
-          <Box>
-            <Text size="2" weight="medium" mb="2" as="div">
-              Language *
-            </Text>
-            <Select.Root value={languageCode} onValueChange={setLanguageCode}>
-              <Select.Trigger placeholder="Select language" />
-              <Select.Content>
-                <Select.Group>
-                  {languages.map(language => (
-                    <Select.Item key={language.code} value={language.code}>
-                      {language.localName &&
-                      language.localName !== language.name
-                        ? `${language.localName} (${language.name})`
-                        : language.name}
-                    </Select.Item>
-                  ))}
-                </Select.Group>
-              </Select.Content>
-            </Select.Root>
           </Box>
 
           {/* Image Upload */}

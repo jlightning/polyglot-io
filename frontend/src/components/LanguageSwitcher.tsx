@@ -1,5 +1,5 @@
 import React from 'react';
-import { Select, Text, Flex, Button } from '@radix-ui/themes';
+import { Select, Text, Flex } from '@radix-ui/themes';
 import { useLanguage } from '../contexts/LanguageContext';
 
 const LanguageSwitcher: React.FC = () => {
@@ -42,9 +42,6 @@ const LanguageSwitcher: React.FC = () => {
         <Select.Trigger placeholder="Select language" />
         <Select.Content>
           <Select.Group>
-            <Select.Item value="all">
-              <Text>All Languages</Text>
-            </Select.Item>
             {languages.map(language => (
               <Select.Item key={language.code} value={language.code}>
                 <Flex align="center" gap="2">
@@ -59,16 +56,6 @@ const LanguageSwitcher: React.FC = () => {
           </Select.Group>
         </Select.Content>
       </Select.Root>
-
-      {selectedLanguage !== 'all' && (
-        <Button
-          variant="soft"
-          size="1"
-          onClick={() => setSelectedLanguage('all')}
-        >
-          Show All Languages
-        </Button>
-      )}
     </Flex>
   );
 };

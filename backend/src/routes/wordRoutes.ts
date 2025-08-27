@@ -148,6 +148,8 @@ router.get('/marks/details', async (req: Request, res: Response) => {
     const markFilter = req.query['mark']
       ? parseInt(req.query['mark'] as string)
       : undefined;
+    const languageFilter = req.query['language'] as string | undefined;
+    const searchFilter = req.query['search'] as string | undefined;
 
     if (page < 1 || limit < 1 || limit > 100) {
       return res.status(400).json({
@@ -168,7 +170,9 @@ router.get('/marks/details', async (req: Request, res: Response) => {
       req.userId!,
       page,
       limit,
-      markFilter
+      markFilter,
+      languageFilter,
+      searchFilter
     );
 
     if (result.success) {

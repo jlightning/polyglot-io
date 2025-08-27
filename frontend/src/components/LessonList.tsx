@@ -47,10 +47,9 @@ const LessonList: React.FC<LessonListProps> = ({
       setLoading(true);
       setError(null);
 
-      const endpoint =
-        selectedLanguage === 'all'
-          ? '/api/lessons'
-          : `/api/lessons/language/${selectedLanguage}`;
+      const endpoint = selectedLanguage
+        ? `/api/lessons/language/${selectedLanguage}`
+        : '/api/lessons';
 
       const response = await axiosInstance.get(endpoint);
 
@@ -127,9 +126,9 @@ const LessonList: React.FC<LessonListProps> = ({
             No lessons found
           </Text>
           <Text size="2" color="gray">
-            {selectedLanguage === 'all'
-              ? 'Upload your first lesson to get started!'
-              : `No lessons found for the selected language.`}
+            {selectedLanguage
+              ? `No lessons found for the selected language.`
+              : 'Upload your first lesson to get started!'}
           </Text>
         </Flex>
       </Card>

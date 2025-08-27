@@ -19,6 +19,10 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import Pagination from '../components/Pagination';
+import {
+  getDifficultyLabel,
+  getDifficultyColor,
+} from '../constants/difficultyColors';
 
 interface Word {
   id: number;
@@ -64,52 +68,14 @@ interface WordsResponse {
   };
 }
 
-const getMarkColor = (mark: number) => {
-  switch (mark) {
-    case 0:
-      return 'gray' as const;
-    case 1:
-      return 'red' as const;
-    case 2:
-      return 'orange' as const;
-    case 3:
-      return 'yellow' as const;
-    case 4:
-      return 'green' as const;
-    case 5:
-      return 'blue' as const;
-    default:
-      return 'gray' as const;
-  }
-};
-
-const getMarkLabel = (mark: number): string => {
-  switch (mark) {
-    case 0:
-      return 'Ignore';
-    case 1:
-      return "Don't Remember";
-    case 2:
-      return 'Hard to Remember';
-    case 3:
-      return 'Remembered';
-    case 4:
-      return 'Easy to Remember';
-    case 5:
-      return 'No Problem';
-    default:
-      return 'Unknown';
-  }
-};
-
 const DIFFICULTY_OPTIONS = [
   { value: 'all', label: 'All Difficulties' },
-  { value: '0', label: 'Ignore' },
-  { value: '1', label: "Don't Remember" },
-  { value: '2', label: 'Hard to Remember' },
-  { value: '3', label: 'Remembered' },
-  { value: '4', label: 'Easy to Remember' },
-  { value: '5', label: 'No Problem' },
+  { value: '0', label: getDifficultyLabel(0) },
+  { value: '1', label: getDifficultyLabel(1) },
+  { value: '2', label: getDifficultyLabel(2) },
+  { value: '3', label: getDifficultyLabel(3) },
+  { value: '4', label: getDifficultyLabel(4) },
+  { value: '5', label: getDifficultyLabel(5) },
 ];
 
 const WordsPage: React.FC = () => {
@@ -146,30 +112,23 @@ const WordsPage: React.FC = () => {
         params.append('mark', difficulty);
       }
 
+      // Add language filter to backend request
+      if (selectedLanguage) {
+        params.append('language', selectedLanguage);
+      }
+
+      // Add search filter to backend request
+      if (search) {
+        params.append('search', search);
+      }
+
       const response = await axiosInstance.get<WordsResponse>(
         `/api/words/marks/details?${params}`
       );
 
       if (response.data.success) {
-        let filteredWords = response.data.data.wordUserMarks;
-
-        // Filter by language if selected
-        if (selectedLanguage && selectedLanguage !== 'all') {
-          filteredWords = filteredWords.filter(
-            wordMark => wordMark.word.language_code === selectedLanguage
-          );
-        }
-
-        // Filter by search term
-        if (search) {
-          filteredWords = filteredWords.filter(
-            wordMark =>
-              wordMark.word.word.toLowerCase().includes(search.toLowerCase()) ||
-              wordMark.note.toLowerCase().includes(search.toLowerCase())
-          );
-        }
-
-        setWords(filteredWords);
+        // No more frontend filtering - backend handles it all
+        setWords(response.data.data.wordUserMarks);
         setPagination(response.data.data.pagination);
       }
     } catch (error) {
@@ -219,7 +178,7 @@ const WordsPage: React.FC = () => {
         </Flex>
 
         <Text size="3" color="gray">
-          {selectedLanguage && selectedLanguage !== 'all'
+          {selectedLanguage
             ? `Words you've marked while learning ${selectedLanguage.toUpperCase()}`
             : "All words you've marked across all languages"}
         </Text>
@@ -306,22 +265,19 @@ const WordsPage: React.FC = () => {
             <Table.Root>
               <Table.Header>
                 <Table.Row>
-                  <Table.ColumnHeaderCell style={{ width: '15%' }}>
+                  <Table.ColumnHeaderCell style={{ width: '18%' }}>
                     Word
                   </Table.ColumnHeaderCell>
-                  <Table.ColumnHeaderCell style={{ width: '10%' }}>
+                  <Table.ColumnHeaderCell style={{ width: '12%' }}>
                     Difficulty
                   </Table.ColumnHeaderCell>
-                  <Table.ColumnHeaderCell style={{ width: '8%' }}>
-                    Language
-                  </Table.ColumnHeaderCell>
-                  <Table.ColumnHeaderCell style={{ width: '35%' }}>
+                  <Table.ColumnHeaderCell style={{ width: '38%' }}>
                     Example Sentences
                   </Table.ColumnHeaderCell>
-                  <Table.ColumnHeaderCell style={{ width: '20%' }}>
+                  <Table.ColumnHeaderCell style={{ width: '22%' }}>
                     Related Lessons
                   </Table.ColumnHeaderCell>
-                  <Table.ColumnHeaderCell style={{ width: '12%' }}>
+                  <Table.ColumnHeaderCell style={{ width: '10%' }}>
                     Last Updated
                   </Table.ColumnHeaderCell>
                 </Table.Row>
@@ -350,17 +306,16 @@ const WordsPage: React.FC = () => {
                     {/* Difficulty */}
                     <Table.Cell>
                       <Badge
-                        color={getMarkColor(wordMark.mark)}
+                        color="gray"
                         variant="solid"
+                        style={{
+                          backgroundColor: getDifficultyColor(wordMark.mark),
+                          color: 'white',
+                          border:
+                            wordMark.mark === 4 ? '1px dotted #FF9800' : 'none',
+                        }}
                       >
-                        {getMarkLabel(wordMark.mark)}
-                      </Badge>
-                    </Table.Cell>
-
-                    {/* Language */}
-                    <Table.Cell>
-                      <Badge color="blue" variant="soft">
-                        {wordMark.word.language_code.toUpperCase()}
+                        {getDifficultyLabel(wordMark.mark)}
                       </Badge>
                     </Table.Cell>
 

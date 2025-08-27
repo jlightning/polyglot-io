@@ -45,7 +45,7 @@ const LANGUAGE_STORAGE_KEY = 'polyglotio_selected_language';
 export const LanguageProvider: React.FC<LanguageProviderProps> = ({
   children,
 }) => {
-  const [selectedLanguage, setSelectedLanguageState] = useState<string>('all');
+  const [selectedLanguage, setSelectedLanguageState] = useState<string>('');
   const [languages, setLanguages] = useState<Language[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -84,16 +84,15 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({
             error
           );
         }
-        const validLanguageCodes = [
-          'all',
-          ...fetchedLanguages.map((lang: Language) => lang.code),
-        ];
+        const validLanguageCodes = fetchedLanguages.map(
+          (lang: Language) => lang.code
+        );
 
         if (!storedLanguage || !validLanguageCodes.includes(storedLanguage)) {
-          // Default to first language from backend if available, otherwise 'all'
-          const defaultLanguage =
-            fetchedLanguages.length > 0 ? fetchedLanguages[0].code : 'all';
-          setSelectedLanguage(defaultLanguage);
+          // Always default to first language from backend
+          if (fetchedLanguages.length > 0) {
+            setSelectedLanguage(fetchedLanguages[0].code);
+          }
         } else {
           setSelectedLanguageState(storedLanguage);
         }
@@ -131,9 +130,8 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({
       }
       if (storedLanguage) {
         setSelectedLanguageState(storedLanguage);
-      } else {
-        setSelectedLanguageState('all');
       }
+      // Note: selectedLanguage will remain empty until languages are fetched
       setLoading(false);
     }
   }, [isAuthenticated]);

@@ -12,7 +12,7 @@ import LessonList from '../components/LessonList';
 import LessonUpload from '../components/LessonUpload';
 
 const LessonPage: React.FC = () => {
-  const { selectedLanguage } = useLanguage();
+  const { selectedLanguage, languages } = useLanguage();
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const handleLessonUploaded = () => {
@@ -34,9 +34,18 @@ const LessonPage: React.FC = () => {
       <Flex justify="between" align="center" mb="4">
         <Box>
           <Text size="2" color="gray">
-            {selectedLanguage === 'all'
-              ? 'Showing lessons from all languages'
-              : `Showing lessons for: ${selectedLanguage.toUpperCase()}`}
+            {selectedLanguage
+              ? (() => {
+                  const language = languages.find(
+                    lang => lang.code === selectedLanguage
+                  );
+                  const displayName =
+                    language?.localName && language.localName !== language.name
+                      ? `${language.localName} (${language.name})`
+                      : language?.name || selectedLanguage.toUpperCase();
+                  return `Showing lessons for: ${displayName}`;
+                })()
+              : 'Loading language...'}
           </Text>
         </Box>
         <LessonUpload onLessonUploaded={handleLessonUploaded} />
