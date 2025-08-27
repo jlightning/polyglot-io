@@ -12,13 +12,15 @@ export interface UserScoreResponse {
 
 export class UserScoreService {
   /**
-   * Get user statistics including daily score and known words count
-   * Daily score = sum of all marks for today divided by 2 (rounded up)
+   * Get user statistics including user score and known words count
+   * User score = sum of all marks for today divided by 2 (rounded up)
    * Known words count = count of words marked 4 or 5
+   * Optionally filter by language code
    */
   static async getUserStats(
     userId: number,
-    date?: Date
+    date?: Date,
+    languageCode?: string
   ): Promise<UserScoreResponse> {
     try {
       const targetDate = date ? dayjs(date) : dayjs();
@@ -27,10 +29,20 @@ export class UserScoreService {
       const startOfDay = targetDate.startOf('day').toDate();
       const endOfDay = targetDate.endOf('day').toDate();
 
+      // Build where conditions with optional language filter
+      const baseWhereCondition = {
+        user_id: userId,
+        ...(languageCode && {
+          word: {
+            language_code: languageCode,
+          },
+        }),
+      };
+
       // Sum all marks for the user for the target day
       const result = await prisma.wordUserMark.aggregate({
         where: {
-          user_id: userId,
+          ...baseWhereCondition,
           updated_at: {
             gte: startOfDay,
             lte: endOfDay,
@@ -44,7 +56,7 @@ export class UserScoreService {
       // Count known words (marks 4 or 5) for this user
       const knownWordsCount = await prisma.wordUserMark.count({
         where: {
-          user_id: userId,
+          ...baseWhereCondition,
           mark: {
             in: [4, 5],
           },

@@ -6,6 +6,7 @@ import React, {
   ReactNode,
 } from 'react';
 import { useAuth } from './AuthContext';
+import { useLanguage } from './LanguageContext';
 
 interface WordMarkContextType {
   // Get word mark (returns undefined if not marked)
@@ -46,7 +47,8 @@ interface WordMarkProviderProps {
 export const WordMarkProvider: React.FC<WordMarkProviderProps> = ({
   children,
 }) => {
-  const { axiosInstance, fetchDailyScore } = useAuth();
+  const { axiosInstance, fetchUserStats } = useAuth();
+  const { selectedLanguage } = useLanguage();
   const [wordMarks, setWordMarks] = useState<Record<string, number>>({});
   const [fetchedWords, setFetchedWords] = useState<Set<string>>(new Set());
   const [isFetching, setIsFetching] = useState(false);
@@ -85,8 +87,8 @@ export const WordMarkProvider: React.FC<WordMarkProviderProps> = ({
           }));
           // Mark this word as fetched since we now have its data
           setFetchedWords(prev => new Set([...prev, word]));
-          // Update daily score after successfully saving word mark
-          fetchDailyScore();
+          // Update user stats after successfully saving word mark
+          fetchUserStats(selectedLanguage);
           return true;
         }
         return false;
@@ -97,7 +99,7 @@ export const WordMarkProvider: React.FC<WordMarkProviderProps> = ({
         setIsSaving(false);
       }
     },
-    [axiosInstance, fetchDailyScore]
+    [axiosInstance, fetchUserStats, selectedLanguage]
   );
 
   const addWords = useCallback(

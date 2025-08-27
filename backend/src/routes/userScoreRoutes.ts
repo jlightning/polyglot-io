@@ -4,7 +4,7 @@ import { authenticateToken } from '../middleware/auth';
 
 const router = express.Router();
 
-// Get user statistics (daily score and known words count) for the authenticated user
+// Get user statistics (user score and known words count) for the authenticated user
 router.get('/getUserStats', authenticateToken, async (req, res) => {
   try {
     const userId = req.userId;
@@ -15,7 +15,12 @@ router.get('/getUserStats', authenticateToken, async (req, res) => {
       });
     }
 
-    const result = await UserScoreService.getUserStats(userId);
+    const languageCode = req.query['languageCode'] as string | undefined;
+    const result = await UserScoreService.getUserStats(
+      userId,
+      undefined,
+      languageCode
+    );
 
     if (result.success) {
       return res.json(result);

@@ -1,20 +1,36 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Box, Flex, Text, Button, Separator } from '@radix-ui/themes';
 import { ReaderIcon, ExitIcon, BookmarkIcon } from '@radix-ui/react-icons';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import LanguageSwitcher from './LanguageSwitcher';
 
 interface SidebarProps {}
 
 const Sidebar: React.FC<SidebarProps> = () => {
-  const { user, logout, dailyScore, knownWordsCount } = useAuth();
+  const {
+    user,
+    logout,
+    userScore,
+    knownWordsCount,
+    fetchUserStats,
+    isAuthenticated,
+  } = useAuth();
+  const { selectedLanguage } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
 
   const handleLogout = () => {
     logout();
   };
+
+  // Fetch stats when selected language changes
+  useEffect(() => {
+    if (isAuthenticated && selectedLanguage) {
+      fetchUserStats(selectedLanguage);
+    }
+  }, [isAuthenticated, selectedLanguage, fetchUserStats]);
 
   const isLessonsActive = location.pathname.startsWith('/lessons');
   const isWordsActive = location.pathname === '/words';
@@ -41,10 +57,10 @@ const Sidebar: React.FC<SidebarProps> = () => {
           </Text>
           <Text
             size="2"
-            color={dailyScore >= 200 ? 'green' : 'yellow'}
+            color={userScore >= 200 ? 'green' : 'yellow'}
             weight="medium"
           >
-            Today's Score: {dailyScore} / 200
+            User Stats: {userScore} / 200
           </Text>
           <Text size="2" color="blue" weight="medium">
             Known Words: {knownWordsCount}
