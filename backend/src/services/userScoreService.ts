@@ -39,7 +39,7 @@ export class UserScoreService {
         },
       });
 
-      const score = result._sum.mark || 0;
+      const score = Math.ceil((result._sum.mark || 0) / 2);
 
       return {
         success: true,
