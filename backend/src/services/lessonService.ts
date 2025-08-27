@@ -13,6 +13,12 @@ export interface CreateLessonData {
   audioKey?: string;
 }
 
+export interface UpdateLessonData {
+  title: string;
+  imageKey?: string;
+  audioKey?: string;
+}
+
 export interface LessonResponse {
   success: boolean;
   message: string;
@@ -307,6 +313,107 @@ export class LessonService {
       return {
         success: false,
         message: 'Failed to retrieve lessons',
+      };
+    }
+  }
+
+  /**
+   * Update a lesson's title and optional files
+   */
+  static async updateLesson(
+    userId: number,
+    lessonId: number,
+    updateData: UpdateLessonData
+  ): Promise<LessonResponse> {
+    try {
+      // Find the lesson to ensure it belongs to the user
+      const existingLesson = await prisma.lesson.findFirst({
+        where: {
+          id: lessonId,
+          created_by: userId,
+        },
+      });
+
+      if (!existingLesson) {
+        return {
+          success: false,
+          message: 'Lesson not found or access denied',
+        };
+      }
+
+      // Store old S3 keys for cleanup if they're being replaced
+      const oldImageKey = existingLesson.image_s3_key;
+      const oldAudioKey = existingLesson.audio_s3_key;
+
+      // Update the lesson in the database
+      const updatedLesson = await prisma.lesson.update({
+        where: {
+          id: lessonId,
+        },
+        data: {
+          title: updateData.title,
+          image_s3_key: updateData.imageKey || existingLesson.image_s3_key,
+          audio_s3_key: updateData.audioKey || existingLesson.audio_s3_key,
+        },
+      });
+
+      // Clean up old S3 files if they were replaced (but not if they were just removed)
+      const s3KeysToDelete: string[] = [];
+
+      // If imageKey was provided and is different from old key, delete old key
+      if (
+        updateData.imageKey &&
+        oldImageKey &&
+        updateData.imageKey !== oldImageKey
+      ) {
+        s3KeysToDelete.push(oldImageKey);
+      }
+
+      // If audioKey was provided and is different from old key, delete old key
+      if (
+        updateData.audioKey &&
+        oldAudioKey &&
+        updateData.audioKey !== oldAudioKey
+      ) {
+        s3KeysToDelete.push(oldAudioKey);
+      }
+
+      // Delete old S3 files asynchronously (don't wait for completion)
+      if (s3KeysToDelete.length > 0) {
+        Promise.all(s3KeysToDelete.map(key => S3Service.deleteFile(key))).catch(
+          (error: any) => {
+            console.error(
+              'Error deleting old S3 files during lesson update:',
+              error
+            );
+          }
+        );
+      }
+
+      return {
+        success: true,
+        message: 'Lesson updated successfully',
+        lesson: {
+          id: updatedLesson.id,
+          title: updatedLesson.title,
+          languageCode: updatedLesson.language_code,
+          ...(updatedLesson.image_s3_key && {
+            imageUrl: updatedLesson.image_s3_key,
+          }),
+          ...(updatedLesson.file_s3_key && {
+            fileUrl: updatedLesson.file_s3_key,
+          }),
+          ...(updatedLesson.audio_s3_key && {
+            audioUrl: updatedLesson.audio_s3_key,
+          }),
+          createdAt: updatedLesson.created_at,
+        },
+      };
+    } catch (error) {
+      console.error('Update lesson error:', error);
+      return {
+        success: false,
+        message: 'Failed to update lesson',
       };
     }
   }

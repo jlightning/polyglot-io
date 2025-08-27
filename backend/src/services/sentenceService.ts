@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { OpenAIService } from './ai/openaiService';
 import { UserLessonProgressService } from './userLessonProgressService';
+import { S3Service } from './s3Service';
 
 const prisma = new PrismaClient();
 
@@ -32,6 +33,7 @@ export interface LessonWithSentences {
   languageCode: string;
   sentences: SentenceWithSplitText[];
   totalSentences: number;
+  audioUrl?: string;
   userProgress?: {
     status: string;
     readTillSentenceId: number;
@@ -419,6 +421,7 @@ export class SentenceService {
           id: true,
           title: true,
           language_code: true,
+          audio_s3_key: true,
         },
       });
 
@@ -474,6 +477,17 @@ export class SentenceService {
         };
       }
 
+      // Generate audio URL if audio_s3_key exists
+      let audioUrl: string | undefined;
+      if (lesson.audio_s3_key) {
+        try {
+          audioUrl = await S3Service.getDownloadUrl(lesson.audio_s3_key);
+        } catch (error) {
+          console.error('Error generating audio download URL:', error);
+          audioUrl = undefined;
+        }
+      }
+
       return {
         success: true,
         lesson: {
@@ -482,6 +496,7 @@ export class SentenceService {
           languageCode: lesson.language_code,
           sentences: processedSentences,
           totalSentences,
+          ...(audioUrl && { audioUrl }),
           userProgress,
         },
       };

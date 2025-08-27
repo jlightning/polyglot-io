@@ -16,6 +16,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { useWordMark } from '../contexts/WordMarkContext';
 import WordSidebar from '../components/WordSidebar';
 import Pagination from '../components/Pagination';
+import LessonEditDialog from '../components/LessonEditDialog';
+import SentenceAudioPlayer from '../components/SentenceAudioPlayer';
 import { getDifficultyStyles } from '../constants/difficultyColors';
 import axios from 'axios';
 
@@ -46,11 +48,23 @@ interface Lesson {
   languageCode: string;
   sentences: Sentence[];
   totalSentences: number;
+  audioUrl?: string;
   userProgress?: {
     status: string;
     readTillSentenceId: number;
     shouldNavigateToPage: number;
   } | null;
+}
+
+// Lesson interface for the edit dialog (simpler structure)
+interface EditableLesson {
+  id: number;
+  title: string;
+  languageCode: string;
+  imageUrl?: string;
+  fileUrl?: string;
+  audioUrl?: string;
+  createdAt: string;
 }
 
 const SENTENCES_PER_PAGE = 5;
@@ -160,6 +174,7 @@ const LessonViewPage: React.FC = () => {
   >(null);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [progressLoaded, setProgressLoaded] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   // First useEffect: Load progress and determine initial page
   useEffect(() => {
@@ -309,6 +324,17 @@ const LessonViewPage: React.FC = () => {
     setCurrentWordPronunciations(null);
   };
 
+  const handleLessonUpdated = (updatedLesson?: Partial<EditableLesson>) => {
+    // Update the lesson title in the current state without reloading sentences
+    if (lesson && updatedLesson) {
+      setLesson(prevLesson => ({
+        ...prevLesson!,
+        ...updatedLesson,
+      }));
+    }
+    setIsEditDialogOpen(false);
+  };
+
   const toggleTranslation = async (sentenceId: number) => {
     // If translation is already shown, hide it
     if (translations[sentenceId]) {
@@ -409,9 +435,14 @@ const LessonViewPage: React.FC = () => {
         <Button variant="ghost" onClick={() => navigate('/lessons')}>
           ← Back to Lessons
         </Button>
-        <Flex align="center" gap="3">
-          <Heading size="6">{lesson.title}</Heading>
-          <Badge variant="soft">{lesson.languageCode.toUpperCase()}</Badge>
+        <Flex align="center" gap="3" justify="between">
+          <Flex align="center" gap="3">
+            <Heading size="6">{lesson.title}</Heading>
+            <Badge variant="soft">{lesson.languageCode.toUpperCase()}</Badge>
+          </Flex>
+          <Button variant="soft" onClick={() => setIsEditDialogOpen(true)}>
+            Edit Lesson
+          </Button>
         </Flex>
         <Flex direction="column" gap="1">
           <Text size="3" color="gray">
@@ -443,11 +474,15 @@ const LessonViewPage: React.FC = () => {
                     Sentence{' '}
                     {(currentPage - 1) * SENTENCES_PER_PAGE + index + 1}
                   </Text>
-                  {sentence.start_time && sentence.end_time && (
-                    <Text size="2" color="gray">
-                      {sentence.start_time}s - {sentence.end_time}s
-                    </Text>
-                  )}
+                  {sentence.start_time &&
+                    sentence.end_time &&
+                    lesson.audioUrl && (
+                      <SentenceAudioPlayer
+                        audioUrl={lesson.audioUrl}
+                        startTime={sentence.start_time}
+                        endTime={sentence.end_time}
+                      />
+                    )}
                 </Flex>
 
                 <Box
@@ -526,6 +561,22 @@ const LessonViewPage: React.FC = () => {
         wordPronunciations={currentWordPronunciations}
         languageCode={lesson?.languageCode}
       />
+
+      {/* Lesson Edit Dialog */}
+      {lesson && (
+        <LessonEditDialog
+          lesson={{
+            id: lesson.id,
+            title: lesson.title,
+            languageCode: lesson.languageCode,
+            createdAt: new Date().toISOString(), // Placeholder
+          }}
+          onLessonUpdated={handleLessonUpdated}
+          trigger={null} // We'll control the dialog open state externally
+          open={isEditDialogOpen}
+          onOpenChange={setIsEditDialogOpen}
+        />
+      )}
     </Container>
   );
 };

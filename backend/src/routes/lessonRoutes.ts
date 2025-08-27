@@ -66,6 +66,46 @@ router.get('/', async (req: Request, res: Response) => {
   }
 });
 
+// Update a lesson
+router.put('/:lessonId', async (req: Request, res: Response) => {
+  try {
+    const lessonId = parseInt(req.params['lessonId'] || '0');
+    const { title, imageKey, audioKey } = req.body;
+
+    if (isNaN(lessonId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid lesson ID',
+      });
+    }
+
+    if (!title) {
+      return res.status(400).json({
+        success: false,
+        message: 'Title is required',
+      });
+    }
+
+    const result = await LessonService.updateLesson(req.userId!, lessonId, {
+      title: title.trim(),
+      imageKey,
+      audioKey,
+    });
+
+    if (result.success) {
+      return res.json(result);
+    } else {
+      return res.status(400).json(result);
+    }
+  } catch (error) {
+    console.error('Update lesson route error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+});
+
 // Get lessons filtered by language
 router.get('/language/:languageCode', async (req: Request, res: Response) => {
   try {
