@@ -175,6 +175,7 @@ const LessonViewPage: React.FC = () => {
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [progressLoaded, setProgressLoaded] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isFinishingLesson, setIsFinishingLesson] = useState(false);
 
   // First useEffect: Load progress and determine initial page
   useEffect(() => {
@@ -335,6 +336,36 @@ const LessonViewPage: React.FC = () => {
     setIsEditDialogOpen(false);
   };
 
+  const handleFinishLesson = async () => {
+    if (!lessonId || !isAuthenticated || isFinishingLesson) return;
+
+    try {
+      setIsFinishingLesson(true);
+
+      await axiosInstance.post(`/api/lessons/${lessonId}/progress`, {
+        currentPage,
+        sentencesPerPage: SENTENCES_PER_PAGE,
+        finishLesson: true,
+      });
+
+      // Update the lesson state to reflect completion
+      if (lesson) {
+        setLesson(prevLesson => ({
+          ...prevLesson!,
+          userProgress: {
+            ...prevLesson!.userProgress!,
+            status: 'finished',
+          },
+        }));
+      }
+    } catch (error) {
+      console.error('Error finishing lesson:', error);
+      // Could add error handling/notification here
+    } finally {
+      setIsFinishingLesson(false);
+    }
+  };
+
   const toggleTranslation = async (sentenceId: number) => {
     // If translation is already shown, hide it
     if (translations[sentenceId]) {
@@ -449,13 +480,19 @@ const LessonViewPage: React.FC = () => {
             {lesson.totalSentences} sentences total
           </Text>
           {lesson.userProgress && (
-            <Text size="2" color="blue">
+            <Text
+              size="2"
+              color={
+                lesson.userProgress.status === 'finished' ? 'green' : 'blue'
+              }
+            >
               Status:{' '}
               {lesson.userProgress.status === 'reading'
                 ? 'In Progress'
                 : 'Completed'}
               {lesson.userProgress.status === 'reading' &&
                 ` • Last read: Page ${lesson.userProgress.shouldNavigateToPage}`}
+              {lesson.userProgress.status === 'finished' && ' 🎉'}
             </Text>
           )}
         </Flex>
@@ -551,6 +588,25 @@ const LessonViewPage: React.FC = () => {
         onPageChange={handlePageChange}
         disabled={loading}
       />
+
+      {/* Finish Lesson Button - Show only on last page if lesson is not finished */}
+      {currentPage === totalPages &&
+        lesson?.userProgress?.status !== 'finished' && (
+          <Flex justify="center" mt="6">
+            <Button
+              size="3"
+              variant="solid"
+              color="green"
+              onClick={handleFinishLesson}
+              disabled={isFinishingLesson}
+              style={{
+                cursor: isFinishingLesson ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {isFinishingLesson ? 'Finishing Lesson...' : 'Finish Lesson'}
+            </Button>
+          </Flex>
+        )}
 
       {/* Word Translation Sidebar */}
       <WordSidebar

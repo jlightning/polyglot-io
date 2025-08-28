@@ -272,11 +272,11 @@ router.get(
   }
 );
 
-// Update user progress for a lesson (when page changes)
+// Update user progress for a lesson (when page changes or lesson is finished)
 router.post('/:lessonId/progress', async (req: Request, res: Response) => {
   try {
     const lessonId = parseInt(req.params['lessonId'] || '0');
-    const { currentPage, sentencesPerPage } = req.body;
+    const { currentPage, sentencesPerPage, finishLesson } = req.body;
 
     if (isNaN(lessonId)) {
       return res.status(400).json({
@@ -296,7 +296,8 @@ router.post('/:lessonId/progress', async (req: Request, res: Response) => {
       req.userId!,
       lessonId,
       currentPage,
-      sentencesPerPage || 5
+      sentencesPerPage || 5,
+      finishLesson || false
     );
 
     if (result.success) {

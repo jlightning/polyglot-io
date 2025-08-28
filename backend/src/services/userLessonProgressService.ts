@@ -29,13 +29,14 @@ export interface GetProgressResponse {
 
 export class UserLessonProgressService {
   /**
-   * Update user's progress for a lesson when they change pages
+   * Update user's progress for a lesson when they change pages or finish the lesson
    */
   static async updateProgress(
     userId: number,
     lessonId: number,
     currentPage: number,
-    sentencesPerPage: number = 5
+    sentencesPerPage: number = 5,
+    finishLesson: boolean = false
   ): Promise<UpdateProgressResponse> {
     try {
       // First, verify the lesson exists and belongs to the user
@@ -73,15 +74,19 @@ export class UserLessonProgressService {
         };
       }
 
-      // Check if this is the last page to determine status
+      // Determine status based on finishLesson parameter or page position
       const totalSentences = await prisma.sentence.count({
         where: { lesson_id: lessonId },
       });
       const totalPages = Math.ceil(totalSentences / sentencesPerPage);
       const isLastPage = currentPage >= totalPages;
-      const status: UserLessonProgressStatus = isLastPage
-        ? 'finished'
-        : 'reading';
+
+      let status: UserLessonProgressStatus | undefined;
+      if (finishLesson) {
+        status = UserLessonProgressStatus.finished;
+      } else {
+        status = isLastPage ? undefined : UserLessonProgressStatus.reading;
+      }
 
       // Upsert the progress record
       const progress = await prisma.userLessonProgress.upsert({
@@ -93,13 +98,13 @@ export class UserLessonProgressService {
         },
         update: {
           read_till_sentence_id: firstSentenceOnPage.id,
-          status: status,
+          ...(status ? { status: status } : {}),
         },
         create: {
           user_id: userId,
           lesson_id: lessonId,
           read_till_sentence_id: firstSentenceOnPage.id,
-          status: status,
+          status: UserLessonProgressStatus.reading,
         },
         include: {
           sentence: {

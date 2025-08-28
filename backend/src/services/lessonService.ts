@@ -206,6 +206,16 @@ export class LessonService {
             }
           }
 
+          // Get user progress for this lesson
+          const progress = await prisma.userLessonProgress.findUnique({
+            where: {
+              user_id_lesson_id: {
+                user_id: userId,
+                lesson_id: lesson.id,
+              },
+            },
+          });
+
           return {
             id: lesson.id,
             title: lesson.title,
@@ -214,6 +224,12 @@ export class LessonService {
             ...(fileUrl && { fileUrl }),
             ...(audioUrl && { audioUrl }),
             createdAt: lesson.created_at,
+            ...(progress && {
+              userProgress: {
+                status: progress.status,
+                readTillSentenceId: progress.read_till_sentence_id,
+              },
+            }),
           };
         })
       );
@@ -291,6 +307,16 @@ export class LessonService {
             }
           }
 
+          // Get user progress for this lesson
+          const progress = await prisma.userLessonProgress.findUnique({
+            where: {
+              user_id_lesson_id: {
+                user_id: userId,
+                lesson_id: lesson.id,
+              },
+            },
+          });
+
           return {
             id: lesson.id,
             title: lesson.title,
@@ -299,6 +325,12 @@ export class LessonService {
             ...(fileUrl && { fileUrl }),
             ...(audioUrl && { audioUrl }),
             createdAt: lesson.created_at,
+            ...(progress && {
+              userProgress: {
+                status: progress.status,
+                readTillSentenceId: progress.read_till_sentence_id,
+              },
+            }),
           };
         })
       );

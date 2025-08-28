@@ -24,6 +24,10 @@ interface Lesson {
   fileUrl?: string;
   audioUrl?: string;
   createdAt: string;
+  userProgress?: {
+    status: 'reading' | 'finished';
+    readTillSentenceId: number;
+  };
 }
 
 interface LessonListProps {
@@ -146,6 +150,20 @@ const LessonList: React.FC<LessonListProps> = ({
                   <Badge variant="soft" color="blue">
                     {lesson.languageCode.toUpperCase()}
                   </Badge>
+                  {lesson.userProgress && (
+                    <Badge
+                      variant="soft"
+                      color={
+                        lesson.userProgress.status === 'finished'
+                          ? 'green'
+                          : 'orange'
+                      }
+                    >
+                      {lesson.userProgress.status === 'finished'
+                        ? '✓ Completed'
+                        : '📖 In Progress'}
+                    </Badge>
+                  )}
                   <Text size="2" color="gray">
                     Lesson #{lesson.id}
                   </Text>
