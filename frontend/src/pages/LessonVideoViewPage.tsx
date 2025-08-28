@@ -68,6 +68,7 @@ interface Lesson {
 interface SentenceBuffer {
   sentences: Sentence[];
   loadedPages: Set<number>;
+  loadingPages: Set<number>;
   totalPages: number;
   isLoading: boolean;
 }
@@ -105,6 +106,7 @@ const LessonVideoViewPage: React.FC = () => {
   const [sentenceBuffer, setSentenceBuffer] = useState<SentenceBuffer>({
     sentences: [],
     loadedPages: new Set(),
+    loadingPages: new Set(),
     totalPages: 0,
     isLoading: false,
   });
@@ -236,13 +238,17 @@ const LessonVideoViewPage: React.FC = () => {
         !lessonId ||
         !isAuthenticated ||
         sentenceBuffer.loadedPages.has(page) ||
-        sentenceBuffer.isLoading
+        sentenceBuffer.loadingPages.has(page)
       ) {
         return;
       }
 
       try {
-        setSentenceBuffer(prev => ({ ...prev, isLoading: true }));
+        setSentenceBuffer(prev => ({
+          ...prev,
+          isLoading: true,
+          loadingPages: new Set([...prev.loadingPages, page]),
+        }));
 
         const response = await axiosInstance.get(
           `/api/lessons/${lessonId}/sentences`,
@@ -257,12 +263,24 @@ const LessonVideoViewPage: React.FC = () => {
         if (response.data.success) {
           const newSentences = response.data.lesson.sentences;
 
-          setSentenceBuffer(prev => ({
-            ...prev,
-            sentences: [...prev.sentences, ...newSentences],
-            loadedPages: new Set([...prev.loadedPages, page]),
-            isLoading: false,
-          }));
+          setSentenceBuffer(prev => {
+            // Create a map of existing sentences by ID to avoid duplicates
+            const existingSentenceIds = new Set(prev.sentences.map(s => s.id));
+            const uniqueNewSentences = newSentences.filter(
+              (s: Sentence) => !existingSentenceIds.has(s.id)
+            );
+
+            const newLoadingPages = new Set(prev.loadingPages);
+            newLoadingPages.delete(page);
+
+            return {
+              ...prev,
+              sentences: [...prev.sentences, ...uniqueNewSentences],
+              loadedPages: new Set([...prev.loadedPages, page]),
+              loadingPages: newLoadingPages,
+              isLoading: newLoadingPages.size > 0,
+            };
+          });
 
           // Collect all unique words and add them to word context asynchronously
           // Use setTimeout to defer the addWords call and prevent blocking the UI
@@ -293,7 +311,15 @@ const LessonVideoViewPage: React.FC = () => {
       } catch (err) {
         console.error('Error loading sentence page:', err);
       } finally {
-        setSentenceBuffer(prev => ({ ...prev, isLoading: false }));
+        setSentenceBuffer(prev => {
+          const newLoadingPages = new Set(prev.loadingPages);
+          newLoadingPages.delete(page);
+          return {
+            ...prev,
+            loadingPages: newLoadingPages,
+            isLoading: newLoadingPages.size > 0,
+          };
+        });
       }
     },
     [
@@ -301,7 +327,7 @@ const LessonVideoViewPage: React.FC = () => {
       isAuthenticated,
       axiosInstance,
       sentenceBuffer.loadedPages,
-      sentenceBuffer.isLoading,
+      sentenceBuffer.loadingPages,
       lesson?.languageCode,
     ]
   );
@@ -732,12 +758,6 @@ const LessonVideoViewPage: React.FC = () => {
             }}
           >
             <Flex direction="column" gap="2" align="center">
-              <Text size="1" style={{ opacity: 0.8 }}>
-                {activeSentence.start_time !== null &&
-                activeSentence.end_time !== null
-                  ? `${activeSentence.start_time.toFixed(1)}s - ${activeSentence.end_time.toFixed(1)}s`
-                  : 'No timing data'}
-              </Text>
               <Box
                 style={{
                   lineHeight: '1.6',
