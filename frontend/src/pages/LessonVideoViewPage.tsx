@@ -89,13 +89,11 @@ const LessonVideoViewPage: React.FC = () => {
   // Video and lesson state
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [, setVideoFile] = useState<File | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [hasAudioIssue, setHasAudioIssue] = useState(false);
-  const [audioCodecInfo, setAudioCodecInfo] = useState<string | null>(null);
 
   // Lesson progress state
   const [isFinishingLesson, setIsFinishingLesson] = useState(false);
@@ -478,17 +476,11 @@ const LessonVideoViewPage: React.FC = () => {
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (
-      file &&
-      (file.type.startsWith('video/') ||
-        file.name.toLowerCase().endsWith('.mkv'))
-    ) {
+    if (file && file.type.startsWith('video/')) {
       setVideoFile(file);
       const url = URL.createObjectURL(file);
       setVideoUrl(url);
       setHasRestoredVideoProgress(false);
-      setHasAudioIssue(false);
-      setAudioCodecInfo(null);
     }
   };
 
@@ -535,54 +527,8 @@ const LessonVideoViewPage: React.FC = () => {
   const handleLoadedMetadata = () => {
     if (videoRef.current) {
       setDuration(videoRef.current.duration);
-      checkAudioCodec();
     }
   };
-
-  // Check for audio codec issues
-  const checkAudioCodec = useCallback(() => {
-    if (!videoRef.current || !videoFile) return;
-
-    const video = videoRef.current;
-
-    // For AC-3 detection, we'll check the file extension and common indicators
-    const fileName = videoFile.name.toLowerCase();
-    const isLikelyAC3 =
-      fileName.includes('.mkv') ||
-      fileName.includes('.ac3') ||
-      fileName.includes('dolby');
-
-    // Check for potential audio issues after loading
-    setTimeout(() => {
-      // If video is not muted and has volume but we suspect AC-3 codec issues
-      if (!video.muted && video.volume > 0) {
-        // Check for common AC-3 indicators
-        if (isLikelyAC3) {
-          setHasAudioIssue(true);
-          setAudioCodecInfo('AC-3 (Dolby Digital)');
-        } else if (fileName.includes('.mkv')) {
-          // MKV files often contain AC-3 audio
-          setHasAudioIssue(true);
-          setAudioCodecInfo('Unknown (possibly AC-3)');
-        }
-      }
-    }, 1000);
-  }, [videoFile]);
-
-  // Enhanced error handling for video
-  const handleVideoError = useCallback(() => {
-    if (!videoRef.current) return;
-
-    const error = videoRef.current.error;
-    if (error) {
-      console.error('Video error:', error);
-      // Check if it's an audio-related error
-      if (error.code === MediaError.MEDIA_ERR_DECODE) {
-        setHasAudioIssue(true);
-        setAudioCodecInfo('Unknown (possibly AC-3)');
-      }
-    }
-  }, []);
 
   const handleSeek = (time: number) => {
     if (videoRef.current) {
@@ -762,7 +708,6 @@ const LessonVideoViewPage: React.FC = () => {
         onLoadedMetadata={handleLoadedMetadata}
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
-        onError={handleVideoError}
         controls
       />
     );
@@ -850,71 +795,6 @@ const LessonVideoViewPage: React.FC = () => {
       </Flex>
 
       <Separator size="4" mb="4" />
-
-      {/* Audio Codec Warning */}
-      {hasAudioIssue && (
-        <Card
-          style={{
-            padding: '16px',
-            marginBottom: '24px',
-            backgroundColor: 'var(--orange-2)',
-            border: '1px solid var(--orange-6)',
-          }}
-        >
-          <Flex direction="column" gap="3">
-            <Flex align="center" gap="2">
-              <Text size="4">⚠️</Text>
-              <Heading size="4" color="orange">
-                Audio Codec Issue Detected
-              </Heading>
-            </Flex>
-            <Text size="3">
-              Your video appears to use{' '}
-              {audioCodecInfo || 'AC-3 (Dolby Digital)'} audio codec, which is
-              not supported by web browsers. You may see video but no audio.
-            </Text>
-            <Box
-              style={{
-                backgroundColor: 'var(--orange-1)',
-                padding: '12px',
-                borderRadius: '6px',
-              }}
-            >
-              <Text
-                size="2"
-                weight="bold"
-                style={{ display: 'block', marginBottom: '8px' }}
-              >
-                Solutions:
-              </Text>
-              <Text size="2" style={{ display: 'block', marginBottom: '4px' }}>
-                • <strong>Convert the video:</strong> Use VLC Media Player or
-                similar software to convert the audio to MP3 or AAC
-              </Text>
-              <Text size="2" style={{ display: 'block', marginBottom: '4px' }}>
-                • <strong>Use VLC Web Plugin:</strong> Install VLC browser
-                plugin (if available for your browser)
-              </Text>
-              <Text size="2" style={{ display: 'block', marginBottom: '4px' }}>
-                • <strong>Windows users:</strong> Install AC-3 codec pack for
-                Windows 11 24H2+
-              </Text>
-              <Text size="2" style={{ display: 'block' }}>
-                • <strong>Quick fix:</strong> Use external media player
-                alongside this lesson page
-              </Text>
-            </Box>
-            <Button
-              variant="soft"
-              color="orange"
-              size="2"
-              onClick={() => setHasAudioIssue(false)}
-            >
-              Dismiss Warning
-            </Button>
-          </Flex>
-        </Card>
-      )}
 
       {/* Full Width Video Player */}
       <Card style={{ padding: '16px', marginBottom: '24px' }}>
@@ -1213,7 +1093,7 @@ const LessonVideoViewPage: React.FC = () => {
       <input
         ref={fileInputRef}
         type="file"
-        accept="video/*,.mkv,.avi,.mov,.wmv,.flv,.webm,.m4v"
+        accept="video/*,.mkv"
         style={{ display: 'none' }}
         onChange={handleFileChange}
       />
