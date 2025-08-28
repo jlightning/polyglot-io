@@ -16,7 +16,6 @@ import {
   Card,
   Badge,
   Separator,
-  Progress,
 } from '@radix-ui/themes';
 
 import { useAuth } from '../contexts/AuthContext';
@@ -128,6 +127,9 @@ const LessonVideoViewPage: React.FC = () => {
   const [currentWordPronunciations, setCurrentWordPronunciations] = useState<
     WordPronunciation[] | null
   >(null);
+
+  // Video overlay state
+  const [showSentenceOverlay, setShowSentenceOverlay] = useState(true);
 
   // Load basic lesson info and first page of sentences
   useEffect(() => {
@@ -695,23 +697,70 @@ const LessonVideoViewPage: React.FC = () => {
     if (!videoUrl) return null;
 
     return (
-      <video
-        ref={videoRef}
-        src={videoUrl}
-        style={{
-          width: '100%',
-          height: '600px',
-          borderRadius: '8px',
-          objectFit: 'contain',
-        }}
-        onTimeUpdate={handleTimeUpdate}
-        onLoadedMetadata={handleLoadedMetadata}
-        onPlay={() => setIsPlaying(true)}
-        onPause={() => setIsPlaying(false)}
-        controls
-      />
+      <Box style={{ position: 'relative', width: '100%' }}>
+        <video
+          ref={videoRef}
+          src={videoUrl}
+          style={{
+            width: '100%',
+            height: '600px',
+            borderRadius: '8px',
+            objectFit: 'contain',
+          }}
+          onTimeUpdate={handleTimeUpdate}
+          onLoadedMetadata={handleLoadedMetadata}
+          onPlay={() => setIsPlaying(true)}
+          onPause={() => setIsPlaying(false)}
+        />
+
+        {/* Sentence Overlay */}
+        {showSentenceOverlay && activeSentence && (
+          <Box
+            style={{
+              position: 'absolute',
+              bottom: '20px', // Simple bottom positioning
+              left: '20px',
+              right: '20px',
+              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+              color: 'white',
+              padding: '16px',
+              borderRadius: '8px',
+              backdropFilter: 'blur(4px)',
+              zIndex: 10,
+              pointerEvents: 'auto', // Enable clicking for word interactions
+              textAlign: 'center', // Center align content
+            }}
+          >
+            <Flex direction="column" gap="2" align="center">
+              <Text size="1" style={{ opacity: 0.8 }}>
+                {activeSentence.start_time !== null &&
+                activeSentence.end_time !== null
+                  ? `${activeSentence.start_time.toFixed(1)}s - ${activeSentence.end_time.toFixed(1)}s`
+                  : 'No timing data'}
+              </Text>
+              <Box
+                style={{
+                  lineHeight: '1.6',
+                  fontSize: '18px',
+                  fontWeight: '500',
+                  textAlign: 'center',
+                }}
+              >
+                {activeSentence.split_text &&
+                activeSentence.split_text.length > 0 ? (
+                  reconstructSentenceWithWords(activeSentence)
+                ) : (
+                  <Text size="4" style={{ color: 'white' }}>
+                    {activeSentence.original_text}
+                  </Text>
+                )}
+              </Box>
+            </Flex>
+          </Box>
+        )}
+      </Box>
     );
-  }, [videoUrl]);
+  }, [videoUrl, showSentenceOverlay, activeSentence, getWordMark]);
 
   if (authLoading || loading) {
     return (
@@ -832,7 +881,7 @@ const LessonVideoViewPage: React.FC = () => {
             <Flex direction="column" gap="3">
               {videoElement}
 
-              {/* Video Controls */}
+              {/* Custom Video Controls */}
               <Flex align="center" gap="3" wrap="wrap">
                 <Button onClick={handlePlayPause}>
                   {isPlaying ? 'Pause' : 'Play'}
@@ -840,6 +889,22 @@ const LessonVideoViewPage: React.FC = () => {
                 <Text size="2">
                   {formatTime(currentTime)} / {formatTime(duration)}
                 </Text>
+
+                {/* Sentence Overlay Toggle */}
+                <Button
+                  variant={showSentenceOverlay ? 'solid' : 'soft'}
+                  size="2"
+                  onClick={() => setShowSentenceOverlay(!showSentenceOverlay)}
+                  style={{
+                    backgroundColor: showSentenceOverlay
+                      ? 'var(--accent-9)'
+                      : undefined,
+                  }}
+                >
+                  {showSentenceOverlay
+                    ? '📖 Hide Subtitles'
+                    : '📖 Show Subtitles'}
+                </Button>
 
                 {/* Backend Progress Controls */}
                 {lesson?.userProgress?.sentenceInfo?.startTime &&
@@ -879,8 +944,24 @@ const LessonVideoViewPage: React.FC = () => {
                 </Button>
               </Flex>
 
-              {/* Progress Bar */}
-              <Progress value={(currentTime / duration) * 100} />
+              {/* Seek Bar */}
+              <Box style={{ width: '100%' }}>
+                <input
+                  type="range"
+                  min="0"
+                  max={duration || 0}
+                  value={currentTime}
+                  onChange={e => handleSeek(parseFloat(e.target.value))}
+                  style={{
+                    width: '100%',
+                    height: '8px',
+                    background: 'var(--gray-6)',
+                    borderRadius: '4px',
+                    outline: 'none',
+                    cursor: 'pointer',
+                  }}
+                />
+              </Box>
 
               {/* Progress Info */}
               {lesson?.userProgress?.sentenceInfo?.startTime && (
