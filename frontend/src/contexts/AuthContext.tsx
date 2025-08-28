@@ -115,6 +115,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           url.searchParams.append('languageCode', languageCode);
         }
 
+        // Add user's timezone
+        const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        url.searchParams.append('timezone', userTimezone);
+
         const response = await axios.get(url.toString(), {
           headers: {
             Authorization: `Bearer ${token}`,

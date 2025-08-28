@@ -1,5 +1,10 @@
 import { PrismaClient } from '@prisma/client';
 import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 const prisma = new PrismaClient();
 
@@ -20,14 +25,23 @@ export class UserScoreService {
   static async getUserStats(
     userId: number,
     date?: Date,
-    languageCode?: string
+    languageCode?: string,
+    userTimezone?: string
   ): Promise<UserScoreResponse> {
     try {
-      const targetDate = date ? dayjs(date) : dayjs();
+      // Use user timezone if provided, otherwise use server timezone
+      let targetDate: dayjs.Dayjs;
+      if (userTimezone) {
+        targetDate = date
+          ? dayjs(date).tz(userTimezone)
+          : dayjs().tz(userTimezone);
+      } else {
+        targetDate = date ? dayjs(date) : dayjs();
+      }
 
-      // Get start and end of the target day
-      const startOfDay = targetDate.startOf('day').toDate();
-      const endOfDay = targetDate.endOf('day').toDate();
+      // Get start and end of the target day in user's timezone, then convert to UTC
+      const startOfDay = targetDate.startOf('day').utc().toDate();
+      const endOfDay = targetDate.endOf('day').utc().toDate();
 
       // Build where conditions with optional language filter
       const baseWhereCondition = {

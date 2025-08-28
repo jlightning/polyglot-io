@@ -16,10 +16,12 @@ router.get('/getUserStats', authenticateToken, async (req, res) => {
     }
 
     const languageCode = req.query['languageCode'] as string | undefined;
+    const timezone = req.query['timezone'] as string | undefined;
     const result = await UserScoreService.getUserStats(
       userId,
       undefined,
-      languageCode
+      languageCode,
+      timezone
     );
 
     if (result.success) {
