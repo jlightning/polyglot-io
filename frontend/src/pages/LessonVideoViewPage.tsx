@@ -718,7 +718,7 @@ const LessonVideoViewPage: React.FC = () => {
           <Box
             style={{
               position: 'absolute',
-              bottom: '20px', // Simple bottom positioning
+              bottom: '10px', // Simple bottom positioning
               left: '20px',
               right: '20px',
               backgroundColor: 'rgba(0, 0, 0, 0.8)',
