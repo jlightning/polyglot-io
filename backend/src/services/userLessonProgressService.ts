@@ -11,6 +11,8 @@ export interface UserLessonProgressData {
   sentenceInfo?: {
     id: number;
     originalText: string;
+    startTime: number | null;
+    endTime: number | null;
   };
 }
 
@@ -111,6 +113,8 @@ export class UserLessonProgressService {
             select: {
               id: true,
               original_text: true,
+              start_time: true,
+              end_time: true,
             },
           },
         },
@@ -127,6 +131,12 @@ export class UserLessonProgressService {
           sentenceInfo: {
             id: progress.sentence.id,
             originalText: progress.sentence.original_text,
+            startTime: progress.sentence.start_time
+              ? progress.sentence.start_time.toNumber()
+              : null,
+            endTime: progress.sentence.end_time
+              ? progress.sentence.end_time.toNumber()
+              : null,
           },
         },
       };
@@ -176,6 +186,8 @@ export class UserLessonProgressService {
             select: {
               id: true,
               original_text: true,
+              start_time: true,
+              end_time: true,
             },
           },
         },
@@ -214,6 +226,12 @@ export class UserLessonProgressService {
           sentenceInfo: {
             id: progress.sentence.id,
             originalText: progress.sentence.original_text,
+            startTime: progress.sentence.start_time
+              ? progress.sentence.start_time.toNumber()
+              : null,
+            endTime: progress.sentence.end_time
+              ? progress.sentence.end_time.toNumber()
+              : null,
           },
         },
         shouldNavigateToPage: pageNumber,
@@ -276,6 +294,119 @@ export class UserLessonProgressService {
       return {
         success: false,
         message: 'Failed to get progress overview',
+      };
+    }
+  }
+
+  /**
+   * Update user's progress for a lesson using a specific sentence ID (used in video view)
+   */
+  static async updateProgressBySentence(
+    userId: number,
+    lessonId: number,
+    sentenceId: number,
+    finishLesson: boolean = false
+  ): Promise<UpdateProgressResponse> {
+    try {
+      // First, verify the lesson exists and belongs to the user
+      const lesson = await prisma.lesson.findFirst({
+        where: {
+          id: lessonId,
+          created_by: userId,
+        },
+      });
+
+      if (!lesson) {
+        return {
+          success: false,
+          message: 'Lesson not found or access denied',
+        };
+      }
+
+      // Verify the sentence exists and belongs to this lesson
+      const sentence = await prisma.sentence.findFirst({
+        where: {
+          id: sentenceId,
+          lesson_id: lessonId,
+        },
+        select: {
+          id: true,
+          original_text: true,
+          start_time: true,
+          end_time: true,
+        },
+      });
+
+      if (!sentence) {
+        return {
+          success: false,
+          message: 'Sentence not found in this lesson',
+        };
+      }
+
+      // Determine status based on finishLesson parameter
+      let status: UserLessonProgressStatus | undefined;
+      if (finishLesson) {
+        status = UserLessonProgressStatus.finished;
+      } else {
+        status = UserLessonProgressStatus.reading;
+      }
+
+      // Upsert the progress record
+      const progress = await prisma.userLessonProgress.upsert({
+        where: {
+          user_id_lesson_id: {
+            user_id: userId,
+            lesson_id: lessonId,
+          },
+        },
+        update: {
+          read_till_sentence_id: sentenceId,
+          status: status,
+        },
+        create: {
+          user_id: userId,
+          lesson_id: lessonId,
+          read_till_sentence_id: sentenceId,
+          status: status,
+        },
+        include: {
+          sentence: {
+            select: {
+              id: true,
+              original_text: true,
+              start_time: true,
+              end_time: true,
+            },
+          },
+        },
+      });
+
+      return {
+        success: true,
+        progress: {
+          id: progress.id,
+          userId: progress.user_id,
+          lessonId: progress.lesson_id,
+          status: progress.status,
+          readTillSentenceId: progress.read_till_sentence_id,
+          sentenceInfo: {
+            id: progress.sentence.id,
+            originalText: progress.sentence.original_text,
+            startTime: progress.sentence.start_time
+              ? progress.sentence.start_time.toNumber()
+              : null,
+            endTime: progress.sentence.end_time
+              ? progress.sentence.end_time.toNumber()
+              : null,
+          },
+        },
+      };
+    } catch (error) {
+      console.error('Error updating user lesson progress by sentence:', error);
+      return {
+        success: false,
+        message: 'Failed to update progress',
       };
     }
   }

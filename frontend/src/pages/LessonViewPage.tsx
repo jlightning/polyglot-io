@@ -471,9 +471,17 @@ const LessonViewPage: React.FC = () => {
             <Heading size="6">{lesson.title}</Heading>
             <Badge variant="soft">{lesson.languageCode.toUpperCase()}</Badge>
           </Flex>
-          <Button variant="soft" onClick={() => setIsEditDialogOpen(true)}>
-            Edit Lesson
-          </Button>
+          <Flex gap="3">
+            <Button
+              variant="soft"
+              onClick={() => navigate(`/lessons/${lessonId}/video`)}
+            >
+              Video View
+            </Button>
+            <Button variant="soft" onClick={() => setIsEditDialogOpen(true)}>
+              Edit Lesson
+            </Button>
+          </Flex>
         </Flex>
         <Flex direction="column" gap="1">
           <Text size="3" color="gray">

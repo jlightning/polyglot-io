@@ -379,6 +379,50 @@ router.delete('/:lessonId/progress', async (req: Request, res: Response) => {
   }
 });
 
+// Update user progress for a lesson by sentence ID (for video view)
+router.post(
+  '/:lessonId/progress/sentence',
+  async (req: Request, res: Response) => {
+    try {
+      const lessonId = parseInt(req.params['lessonId'] || '0');
+      const { sentenceId, finishLesson } = req.body;
+
+      if (isNaN(lessonId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid lesson ID',
+        });
+      }
+
+      if (!sentenceId || isNaN(parseInt(sentenceId))) {
+        return res.status(400).json({
+          success: false,
+          message: 'Valid sentence ID is required',
+        });
+      }
+
+      const result = await UserLessonProgressService.updateProgressBySentence(
+        req.userId!,
+        lessonId,
+        parseInt(sentenceId),
+        finishLesson || false
+      );
+
+      if (result.success) {
+        return res.json(result);
+      } else {
+        return res.status(400).json(result);
+      }
+    } catch (error) {
+      console.error('Update progress by sentence route error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+      });
+    }
+  }
+);
+
 // Get user progress overview for all lessons
 router.get('/progress/overview', async (req: Request, res: Response) => {
   try {

@@ -8,7 +8,13 @@ import {
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { WordMarkProvider } from './contexts/WordMarkContext';
-import { AuthPage, LessonPage, LessonViewPage, WordsPage } from './pages';
+import {
+  AuthPage,
+  LessonPage,
+  LessonViewPage,
+  LessonVideoViewPage,
+  WordsPage,
+} from './pages';
 import { Flex, Text } from '@radix-ui/themes';
 import Sidebar from './components/Sidebar';
 
@@ -43,6 +49,10 @@ const AppContent: React.FC = () => {
                 <Route path="/" element={<Navigate to="/lessons" replace />} />
                 <Route path="/lessons" element={<LessonPage />} />
                 <Route path="/lessons/:lessonId" element={<LessonViewPage />} />
+                <Route
+                  path="/lessons/:lessonId/video"
+                  element={<LessonVideoViewPage />}
+                />
                 <Route path="/words" element={<WordsPage />} />
               </Routes>
             </Flex>
