@@ -1019,16 +1019,6 @@ const LessonVideoViewPage: React.FC = () => {
                     }
                   }}
                 >
-                  <Text
-                    size="2"
-                    color="gray"
-                    style={{ display: 'block', marginBottom: '4px' }}
-                  >
-                    {previousSentence.start_time !== null &&
-                    previousSentence.end_time !== null
-                      ? `${previousSentence.start_time.toFixed(1)}s - ${previousSentence.end_time.toFixed(1)}s`
-                      : 'No timing data'}
-                  </Text>
                   <Text size="3">{previousSentence.original_text}</Text>
                 </Box>
               ) : (
@@ -1057,16 +1047,6 @@ const LessonVideoViewPage: React.FC = () => {
                     borderRadius: '8px',
                   }}
                 >
-                  <Text
-                    size="2"
-                    color="gray"
-                    style={{ display: 'block', marginBottom: '8px' }}
-                  >
-                    {activeSentence.start_time !== null &&
-                    activeSentence.end_time !== null
-                      ? `${activeSentence.start_time.toFixed(1)}s - ${activeSentence.end_time.toFixed(1)}s`
-                      : 'No timing data'}
-                  </Text>
                   <Box
                     style={{
                       lineHeight: '1.6',
@@ -1118,16 +1098,6 @@ const LessonVideoViewPage: React.FC = () => {
                     }
                   }}
                 >
-                  <Text
-                    size="2"
-                    color="gray"
-                    style={{ display: 'block', marginBottom: '4px' }}
-                  >
-                    {nextSentences[0]?.start_time !== null &&
-                    nextSentences[0]?.end_time !== null
-                      ? `${nextSentences[0].start_time.toFixed(1)}s - ${nextSentences[0].end_time.toFixed(1)}s`
-                      : 'No timing data'}
-                  </Text>
                   <Text size="3">{nextSentences[0]?.original_text}</Text>
                 </Box>
               ) : (
