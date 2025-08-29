@@ -114,43 +114,42 @@ export const WordMarkProvider: React.FC<WordMarkProviderProps> = ({
       try {
         setIsFetching(true);
 
-        // Fetch marks for each unfetched word
-        const markPromises = wordsToFetch.map(async word => {
-          try {
-            const response = await axiosInstance.get(
-              `/api/words/mark/${encodeURIComponent(word)}/${languageCode}`
-            );
-            return {
-              word,
-              mark:
-                response.data.success && response.data.data
-                  ? response.data.data.mark
-                  : null,
-            };
-          } catch (error) {
-            // If there's an error fetching a specific word, just return null
-            return { word, mark: null };
-          }
+        // Fetch marks for all unfetched words in a single request
+        const response = await axiosInstance.post('/api/words/marks/bulk', {
+          words: wordsToFetch,
+          languageCode,
         });
 
-        const results = await Promise.all(markPromises);
+        if (response.data.success) {
+          const marksMap = response.data.data || {};
 
-        // Update word marks state
-        const newMarks: Record<string, number> = {};
-        const newFetchedWords = new Set(fetchedWords);
+          // Update word marks state
+          const newMarks: Record<string, number> = {};
+          const newFetchedWords = new Set(fetchedWords);
 
-        results.forEach(({ word, mark }) => {
-          newFetchedWords.add(word);
-          if (mark !== null) {
-            newMarks[word] = mark;
-          }
-        });
+          wordsToFetch.forEach(word => {
+            newFetchedWords.add(word);
+            if (marksMap[word] !== undefined) {
+              newMarks[word] = marksMap[word];
+            }
+          });
 
-        // Update state
-        setWordMarks(prev => ({ ...prev, ...newMarks }));
-        setFetchedWords(newFetchedWords);
+          // Update state
+          setWordMarks(prev => ({ ...prev, ...newMarks }));
+          setFetchedWords(newFetchedWords);
+        } else {
+          console.error('Error fetching word marks:', response.data.message);
+          // Still mark words as fetched to avoid repeated failed requests
+          const newFetchedWords = new Set(fetchedWords);
+          wordsToFetch.forEach(word => newFetchedWords.add(word));
+          setFetchedWords(newFetchedWords);
+        }
       } catch (error) {
         console.error('Error fetching word marks:', error);
+        // Still mark words as fetched to avoid repeated failed requests
+        const newFetchedWords = new Set(fetchedWords);
+        wordsToFetch.forEach(word => newFetchedWords.add(word));
+        setFetchedWords(newFetchedWords);
       } finally {
         setIsFetching(false);
       }

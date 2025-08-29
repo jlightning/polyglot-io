@@ -117,6 +117,49 @@ export class WordService {
   }
 
   /**
+   * Get bulk word user marks by words and language
+   */
+  static async getBulkWordUserMarks(
+    userId: number,
+    words: string[],
+    languageCode: string
+  ) {
+    try {
+      const wordUserMarks = await prisma.wordUserMark.findMany({
+        where: {
+          user_id: userId,
+          word: {
+            word: {
+              in: words,
+            },
+            language_code: languageCode,
+          },
+        },
+        include: {
+          word: true,
+        },
+      });
+
+      // Create a map of word -> mark for efficient lookup
+      const marksMap: Record<string, number> = {};
+      wordUserMarks.forEach(mark => {
+        marksMap[mark.word.word] = mark.mark;
+      });
+
+      return {
+        success: true,
+        data: marksMap,
+      };
+    } catch (error) {
+      console.error('Error getting bulk word user marks:', error);
+      return {
+        success: false,
+        message: 'Failed to get bulk word marks',
+      };
+    }
+  }
+
+  /**
    * Delete word user mark
    */
   static async deleteWordUserMark(

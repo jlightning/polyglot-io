@@ -140,6 +140,52 @@ router.get('/marks', async (req: Request, res: Response) => {
   }
 });
 
+// Get bulk word marks
+router.post('/marks/bulk', async (req: Request, res: Response) => {
+  try {
+    const { words, languageCode } = req.body;
+
+    if (!words || !Array.isArray(words) || !languageCode) {
+      return res.status(400).json({
+        success: false,
+        message: 'Words array and language code are required',
+      });
+    }
+
+    if (words.length === 0) {
+      return res.json({
+        success: true,
+        data: {},
+      });
+    }
+
+    if (words.length > 100) {
+      return res.status(400).json({
+        success: false,
+        message: 'Maximum 100 words allowed per request',
+      });
+    }
+
+    const result = await WordService.getBulkWordUserMarks(
+      req.userId!,
+      words,
+      languageCode
+    );
+
+    if (result.success) {
+      return res.json(result);
+    } else {
+      return res.status(400).json(result);
+    }
+  } catch (error) {
+    console.error('Get bulk word marks route error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+});
+
 // Get user word marks with details (sentences and lessons)
 router.get('/marks/details', async (req: Request, res: Response) => {
   try {
