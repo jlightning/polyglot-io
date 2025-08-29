@@ -120,6 +120,14 @@ const LessonVideoViewPage: React.FC = () => {
   );
   const [nextSentences, setNextSentences] = useState<Sentence[]>([]);
 
+  // Translation state
+  const [translations, setTranslations] = useState<{ [key: number]: string }>(
+    {}
+  );
+  const [loadingTranslations, setLoadingTranslations] = useState<{
+    [key: number]: boolean;
+  }>({});
+
   // Word sidebar state
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [selectedWord, setSelectedWord] = useState<string | null>(null);
@@ -659,6 +667,45 @@ const LessonVideoViewPage: React.FC = () => {
     setCurrentWordPronunciations(null);
   };
 
+  const toggleTranslation = async (sentenceId: number) => {
+    // If translation is already shown, hide it
+    if (translations[sentenceId]) {
+      setTranslations(prev => {
+        const newTranslations = { ...prev };
+        delete newTranslations[sentenceId];
+        return newTranslations;
+      });
+      return;
+    }
+
+    // If already loading, do nothing
+    if (loadingTranslations[sentenceId]) {
+      return;
+    }
+
+    // Fetch translation
+    try {
+      setLoadingTranslations(prev => ({ ...prev, [sentenceId]: true }));
+
+      const response = await axiosInstance.get(
+        `/api/lessons/sentences/${sentenceId}/translation`
+      );
+
+      if (response.data.success) {
+        setTranslations(prev => ({
+          ...prev,
+          [sentenceId]: response.data.translation,
+        }));
+      } else {
+        console.error('Failed to fetch translation:', response.data.message);
+      }
+    } catch (err) {
+      console.error('Error fetching translation:', err);
+    } finally {
+      setLoadingTranslations(prev => ({ ...prev, [sentenceId]: false }));
+    }
+  };
+
   const handleFinishLesson = async () => {
     if (!lessonId || !isAuthenticated || isFinishingLesson || !activeSentence)
       return;
@@ -1047,21 +1094,65 @@ const LessonVideoViewPage: React.FC = () => {
                     borderRadius: '8px',
                   }}
                 >
-                  <Box
-                    style={{
-                      lineHeight: '1.6',
-                      fontSize: 'var(--font-size-4)',
-                    }}
-                  >
-                    {activeSentence.split_text &&
-                    activeSentence.split_text.length > 0 ? (
-                      reconstructSentenceWithWords(activeSentence)
-                    ) : (
-                      <Text size="4" style={{ lineHeight: '1.6' }}>
-                        {activeSentence.original_text}
-                      </Text>
-                    )}
-                  </Box>
+                  <Flex direction="column" gap="3">
+                    <Box
+                      style={{
+                        lineHeight: '1.6',
+                        fontSize: 'var(--font-size-4)',
+                      }}
+                    >
+                      {activeSentence.split_text &&
+                      activeSentence.split_text.length > 0 ? (
+                        reconstructSentenceWithWords(activeSentence)
+                      ) : (
+                        <Text size="4" style={{ lineHeight: '1.6' }}>
+                          {activeSentence.original_text}
+                        </Text>
+                      )}
+                    </Box>
+
+                    {/* Translation Section */}
+                    <Box>
+                      <Button
+                        variant="soft"
+                        size="2"
+                        onClick={() => toggleTranslation(activeSentence.id)}
+                        disabled={loadingTranslations[activeSentence.id]}
+                        style={{
+                          cursor: loadingTranslations[activeSentence.id]
+                            ? 'not-allowed'
+                            : 'pointer',
+                        }}
+                      >
+                        {loadingTranslations[activeSentence.id]
+                          ? 'Loading translation...'
+                          : translations[activeSentence.id]
+                            ? 'Hide translation'
+                            : 'Show translation'}
+                      </Button>
+
+                      {translations[activeSentence.id] && (
+                        <Box
+                          mt="3"
+                          p="3"
+                          style={{
+                            backgroundColor: 'var(--gray-2)',
+                            borderRadius: '8px',
+                          }}
+                        >
+                          <Text size="2" color="gray" mb="1">
+                            Translation:
+                          </Text>
+                          <Text
+                            size="3"
+                            style={{ fontStyle: 'italic', marginLeft: 10 }}
+                          >
+                            {translations[activeSentence.id]}
+                          </Text>
+                        </Box>
+                      )}
+                    </Box>
+                  </Flex>
                 </Box>
               ) : (
                 <Box
