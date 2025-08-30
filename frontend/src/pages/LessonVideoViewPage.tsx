@@ -1145,7 +1145,11 @@ const LessonVideoViewPage: React.FC = () => {
                           </Text>
                           <Text
                             size="3"
-                            style={{ fontStyle: 'italic', marginLeft: 10 }}
+                            style={{
+                              fontStyle: 'italic',
+                              marginLeft: 10,
+                              whiteSpace: 'pre-line',
+                            }}
                           >
                             {translations[activeSentence.id]}
                           </Text>

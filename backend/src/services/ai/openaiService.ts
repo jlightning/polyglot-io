@@ -312,6 +312,7 @@ export class OpenAIService {
         '2. Use the surrounding sentences as context to ensure the translation fits appropriately',
         '3. Maintain the tone and style of the original text',
         '4. Provide only the translation without any additional explanation or formatting',
+        '5. MUST also Provide grammar breakdown after the translation',
         '',
         'Guidelines:',
         '- Consider the context provided by surrounding sentences',
