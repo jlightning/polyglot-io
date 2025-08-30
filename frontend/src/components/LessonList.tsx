@@ -10,7 +10,7 @@ import {
   IconButton,
   Box,
 } from '@radix-ui/themes';
-import { TrashIcon, EyeOpenIcon } from '@radix-ui/react-icons';
+import { TrashIcon, EyeOpenIcon, VideoIcon } from '@radix-ui/react-icons';
 import axios from 'axios';
 import dayjs from 'dayjs';
 import { useAuth } from '../contexts/AuthContext';
@@ -231,6 +231,14 @@ const LessonList: React.FC<LessonListProps> = ({
                   >
                     <EyeOpenIcon />
                     View Lesson
+                  </Button>
+                  <Button
+                    variant="soft"
+                    size="2"
+                    onClick={() => navigate(`/lessons/${lesson.id}/video`)}
+                  >
+                    <VideoIcon />
+                    View Lesson with Video
                   </Button>
                 </Flex>
               </Flex>
