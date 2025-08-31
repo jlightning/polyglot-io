@@ -15,6 +15,7 @@
     "docker:down": "docker-compose down",
     "db:migrate": "yarn workspace backend db:migrate",
     "db:seed": "yarn workspace backend db:seed",
+    "db:backup": "node scripts/backup-database.js",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "commitlint": "commitlint --edit",
