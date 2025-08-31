@@ -3,36 +3,62 @@
 const { exec } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const url = require('url');
+
+// Load environment variables from backend/.env
+require('dotenv').config({ path: path.join(__dirname, '../backend/.env') });
 
 /**
  * Database backup script for Polyglotio MySQL database
  * Creates SQL dump files with timestamp
  */
 
-// Configuration
-const DEFAULT_CONFIG = {
-  host: 'localhost',
-  port: '3307',
-  database: 'polyglotio',
-  username: 'polyglotio_user',
-  password: 'polyglotio_password',
-  backupDir: './backups',
-  containerName: 'polyglotio-mysql',
-};
+/**
+ * Parse DATABASE_URL into connection components
+ */
+function parseDatabaseUrl(databaseUrl) {
+  if (!databaseUrl) {
+    throw new Error('DATABASE_URL not found in environment variables');
+  }
+
+  try {
+    const parsed = new url.URL(databaseUrl);
+    return {
+      host: parsed.hostname,
+      port: parsed.port || '3306',
+      database: parsed.pathname.slice(1), // Remove leading slash
+      username: parsed.username,
+      password: parsed.password,
+    };
+  } catch (error) {
+    throw new Error(`Invalid DATABASE_URL format: ${error.message}`);
+  }
+}
 
 /**
- * Parse environment variables or use defaults
+ * Parse environment variables from backend/.env file (loaded via dotenv)
  */
 function getConfig() {
+  const databaseUrl = process.env.DATABASE_URL;
+
+  let dbConfig;
+  if (databaseUrl) {
+    dbConfig = parseDatabaseUrl(databaseUrl);
+  } else {
+    // Fallback to individual environment variables
+    dbConfig = {
+      host: process.env.DB_HOST || 'localhost',
+      port: process.env.DB_PORT || '3307',
+      database: process.env.DB_NAME || 'polyglotio',
+      username: process.env.DB_USERNAME || 'polyglotio_user',
+      password: process.env.DB_PASSWORD || 'polyglotio_password',
+    };
+  }
+
   return {
-    host: process.env.DB_HOST || DEFAULT_CONFIG.host,
-    port: process.env.DB_PORT || DEFAULT_CONFIG.port,
-    database: process.env.DB_NAME || DEFAULT_CONFIG.database,
-    username: process.env.DB_USERNAME || DEFAULT_CONFIG.username,
-    password: process.env.DB_PASSWORD || DEFAULT_CONFIG.password,
-    backupDir: process.env.BACKUP_DIR || DEFAULT_CONFIG.backupDir,
-    containerName:
-      process.env.DB_CONTAINER_NAME || DEFAULT_CONFIG.containerName,
+    ...dbConfig,
+    backupDir: process.env.BACKUP_DIR || './backups',
+    containerName: process.env.DB_CONTAINER_NAME || 'polyglotio-mysql',
   };
 }
 
@@ -195,20 +221,21 @@ if (process.argv.includes('--help') || process.argv.includes('-h')) {
 
 Usage: node scripts/backup-database.js
 
-Environment Variables:
-  DB_HOST              Database host (default: localhost)
-  DB_PORT              Database port (default: 3307)
-  DB_NAME              Database name (default: polyglotio)
-  DB_USERNAME          Database username (default: polyglotio_user)
-  DB_PASSWORD          Database password (default: polyglotio_password)
+Configuration:
+  The script reads database configuration from ../backend/.env file using dotenv.
+  It parses the DATABASE_URL for connection details.
+
+Environment Variables (overrides):
+  DATABASE_URL         Full database connection string
   BACKUP_DIR           Backup directory (default: ./backups)
   DB_CONTAINER_NAME    Docker container name (default: polyglotio-mysql)
 
 Examples:
-  yarn backup                          # Use default settings
+  yarn backup                          # Use settings from backend/.env
   BACKUP_DIR=/tmp/backups yarn backup  # Custom backup directory
   
 The script will create a timestamped SQL file in the backup directory.
+Database connection details are read from: ../backend/.env
 `);
   process.exit(0);
 }
