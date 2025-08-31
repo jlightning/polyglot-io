@@ -24,6 +24,7 @@ model User {
   lessons              Lesson[]
   wordUserMarks        WordUserMark[]
   userLessonProgresses UserLessonProgress[]
+  userActionLogs       UserActionLog[]
 
   @@map("user")
 }
@@ -180,4 +181,21 @@ model SentenceWord {
 
   @@unique([word_id, sentence_id])
   @@map("sentence_word")
+}
+
+enum UserActionType {
+  word_mark
+}
+
+model UserActionLog {
+  id            Int            @id @default(autoincrement())
+  user_id       Int
+  language_code String         @db.VarChar(10)
+  type          UserActionType
+  action        Json
+  created_at    DateTime       @default(now()) @db.Timestamp(0)
+
+  user User @relation(fields: [user_id], references: [id])
+
+  @@map("user_action_log")
 }

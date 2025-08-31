@@ -15,12 +15,20 @@ router.get('/getUserStats', authenticateToken, async (req, res) => {
       });
     }
 
-    const languageCode = req.query['languageCode'] as string | undefined;
+    const languageCode = req.query['languageCode'] as string;
     const timezone = req.query['timezone'] as string | undefined;
+
+    if (!languageCode) {
+      return res.status(400).json({
+        success: false,
+        message: 'languageCode parameter is required',
+      });
+    }
+
     const result = await UserScoreService.getUserStats(
       userId,
-      undefined,
       languageCode,
+      undefined,
       timezone
     );
 

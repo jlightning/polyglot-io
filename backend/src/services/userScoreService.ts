@@ -18,14 +18,14 @@ export interface UserScoreResponse {
 export class UserScoreService {
   /**
    * Get user statistics including user score and known words count
-   * User score = sum of all marks for today divided by 2 (rounded up)
+   * User score = sum of (new_mark - old_mark) from user action logs for today
    * Known words count = count of words marked 4 or 5
-   * Optionally filter by language code
+   * Filtered by language code
    */
   static async getUserStats(
     userId: number,
+    languageCode: string,
     date?: Date,
-    languageCode?: string,
     userTimezone?: string
   ): Promise<UserScoreResponse> {
     try {
@@ -43,41 +43,35 @@ export class UserScoreService {
       const startOfDay = targetDate.startOf('day').utc().toDate();
       const endOfDay = targetDate.endOf('day').utc().toDate();
 
-      // Build where conditions with optional language filter
-      const baseWhereCondition = {
-        user_id: userId,
-        ...(languageCode && {
-          word: {
-            language_code: languageCode,
-          },
-        }),
-      };
+      // Calculate score using raw SQL for better performance
+      // Sum of (new_mark - old_mark) from user action logs for the target day
+      const scoreResult = await prisma.$queryRaw<{ total_score: number }[]>`
+        SELECT COALESCE(SUM(
+          CAST(JSON_EXTRACT(action, '$.new_mark') AS SIGNED) - 
+          CAST(JSON_EXTRACT(action, '$.old_mark') AS SIGNED)
+        ), 0) as total_score
+        FROM user_action_log ual
+        WHERE ual.user_id = ${userId}
+          AND ual.language_code = ${languageCode}
+          AND ual.type = 'word_mark'
+          AND ual.created_at >= ${startOfDay}
+          AND ual.created_at <= ${endOfDay}
+      `;
 
-      // Sum all marks for the user for the target day
-      const result = await prisma.wordUserMark.aggregate({
-        where: {
-          ...baseWhereCondition,
-          updated_at: {
-            gte: startOfDay,
-            lte: endOfDay,
-          },
-        },
-        _sum: {
-          mark: true,
-        },
-      });
+      const score = scoreResult[0]?.total_score || 0;
 
       // Count known words (marks 4 or 5) for this user
       const knownWordsCount = await prisma.wordUserMark.count({
         where: {
-          ...baseWhereCondition,
+          user_id: userId,
           mark: {
             in: [4, 5],
           },
+          word: {
+            language_code: languageCode,
+          },
         },
       });
-
-      const score = Math.ceil((result._sum.mark || 0) / 2);
 
       return {
         success: true,

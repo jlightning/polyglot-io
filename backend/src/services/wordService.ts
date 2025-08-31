@@ -1,4 +1,5 @@
 import { PrismaClient, WordUserMarkSource } from '@prisma/client';
+import { UserActionLogService } from './userActionLogService';
 
 const prisma = new PrismaClient();
 
@@ -43,6 +44,18 @@ export class WordService {
         },
       });
 
+      // Get existing mark value to track changes
+      const existingWordUserMark = await prisma.wordUserMark.findUnique({
+        where: {
+          user_id_word_id: {
+            user_id: userId,
+            word_id: word.id,
+          },
+        },
+      });
+
+      const oldMark = existingWordUserMark?.mark || 0;
+
       // Use proper upsert with the unique constraint on user_id + word_id
       const wordUserMark = await prisma.wordUserMark.upsert({
         where: {
@@ -65,6 +78,13 @@ export class WordService {
         include: {
           word: true,
         },
+      });
+
+      // Log user action
+      await UserActionLogService.logWordMarkAction(userId, data.languageCode, {
+        word_id: word.id,
+        old_mark: oldMark,
+        new_mark: data.mark,
       });
 
       return {
