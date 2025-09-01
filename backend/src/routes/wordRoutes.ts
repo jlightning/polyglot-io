@@ -196,6 +196,8 @@ router.get('/marks/details', async (req: Request, res: Response) => {
       : undefined;
     const languageFilter = req.query['language'] as string | undefined;
     const searchFilter = req.query['search'] as string | undefined;
+    const sortBy = (req.query['sortBy'] as string) || 'updated_at';
+    const sortOrder = (req.query['sortOrder'] as 'asc' | 'desc') || 'desc';
 
     if (page < 1 || limit < 1 || limit > 100) {
       return res.status(400).json({
@@ -218,7 +220,9 @@ router.get('/marks/details', async (req: Request, res: Response) => {
       limit,
       markFilter,
       languageFilter,
-      searchFilter
+      searchFilter,
+      sortBy,
+      sortOrder
     );
 
     if (result.success) {

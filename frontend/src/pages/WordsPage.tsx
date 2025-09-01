@@ -21,6 +21,8 @@ import {
   ReloadIcon,
   DownloadIcon,
   CrossCircledIcon,
+  CaretUpIcon,
+  CaretDownIcon,
 } from '@radix-ui/react-icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -44,6 +46,7 @@ interface Word {
       language_code: string;
     };
   }>;
+  totalSentenceCount: number;
   lessons: Array<{
     id: number;
     title: string;
@@ -94,6 +97,8 @@ const WordsPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [difficultyFilter, setDifficultyFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
+  const [sortField, setSortField] = useState<string>('updated_at');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 50,
@@ -111,7 +116,9 @@ const WordsPage: React.FC = () => {
   const fetchWords = async (
     page: number = 1,
     search: string = '',
-    difficulty: string = ''
+    difficulty: string = '',
+    sort: string = 'updated_at',
+    direction: 'asc' | 'desc' = 'desc'
   ) => {
     if (!axiosInstance) return;
 
@@ -120,6 +127,8 @@ const WordsPage: React.FC = () => {
       const params = new URLSearchParams({
         page: page.toString(),
         limit: '50',
+        sortBy: sort,
+        sortOrder: direction,
       });
 
       if (difficulty && difficulty !== 'all') {
@@ -153,12 +162,25 @@ const WordsPage: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchWords(currentPage, searchTerm, difficultyFilter);
-  }, [axiosInstance, selectedLanguage, currentPage, difficultyFilter]);
+    fetchWords(
+      currentPage,
+      searchTerm,
+      difficultyFilter,
+      sortField,
+      sortDirection
+    );
+  }, [
+    axiosInstance,
+    selectedLanguage,
+    currentPage,
+    difficultyFilter,
+    sortField,
+    sortDirection,
+  ]);
 
   const handleSearch = () => {
     setCurrentPage(1);
-    fetchWords(1, searchTerm, difficultyFilter);
+    fetchWords(1, searchTerm, difficultyFilter, sortField, sortDirection);
   };
 
   const handlePageChange = (page: number) => {
@@ -166,7 +188,13 @@ const WordsPage: React.FC = () => {
   };
 
   const handleRefresh = () => {
-    fetchWords(currentPage, searchTerm, difficultyFilter);
+    fetchWords(
+      currentPage,
+      searchTerm,
+      difficultyFilter,
+      sortField,
+      sortDirection
+    );
   };
 
   const handleDifficultyChange = (value: string) => {
@@ -174,10 +202,37 @@ const WordsPage: React.FC = () => {
     setCurrentPage(1);
   };
 
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+    setCurrentPage(1);
+  };
+
   const truncateText = (text: string, maxLength: number = 100) => {
     if (text.length <= maxLength) return text;
     return text.substring(0, maxLength) + '...';
   };
+
+  const renderSortableHeader = (
+    label: string,
+    field: string,
+    width: string
+  ) => (
+    <Table.ColumnHeaderCell
+      style={{ width, cursor: 'pointer' }}
+      onClick={() => handleSort(field)}
+    >
+      <Flex align="center" gap="1">
+        <Text>{label}</Text>
+        {sortField === field &&
+          (sortDirection === 'asc' ? <CaretUpIcon /> : <CaretDownIcon />)}
+      </Flex>
+    </Table.ColumnHeaderCell>
+  );
 
   const handleLingqImport = async () => {
     if (!lingqApiKey.trim()) {
@@ -214,7 +269,13 @@ const WordsPage: React.FC = () => {
 
         setImportSuccess(message);
         // Refresh the words list
-        fetchWords(currentPage, searchTerm, difficultyFilter);
+        fetchWords(
+          currentPage,
+          searchTerm,
+          difficultyFilter,
+          sortField,
+          sortDirection
+        );
       } else {
         throw new Error(
           importResponse.data.message || 'Failed to import words'
@@ -354,21 +415,16 @@ const WordsPage: React.FC = () => {
             <Table.Root>
               <Table.Header>
                 <Table.Row>
-                  <Table.ColumnHeaderCell style={{ width: '18%' }}>
-                    Word
-                  </Table.ColumnHeaderCell>
-                  <Table.ColumnHeaderCell style={{ width: '12%' }}>
-                    Difficulty
-                  </Table.ColumnHeaderCell>
-                  <Table.ColumnHeaderCell style={{ width: '38%' }}>
+                  {renderSortableHeader('Word', 'word', '16%')}
+                  {renderSortableHeader('Difficulty', 'mark', '10%')}
+                  {renderSortableHeader('Sentences', 'sentence_count', '8%')}
+                  <Table.ColumnHeaderCell style={{ width: '34%' }}>
                     Example Sentences
                   </Table.ColumnHeaderCell>
                   <Table.ColumnHeaderCell style={{ width: '22%' }}>
                     Related Lessons
                   </Table.ColumnHeaderCell>
-                  <Table.ColumnHeaderCell style={{ width: '10%' }}>
-                    Last Updated
-                  </Table.ColumnHeaderCell>
+                  {renderSortableHeader('Last Updated', 'updated_at', '10%')}
                 </Table.Row>
               </Table.Header>
               <Table.Body>
@@ -406,6 +462,15 @@ const WordsPage: React.FC = () => {
                       >
                         {getDifficultyLabel(wordMark.mark)}
                       </Badge>
+                    </Table.Cell>
+
+                    {/* Sentence Count */}
+                    <Table.Cell>
+                      <Flex align="center" justify="center">
+                        <Badge variant="soft" color="blue">
+                          {wordMark.word.totalSentenceCount}
+                        </Badge>
+                      </Flex>
                     </Table.Cell>
 
                     {/* Example Sentences */}

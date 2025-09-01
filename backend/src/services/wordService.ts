@@ -275,7 +275,9 @@ export class WordService {
     limit: number = 50,
     markFilter?: number,
     languageFilter?: string,
-    searchFilter?: string
+    searchFilter?: string,
+    sortBy: string = 'updated_at',
+    sortOrder: 'asc' | 'desc' = 'desc'
   ) {
     try {
       const skip = (page - 1) * limit;
@@ -317,6 +319,30 @@ export class WordService {
         whereClause.word = wordConditions;
       }
 
+      // Build orderBy clause
+      let orderBy: any = { updated_at: 'desc' }; // default
+
+      switch (sortBy) {
+        case 'word':
+          orderBy = { word: { word: sortOrder } };
+          break;
+        case 'mark':
+          orderBy = { mark: sortOrder };
+          break;
+        case 'updated_at':
+          orderBy = { updated_at: sortOrder };
+          break;
+        case 'sentence_count':
+          // For sentence count, we'll sort after getting all data
+          orderBy = { updated_at: 'desc' };
+          break;
+        default:
+          orderBy = { updated_at: 'desc' };
+      }
+
+      // For sentence count sorting, we need to get all data first
+      const needsAllData = sortBy === 'sentence_count';
+
       const [wordUserMarks, total] = await Promise.all([
         prisma.wordUserMark.findMany({
           where: whereClause,
@@ -342,14 +368,31 @@ export class WordService {
               },
             },
           },
-          orderBy: { updated_at: 'desc' },
-          skip,
-          take: limit,
+          orderBy,
+          ...(needsAllData ? {} : { skip, take: limit }), // Skip pagination if we need all data
         }),
         prisma.wordUserMark.count({
           where: whereClause,
         }),
       ]);
+
+      const sentenceCounts = await prisma.sentenceWord.groupBy({
+        by: ['word_id'],
+        where: {
+          sentence: {
+            lesson: {
+              created_by: userId,
+            },
+          },
+        },
+        _count: {
+          sentence_id: true,
+        },
+      });
+
+      const sentenceCountMap = new Map(
+        sentenceCounts.map(sc => [sc.word_id, sc._count.sentence_id])
+      );
 
       // Transform the data to include unique lessons per word
       const transformedData = wordUserMarks.map(wordMark => {
@@ -373,10 +416,39 @@ export class WordService {
           word: {
             ...wordMark.word,
             sentences: sentences.slice(0, 3), // Limit to 3 sentences
+            totalSentenceCount: sentenceCountMap.get(wordMark.word.id) || 0,
             lessons,
           },
         };
       });
+
+      // Handle sentence count sorting and pagination
+      if (sortBy === 'sentence_count') {
+        // Sort by sentence count
+        transformedData.sort((a, b) => {
+          const countA = a.word.totalSentenceCount;
+          const countB = b.word.totalSentenceCount;
+          return sortOrder === 'asc' ? countA - countB : countB - countA;
+        });
+
+        // Apply pagination after sorting
+        const startIndex = skip;
+        const endIndex = skip + limit;
+        const paginatedData = transformedData.slice(startIndex, endIndex);
+
+        return {
+          success: true,
+          data: {
+            wordUserMarks: paginatedData,
+            pagination: {
+              page,
+              limit,
+              total,
+              totalPages: Math.ceil(total / limit),
+            },
+          },
+        };
+      }
 
       return {
         success: true,
