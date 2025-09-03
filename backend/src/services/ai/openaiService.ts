@@ -11,8 +11,8 @@ export type PronunciationType = 'hiragana' | 'romanization' | 'pinyin' | 'ipa';
 export interface WordTranslation {
   word: string;
   translation: string;
-  pronunciation?: string;
-  pronunciationType?: PronunciationType;
+  pronunciation: string;
+  pronunciationType: PronunciationType;
 }
 
 // Interface for the complete sentence analysis
@@ -60,7 +60,7 @@ const wordTranslationSchema = {
             description: 'Type of pronunciation provided',
           },
         },
-        required: ['word', 'translation'],
+        required: ['word', 'translation', 'pronunciation', 'pronunciationType'],
         additionalProperties: false,
       },
     },
