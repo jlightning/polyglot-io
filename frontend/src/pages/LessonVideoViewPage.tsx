@@ -94,6 +94,7 @@ const LessonVideoViewPage: React.FC = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
 
   // Lesson progress state
   const [isFinishingLesson, setIsFinishingLesson] = useState(false);
@@ -520,6 +521,41 @@ const LessonVideoViewPage: React.FC = () => {
     }
   };
 
+  // Drag and drop handlers
+  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    // Only set dragging to false if we're leaving the drop zone entirely
+    if (!event.currentTarget.contains(event.relatedTarget as Node)) {
+      setIsDragging(false);
+    }
+  };
+
+  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDragging(false);
+
+    const files = event.dataTransfer.files;
+    const file = files[0];
+
+    if (file && file.type.startsWith('video/')) {
+      setVideoFile(file);
+      const url = URL.createObjectURL(file);
+      setVideoUrl(url);
+      setHasRestoredVideoProgress(false);
+    } else {
+      // Could add error notification here if needed
+      console.warn('Only video files are supported');
+    }
+  };
+
   // Video control handlers
   const handlePlayPause = useCallback(() => {
     if (!videoRef.current) return;
@@ -926,7 +962,9 @@ const LessonVideoViewPage: React.FC = () => {
             >
               <Box
                 style={{
-                  border: '2px dashed var(--gray-7)',
+                  border: isDragging
+                    ? '2px solid var(--accent-9)'
+                    : '2px dashed var(--gray-7)',
                   borderRadius: '8px',
                   padding: '40px',
                   textAlign: 'center',
@@ -936,12 +974,28 @@ const LessonVideoViewPage: React.FC = () => {
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  backgroundColor: isDragging
+                    ? 'var(--accent-3)'
+                    : 'transparent',
+                  transition: 'all 0.2s ease',
+                  cursor: 'pointer',
                 }}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onClick={handleVideoSelect}
               >
-                <Text size="3" color="gray" mb="3">
-                  Select a video file to sync with lesson sentences
+                <Text size="4" mb="2">
+                  {isDragging ? '📁' : '🎬'}
                 </Text>
-                <Button onClick={handleVideoSelect}>Choose Video File</Button>
+                <Text size="3" color="gray" mb="3">
+                  {isDragging
+                    ? 'Drop your video file here'
+                    : 'Drag and drop a video file here, or click to select'}
+                </Text>
+                {!isDragging && (
+                  <Button onClick={handleVideoSelect}>Choose Video File</Button>
+                )}
               </Box>
             </Flex>
           ) : (
