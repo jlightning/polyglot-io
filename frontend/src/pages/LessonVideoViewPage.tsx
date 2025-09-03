@@ -832,7 +832,7 @@ const LessonVideoViewPage: React.FC = () => {
               right: '30px',
               backgroundColor: 'rgba(0, 0, 0, 0.6)',
               color: 'white',
-              padding: '8px',
+              padding: '4px',
               borderRadius: '8px',
               backdropFilter: 'blur(4px)',
               zIndex: 10,
