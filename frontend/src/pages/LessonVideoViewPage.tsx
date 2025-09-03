@@ -828,11 +828,11 @@ const LessonVideoViewPage: React.FC = () => {
             style={{
               position: 'absolute',
               bottom: '10px', // Simple bottom positioning
-              left: '20px',
-              right: '20px',
-              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+              left: '30px',
+              right: '30px',
+              backgroundColor: 'rgba(0, 0, 0, 0.3)',
               color: 'white',
-              padding: '16px',
+              padding: '8px',
               borderRadius: '8px',
               backdropFilter: 'blur(4px)',
               zIndex: 10,
