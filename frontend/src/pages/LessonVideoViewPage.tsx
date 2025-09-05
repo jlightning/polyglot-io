@@ -1150,7 +1150,7 @@ const LessonVideoViewPage: React.FC = () => {
           backgroundColor: 'var(--color-surface)',
           borderLeft: '1px solid var(--gray-6)',
           borderTop: isSidebarOpen ? '1px solid var(--gray-6)' : 'none',
-          zIndex: 500,
+          zIndex: 1100,
           display: 'flex',
           flexDirection: 'column',
           transition: 'top 0.3s ease-in-out, height 0.3s ease-in-out',
