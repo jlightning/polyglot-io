@@ -841,7 +841,7 @@ const LessonVideoViewPage: React.FC = () => {
               <Box
                 style={{
                   lineHeight: '1.6',
-                  fontSize: '18px',
+                  fontSize: '24px',
                   fontWeight: '500',
                   textAlign: 'center',
                 }}
