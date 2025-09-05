@@ -809,7 +809,8 @@ const LessonVideoViewPage: React.FC = () => {
           src={videoUrl}
           style={{
             width: '100%',
-            height: '1000px',
+            height: '100%',
+            maxHeight: '1000px',
             borderRadius: '8px',
             objectFit: 'contain',
           }}
@@ -1203,9 +1204,6 @@ const LessonVideoViewPage: React.FC = () => {
                 >
                   <Flex direction="column" gap="3">
                     <Box>
-                      <Text size="2" color="gray" mb="2" weight="medium">
-                        Current:
-                      </Text>
                       <Box
                         style={{
                           lineHeight: '1.6',
