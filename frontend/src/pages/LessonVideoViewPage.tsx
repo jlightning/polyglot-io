@@ -948,12 +948,6 @@ const LessonVideoViewPage: React.FC = () => {
             >
               ← Back to Lessons
             </Button>
-            <Flex align="center" gap="2">
-              <Text size="2" color="gray">
-                {lesson.totalSentences} sentences total •{' '}
-                {sentenceBuffer.sentences.length} loaded
-              </Text>
-            </Flex>
           </Flex>
           <Flex align="center" gap="2">
             <Heading size="5">{lesson.title} - Video View</Heading>
@@ -974,9 +968,13 @@ const LessonVideoViewPage: React.FC = () => {
       >
         <Card style={{ padding: '16px' }}>
           <Flex direction="column" gap="4">
-            <Box style={{ padding: '0 8px' }}>
+            <Flex align="center" justify="between" style={{ padding: '0 8px' }}>
               <Heading size="4">Video Player</Heading>
-            </Box>
+              <Text size="2" color="gray">
+                {lesson.totalSentences} sentences total •{' '}
+                {sentenceBuffer.sentences.length} loaded
+              </Text>
+            </Flex>
 
             {!videoUrl ? (
               <Flex
