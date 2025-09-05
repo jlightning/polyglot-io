@@ -99,9 +99,8 @@ const Sidebar: React.FC<SidebarProps> = () => {
                       style={{
                         width: '24px',
                         height: `${barHeight}px`,
-                        backgroundColor: isToday
-                          ? 'var(--accent-9)'
-                          : day.score >= 200
+                        backgroundColor:
+                          day.score >= 200
                             ? 'var(--green-9)'
                             : day.score > 0
                               ? 'var(--yellow-9)'
