@@ -14,6 +14,17 @@ export interface UserScoreResponse {
   knownWordsCount?: number;
 }
 
+export interface DailyScore {
+  date: string;
+  score: number;
+}
+
+export interface ScoreHistoryResponse {
+  success: boolean;
+  message: string;
+  scoreHistory?: DailyScore[];
+}
+
 export class UserScoreService {
   /**
    * Get user statistics including user score and known words count
@@ -83,6 +94,66 @@ export class UserScoreService {
       return {
         success: false,
         message: 'Failed to retrieve user statistics',
+      };
+    }
+  }
+
+  /**
+   * Get user score history for the last 7 days (including today)
+   */
+  static async getScoreHistory(
+    userId: number,
+    languageCode: string,
+    userTimezone?: string
+  ): Promise<ScoreHistoryResponse> {
+    try {
+      const scoreHistory: DailyScore[] = [];
+
+      // Get scores for the last 7 days (including today)
+      for (let i = 0; i < 7; i++) {
+        const targetDate = userTimezone
+          ? dayjs().tz(userTimezone).subtract(i, 'days')
+          : dayjs().subtract(i, 'days');
+
+        // Get start and end of the target day in user's timezone, then convert to UTC
+        const startOfDay = targetDate.startOf('day').utc().toDate();
+        const endOfDay = targetDate.endOf('day').utc().toDate();
+
+        // Calculate score for this day
+        const scoreResult = await prisma.$queryRaw<{ total_score: number }[]>`
+          SELECT COALESCE(SUM(
+            CAST(JSON_EXTRACT(action, '$.new_mark') AS SIGNED) - 
+            CAST(JSON_EXTRACT(action, '$.old_mark') AS SIGNED)
+          ), 0) as total_score
+          FROM user_action_log ual
+          WHERE ual.user_id = ${userId}
+            AND ual.language_code = ${languageCode}
+            AND ual.type = 'word_mark'
+            AND ual.created_at >= ${startOfDay}
+            AND ual.created_at <= ${endOfDay}
+        `;
+
+        const score = scoreResult[0]?.total_score || 0;
+
+        scoreHistory.push({
+          date: targetDate.format('YYYY-MM-DD'),
+          score: Number(score),
+        });
+      }
+
+      // Reverse array so oldest date comes first
+      scoreHistory.reverse();
+
+      return {
+        success: true,
+        message: 'Score history retrieved successfully',
+        scoreHistory,
+      };
+    } catch (error) {
+      console.error('Error retrieving score history:', error);
+      return {
+        success: false,
+        message: 'Failed to retrieve score history',
       };
     }
   }

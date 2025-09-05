@@ -16,6 +16,11 @@ interface User {
   phone_number?: string;
 }
 
+interface DailyScore {
+  date: string;
+  score: number;
+}
+
 interface AuthContextType {
   user: User | null;
   token: string | null;
@@ -35,7 +40,9 @@ interface AuthContextType {
   isAuthenticated: boolean;
   userScore: number;
   knownWordsCount: number;
+  scoreHistory: DailyScore[];
   fetchUserStats: (languageCode?: string) => Promise<void>;
+  fetchScoreHistory: (languageCode?: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -58,6 +65,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [userScore, setUserScore] = useState<number>(0);
   const [knownWordsCount, setKnownWordsCount] = useState<number>(0);
+  const [scoreHistory, setScoreHistory] = useState<DailyScore[]>([]);
 
   const backendUrl =
     import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
@@ -67,6 +75,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setToken(null);
     setUserScore(0);
     setKnownWordsCount(0);
+    setScoreHistory([]);
     localStorage.removeItem('authToken');
     localStorage.removeItem('user');
   };
@@ -105,15 +114,41 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return instance;
   }, [token, backendUrl]);
 
+  const fetchScoreHistory = useCallback(
+    async (languageCode?: string) => {
+      if (!token || !languageCode || languageCode.trim() === '') return;
+
+      try {
+        const url = new URL(`${backendUrl}/api/user-score/getScoreHistory`);
+        url.searchParams.append('languageCode', languageCode);
+
+        // Add user's timezone
+        const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        url.searchParams.append('timezone', userTimezone);
+
+        const response = await axios.get(url.toString(), {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (response.data.success) {
+          setScoreHistory(response.data.scoreHistory || []);
+        }
+      } catch (error) {
+        console.error('Error fetching score history:', error);
+        setScoreHistory([]);
+      }
+    },
+    [token, backendUrl]
+  );
+
   const fetchUserStats = useCallback(
     async (languageCode?: string) => {
-      if (!token) return;
+      if (!token || !languageCode || languageCode.trim() === '') return;
 
       try {
         const url = new URL(`${backendUrl}/api/user-score/getUserStats`);
-        if (languageCode) {
-          url.searchParams.append('languageCode', languageCode);
-        }
+        url.searchParams.append('languageCode', languageCode);
 
         // Add user's timezone
         const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -128,13 +163,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           setUserScore(response.data.score || 0);
           setKnownWordsCount(response.data.knownWordsCount || 0);
         }
+
+        await fetchScoreHistory(languageCode);
       } catch (error) {
         console.error('Error fetching user stats:', error);
         setUserScore(0);
         setKnownWordsCount(0);
       }
     },
-    [token, backendUrl]
+    [token, backendUrl, fetchScoreHistory]
   );
 
   // Check for existing authentication on mount
@@ -156,12 +193,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setIsLoading(false);
   }, []);
 
-  // Fetch user stats when user is authenticated
-  useEffect(() => {
-    if (user && token) {
-      fetchUserStats();
-    }
-  }, [user, token, fetchUserStats]);
+  // Note: User stats are now fetched by components when language is selected
 
   const login = async (email: string, password: string) => {
     try {
@@ -243,7 +275,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isAuthenticated,
     userScore,
     knownWordsCount,
+    scoreHistory,
     fetchUserStats,
+    fetchScoreHistory,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

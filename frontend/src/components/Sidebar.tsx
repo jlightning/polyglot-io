@@ -14,6 +14,7 @@ const Sidebar: React.FC<SidebarProps> = () => {
     logout,
     userScore,
     knownWordsCount,
+    scoreHistory,
     fetchUserStats,
     isAuthenticated,
   } = useAuth();
@@ -27,7 +28,7 @@ const Sidebar: React.FC<SidebarProps> = () => {
 
   // Fetch stats when selected language changes
   useEffect(() => {
-    if (isAuthenticated && selectedLanguage) {
+    if (isAuthenticated && selectedLanguage && selectedLanguage.trim() !== '') {
       fetchUserStats(selectedLanguage);
     }
   }, [isAuthenticated, selectedLanguage, fetchUserStats]);
@@ -62,10 +63,73 @@ const Sidebar: React.FC<SidebarProps> = () => {
           >
             Today's Score: {userScore} / 200
           </Text>
+        </Flex>
+
+        {/* 7-Day Score History */}
+        {scoreHistory.length > 0 && (
+          <Box mt="3">
+            <Text size="2" weight="medium" mb="2" as="div" color="gray">
+              7-Day Score History
+            </Text>
+            <Flex
+              direction="row"
+              align="end"
+              gap="2"
+              style={{ height: '80px', padding: '0 4px' }}
+            >
+              {scoreHistory.map((day, index) => {
+                const maxScore = Math.max(
+                  ...scoreHistory.map(d => d.score),
+                  200
+                ); // Use 200 as minimum max for better scaling
+                const heightRatio = maxScore > 0 ? day.score / maxScore : 0;
+                const isToday = index === scoreHistory.length - 1;
+                const barHeight =
+                  day.score > 0 ? Math.max(heightRatio * 60, 6) : 3; // 60px max height, minimum 6px for scores, 3px for zero
+
+                return (
+                  <Flex
+                    key={day.date}
+                    direction="column"
+                    align="center"
+                    gap="1"
+                    style={{ flex: 1, minWidth: '28px' }}
+                  >
+                    <Box
+                      style={{
+                        width: '24px',
+                        height: `${barHeight}px`,
+                        backgroundColor: isToday
+                          ? 'var(--accent-9)'
+                          : day.score >= 200
+                            ? 'var(--green-9)'
+                            : day.score > 0
+                              ? 'var(--yellow-9)'
+                              : 'var(--gray-6)',
+                        borderRadius: '3px',
+                        transition: 'all 0.2s ease',
+                        cursor: 'default',
+                      }}
+                      title={`${new Date(day.date).toLocaleDateString('en', { weekday: 'long', month: 'short', day: 'numeric' })}: ${day.score} pts`}
+                    />
+                    <Text size="1" color="gray" style={{ fontSize: '10px' }}>
+                      {new Date(day.date)
+                        .toLocaleDateString('en', { weekday: 'short' })
+                        .slice(0, 1)}
+                    </Text>
+                  </Flex>
+                );
+              })}
+            </Flex>
+          </Box>
+        )}
+
+        {/* Known Words - moved below chart */}
+        <Box mt="3">
           <Text size="2" color="blue" weight="medium">
             Known Words: {knownWordsCount}
           </Text>
-        </Flex>
+        </Box>
       </Box>
 
       <Separator size="4" />
