@@ -607,7 +607,10 @@ const LessonVideoViewPage: React.FC = () => {
   };
 
   // Sentence reconstruction with clickable words
-  const reconstructSentenceWithWords = (sentence: Sentence) => {
+  const reconstructSentenceWithWords = (
+    sentence: Sentence,
+    fontSize = '16px'
+  ) => {
     const {
       original_text: originalText,
       split_text: splitWords,
@@ -632,7 +635,7 @@ const LessonVideoViewPage: React.FC = () => {
             color: 'white',
             margin: '0',
             padding: '2px 0',
-            fontSize: '16px',
+            fontSize,
             ...(wordMark !== undefined
               ? getDifficultyStyles(wordMark)
               : { border: '1px solid transparent' }),
@@ -842,14 +845,14 @@ const LessonVideoViewPage: React.FC = () => {
               <Box
                 style={{
                   lineHeight: '1.6',
-                  fontSize: '24px',
+                  fontSize: '20px',
                   fontWeight: '500',
                   textAlign: 'center',
                 }}
               >
                 {activeSentence.split_text &&
                 activeSentence.split_text.length > 0 ? (
-                  reconstructSentenceWithWords(activeSentence)
+                  reconstructSentenceWithWords(activeSentence, '20px')
                 ) : (
                   <Text size="4" style={{ color: 'white' }}>
                     {activeSentence.original_text}
