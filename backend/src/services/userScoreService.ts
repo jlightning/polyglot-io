@@ -1,4 +1,3 @@
-import { PrismaClient } from '@prisma/client';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
@@ -6,7 +5,7 @@ import timezone from 'dayjs/plugin/timezone';
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
-const prisma = new PrismaClient();
+import { prisma } from './index';
 
 export interface UserScoreResponse {
   success: boolean;

@@ -1,6 +1,6 @@
-import { PrismaClient, UserLessonProgressStatus } from '@prisma/client';
+import { UserLessonProgressStatus } from '@prisma/client';
 
-const prisma = new PrismaClient();
+import { prisma } from './index';
 
 export interface UserLessonProgressData {
   id: number;

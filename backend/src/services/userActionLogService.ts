@@ -1,6 +1,6 @@
-import { Prisma, PrismaClient, UserActionType } from '@prisma/client';
+import { Prisma, UserActionType } from '@prisma/client';
 
-const prisma = new PrismaClient();
+import { prisma } from './index';
 
 interface WordMarkActionData {
   word_id: number;

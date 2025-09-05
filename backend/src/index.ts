@@ -2,7 +2,6 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
-import { PrismaClient } from '@prisma/client';
 import dayjs from 'dayjs';
 import authRoutes from './routes/authRoutes';
 import configRoutes from './routes/configRoutes';
@@ -13,13 +12,13 @@ import userScoreRoutes from './routes/userScoreRoutes';
 import importRoutes from './routes/importRoutes';
 import { S3Service } from './services/s3Service';
 import { authenticateToken } from './middleware/auth';
+import { prisma } from './services';
 
 // Load environment variables
 dotenv.config();
 
 const app = express();
 const port = process.env['PORT'] || 3001;
-const prisma = new PrismaClient();
 
 // Middleware
 app.use(helmet());

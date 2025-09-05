@@ -1,9 +1,9 @@
-import { PrismaClient, Lesson, Prisma } from '@prisma/client';
+import { Lesson, Prisma } from '@prisma/client';
 import { ConfigService } from './configService';
 import { S3Service } from './s3Service';
 import { TextProcessingService } from './textProcessingService';
 
-const prisma = new PrismaClient();
+import { prisma } from './index';
 
 export interface CreateLessonData {
   title: string;

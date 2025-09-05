@@ -1,9 +1,8 @@
-import { PrismaClient } from '@prisma/client';
 import { OpenAIService } from './ai/openaiService';
 import { UserLessonProgressService } from './userLessonProgressService';
 import { S3Service } from './s3Service';
 
-const prisma = new PrismaClient();
+import { prisma } from './index';
 
 export interface WordWithTranslation {
   word: string;

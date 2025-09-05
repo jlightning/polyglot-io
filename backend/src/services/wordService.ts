@@ -1,7 +1,7 @@
-import { PrismaClient, WordUserMarkSource } from '@prisma/client';
+import { WordUserMarkSource } from '@prisma/client';
 import { UserActionLogService } from './userActionLogService';
 
-const prisma = new PrismaClient();
+import { prisma } from './index';
 
 interface CreateWordUserMarkData {
   word: string;
