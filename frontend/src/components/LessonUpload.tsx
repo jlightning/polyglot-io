@@ -640,7 +640,7 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
                   {/* Manga Pages Upload */}
                   <Box>
                     <Text size="2" weight="medium" mb="2" as="div">
-                      Manga Pages (Required) - JPG files only, max 20 pages
+                      Manga Pages (Required) - JPG Only
                     </Text>
                     <input
                       id="manga-files-upload"
