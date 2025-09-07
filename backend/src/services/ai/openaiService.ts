@@ -183,7 +183,7 @@ export class OpenAIService {
       ].join('\n');
 
       const completion = await this.client.chat.completions.create({
-        model: OPENAI_MODEL,
+        model: OPENAI_MODEL.GPT_41_MINI,
         messages: [
           {
             role: 'system',
@@ -310,7 +310,7 @@ export class OpenAIService {
       ].join('\n');
 
       const completion = await this.client.chat.completions.create({
-        model: OPENAI_MODEL,
+        model: OPENAI_MODEL.GPT_41,
         messages: [
           {
             role: 'system',
@@ -479,7 +479,7 @@ export class OpenAIService {
       let userPrompt = `Context sentences:\n${contextSentences.join('\n')}\n\nTarget sentence to translate: "${targetSentence}"\n\nProvide only the English translation:`;
 
       const completion = await this.client.chat.completions.create({
-        model: OPENAI_MODEL,
+        model: OPENAI_MODEL.GPT_41_MINI,
         messages: [
           {
             role: 'system',

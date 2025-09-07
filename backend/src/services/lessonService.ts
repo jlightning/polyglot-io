@@ -261,6 +261,7 @@ export class LessonService {
               success: false,
               pageIndex: globalPageIndex,
               error: 'Empty page key',
+              sentenceData: [],
             };
           }
 
@@ -289,11 +290,12 @@ export class LessonService {
                 success: true,
                 pageIndex: globalPageIndex,
                 textCount: 0,
+                sentenceData: [],
               };
             }
 
-            // Create sentence records for extracted text
-            const sentenceData = extractedTexts.map(text => ({
+            // Prepare sentence data for this page
+            const pageSentenceData = extractedTexts.map(text => ({
               lesson_id: lessonId,
               lesson_file_id: lessonFile.id,
               original_text: text,
@@ -301,10 +303,6 @@ export class LessonService {
               start_time: null,
               end_time: null,
             }));
-
-            await prisma.sentence.createMany({
-              data: sentenceData,
-            });
 
             console.log(
               `Successfully processed ${extractedTexts.length} text segments from manga page ${globalPageIndex + 1}/${totalPages}`
@@ -314,6 +312,7 @@ export class LessonService {
               success: true,
               pageIndex: globalPageIndex,
               textCount: extractedTexts.length,
+              sentenceData: pageSentenceData,
             };
           } catch (error) {
             console.error(
@@ -324,12 +323,33 @@ export class LessonService {
               success: false,
               pageIndex: globalPageIndex,
               error: error instanceof Error ? error.message : 'Unknown error',
+              sentenceData: [],
             };
           }
         });
 
         // Wait for all pages in the current batch to complete
         const batchResults = await Promise.allSettled(batchPromises);
+
+        // Collect sentence data from successful pages in this batch in order
+        const batchSentenceData: Prisma.SentenceCreateManyInput[] = [];
+
+        batchResults.forEach((result, index) => {
+          if (result.status === 'fulfilled' && result.value.success) {
+            batchSentenceData.push(...result.value.sentenceData);
+          }
+        });
+
+        // Create sentences for this batch in the correct sequential order
+        if (batchSentenceData.length > 0) {
+          await prisma.sentence.createMany({
+            data: batchSentenceData,
+          });
+
+          console.log(
+            `Successfully created ${batchSentenceData.length} sentences for batch ${Math.floor(batchStart / batchSize) + 1} in sequential order`
+          );
+        }
 
         // Log batch completion
         const successCount = batchResults.filter(

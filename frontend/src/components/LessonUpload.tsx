@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Card, Text, Flex, Button, Dialog, Box, Tabs } from '@radix-ui/themes';
-import { PlusIcon, UploadIcon } from '@radix-ui/react-icons';
+import { PlusIcon, UploadIcon, UpdateIcon } from '@radix-ui/react-icons';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -14,6 +14,11 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [activeTab, setActiveTab] = useState('text');
+
+  // CSS for spinning animation
+  const spinningIconStyle: React.CSSProperties = {
+    animation: 'spin 1s linear infinite',
+  };
 
   // Text/SRT upload states
   const [title, setTitle] = useState('');
@@ -206,8 +211,8 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
       validFiles.push(file);
     }
 
-    if (validFiles.length > 20) {
-      setError('Maximum 20 manga pages allowed');
+    if (validFiles.length > 500) {
+      setError('Maximum 500 manga pages allowed');
       return;
     }
 
@@ -453,286 +458,297 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
   };
 
   return (
-    <Dialog.Root open={isOpen} onOpenChange={setIsOpen}>
-      <Dialog.Trigger>
-        <Button>
-          <PlusIcon />
-          Upload New Lesson
-        </Button>
-      </Dialog.Trigger>
-      <Dialog.Content style={{ maxWidth: 600 }}>
-        <Dialog.Title>Upload New Lesson</Dialog.Title>
-        <Dialog.Description size="2" mb="4">
-          Upload lesson files for language learning - text/subtitle files or
-          manga pages.
-        </Dialog.Description>
+    <>
+      {/* CSS keyframes for spinning animation */}
+      <style>
+        {`
+          @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+        `}
+      </style>
+      <Dialog.Root open={isOpen} onOpenChange={setIsOpen}>
+        <Dialog.Trigger>
+          <Button>
+            <PlusIcon />
+            Upload New Lesson
+          </Button>
+        </Dialog.Trigger>
+        <Dialog.Content style={{ maxWidth: 600 }}>
+          <Dialog.Title>Upload New Lesson</Dialog.Title>
+          <Dialog.Description size="2" mb="4">
+            Upload lesson files for language learning - text/subtitle files or
+            manga pages.
+          </Dialog.Description>
 
-        <Tabs.Root value={activeTab} onValueChange={setActiveTab}>
-          <Tabs.List>
-            <Tabs.Trigger value="text">Text / SRT Upload</Tabs.Trigger>
-            <Tabs.Trigger value="manga">Manga Upload</Tabs.Trigger>
-          </Tabs.List>
+          <Tabs.Root value={activeTab} onValueChange={setActiveTab}>
+            <Tabs.List>
+              <Tabs.Trigger value="text">Text / SRT Upload</Tabs.Trigger>
+              <Tabs.Trigger value="manga">Manga Upload</Tabs.Trigger>
+            </Tabs.List>
 
-          <Box pt="4">
-            {/* Text/SRT Upload Tab */}
-            <Tabs.Content value="text">
-              <Flex direction="column" gap="4">
-                {/* Title Input */}
-                <Box>
-                  <Text size="2" weight="medium" mb="2" as="div">
-                    Lesson Title *
-                  </Text>
-                  <input
-                    type="text"
-                    value={title}
-                    onChange={e => setTitle(e.target.value)}
-                    placeholder="Enter lesson title..."
-                    style={{
-                      width: '100%',
-                      padding: '8px',
-                      border: '1px solid var(--gray-7)',
-                      borderRadius: '4px',
-                      fontSize: '14px',
-                    }}
-                  />
-                </Box>
-
-                {/* Image Upload */}
-                <Box>
-                  <Text size="2" weight="medium" mb="2" as="div">
-                    Image (Optional)
-                  </Text>
-                  <input
-                    id="image-upload"
-                    type="file"
-                    accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
-                    onChange={handleImageFileChange}
-                    style={{
-                      width: '100%',
-                      padding: '8px',
-                      border: '1px solid var(--gray-7)',
-                      borderRadius: '4px',
-                      fontSize: '14px',
-                    }}
-                  />
-                  {imageFile && (
-                    <Text size="1" color="green" mt="1">
-                      Selected: {imageFile.name}
+            <Box pt="4">
+              {/* Text/SRT Upload Tab */}
+              <Tabs.Content value="text">
+                <Flex direction="column" gap="4">
+                  {/* Title Input */}
+                  <Box>
+                    <Text size="2" weight="medium" mb="2" as="div">
+                      Lesson Title *
                     </Text>
-                  )}
-                </Box>
+                    <input
+                      type="text"
+                      value={title}
+                      onChange={e => setTitle(e.target.value)}
+                      placeholder="Enter lesson title..."
+                      style={{
+                        width: '100%',
+                        padding: '8px',
+                        border: '1px solid var(--gray-7)',
+                        borderRadius: '4px',
+                        fontSize: '14px',
+                      }}
+                    />
+                  </Box>
 
-                {/* Lesson File Upload */}
-                <Box>
-                  <Text size="2" weight="medium" mb="2" as="div">
-                    Lesson File (Required) - Text or Subtitle files only
-                  </Text>
-                  <input
-                    id="file-upload"
-                    type="file"
-                    accept=".txt,.srt"
-                    onChange={handleLessonFileChange}
-                    style={{
-                      width: '100%',
-                      padding: '8px',
-                      border: '1px solid var(--gray-7)',
-                      borderRadius: '4px',
-                      fontSize: '14px',
-                    }}
-                  />
-                  {lessonFile && (
-                    <Text size="1" color="green" mt="1">
-                      Selected: {lessonFile.name}
+                  {/* Image Upload */}
+                  <Box>
+                    <Text size="2" weight="medium" mb="2" as="div">
+                      Image (Optional)
                     </Text>
-                  )}
-                </Box>
+                    <input
+                      id="image-upload"
+                      type="file"
+                      accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
+                      onChange={handleImageFileChange}
+                      style={{
+                        width: '100%',
+                        padding: '8px',
+                        border: '1px solid var(--gray-7)',
+                        borderRadius: '4px',
+                        fontSize: '14px',
+                      }}
+                    />
+                    {imageFile && (
+                      <Text size="1" color="green" mt="1">
+                        Selected: {imageFile.name}
+                      </Text>
+                    )}
+                  </Box>
 
-                {/* Audio File Upload */}
-                <Box>
-                  <Text size="2" weight="medium" mb="2" as="div">
-                    Audio File (Optional) - MP3, OGG, or AAC files
-                  </Text>
-                  <input
-                    id="audio-upload"
-                    type="file"
-                    accept=".mp3,.ogg,.aac,audio/mpeg,audio/ogg,audio/aac"
-                    onChange={handleAudioFileChange}
-                    style={{
-                      width: '100%',
-                      padding: '8px',
-                      border: '1px solid var(--gray-7)',
-                      borderRadius: '4px',
-                      fontSize: '14px',
-                    }}
-                  />
-                  {audioFile && (
-                    <Text size="1" color="green" mt="1">
-                      Selected: {audioFile.name}
+                  {/* Lesson File Upload */}
+                  <Box>
+                    <Text size="2" weight="medium" mb="2" as="div">
+                      Lesson File (Required) - Text or Subtitle files only
                     </Text>
-                  )}
-                </Box>
-              </Flex>
-            </Tabs.Content>
+                    <input
+                      id="file-upload"
+                      type="file"
+                      accept=".txt,.srt"
+                      onChange={handleLessonFileChange}
+                      style={{
+                        width: '100%',
+                        padding: '8px',
+                        border: '1px solid var(--gray-7)',
+                        borderRadius: '4px',
+                        fontSize: '14px',
+                      }}
+                    />
+                    {lessonFile && (
+                      <Text size="1" color="green" mt="1">
+                        Selected: {lessonFile.name}
+                      </Text>
+                    )}
+                  </Box>
 
-            {/* Manga Upload Tab */}
-            <Tabs.Content value="manga">
-              <Flex direction="column" gap="4">
-                {/* Manga Title Input */}
-                <Box>
-                  <Text size="2" weight="medium" mb="2" as="div">
-                    Manga Lesson Title *
-                  </Text>
-                  <input
-                    type="text"
-                    value={mangaTitle}
-                    onChange={e => setMangaTitle(e.target.value)}
-                    placeholder="Enter manga lesson title..."
-                    style={{
-                      width: '100%',
-                      padding: '8px',
-                      border: '1px solid var(--gray-7)',
-                      borderRadius: '4px',
-                      fontSize: '14px',
-                    }}
-                  />
-                </Box>
-
-                {/* Manga Lesson Image Upload */}
-                <Box>
-                  <Text size="2" weight="medium" mb="2" as="div">
-                    Lesson Cover Image (Optional)
-                  </Text>
-                  <input
-                    id="manga-image-upload"
-                    type="file"
-                    accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
-                    onChange={handleMangaImageChange}
-                    style={{
-                      width: '100%',
-                      padding: '8px',
-                      border: '1px solid var(--gray-7)',
-                      borderRadius: '4px',
-                      fontSize: '14px',
-                    }}
-                  />
-                  {mangaImage && (
-                    <Text size="1" color="green" mt="1">
-                      Selected: {mangaImage.name}
+                  {/* Audio File Upload */}
+                  <Box>
+                    <Text size="2" weight="medium" mb="2" as="div">
+                      Audio File (Optional) - MP3, OGG, or AAC files
                     </Text>
-                  )}
-                </Box>
+                    <input
+                      id="audio-upload"
+                      type="file"
+                      accept=".mp3,.ogg,.aac,audio/mpeg,audio/ogg,audio/aac"
+                      onChange={handleAudioFileChange}
+                      style={{
+                        width: '100%',
+                        padding: '8px',
+                        border: '1px solid var(--gray-7)',
+                        borderRadius: '4px',
+                        fontSize: '14px',
+                      }}
+                    />
+                    {audioFile && (
+                      <Text size="1" color="green" mt="1">
+                        Selected: {audioFile.name}
+                      </Text>
+                    )}
+                  </Box>
+                </Flex>
+              </Tabs.Content>
 
-                {/* Manga Pages Upload */}
-                <Box>
-                  <Text size="2" weight="medium" mb="2" as="div">
-                    Manga Pages (Required) - JPG files only, max 20 pages
-                  </Text>
-                  <input
-                    id="manga-files-upload"
-                    type="file"
-                    accept="image/jpeg,.jpg"
-                    multiple
-                    onChange={handleMangaFilesChange}
-                    style={{
-                      width: '100%',
-                      padding: '8px',
-                      border: '1px solid var(--gray-7)',
-                      borderRadius: '4px',
-                      fontSize: '14px',
-                    }}
-                  />
-                  {mangaFiles.length > 0 && (
-                    <Text size="1" color="green" mt="1">
-                      Selected: {mangaFiles.length} files
+              {/* Manga Upload Tab */}
+              <Tabs.Content value="manga">
+                <Flex direction="column" gap="4">
+                  {/* Manga Title Input */}
+                  <Box>
+                    <Text size="2" weight="medium" mb="2" as="div">
+                      Manga Lesson Title *
                     </Text>
-                  )}
-                  <Text size="1" color="gray" mt="1">
-                    Pages will be processed using OCR to extract text for
-                    learning
-                  </Text>
-                </Box>
-              </Flex>
-            </Tabs.Content>
-          </Box>
+                    <input
+                      type="text"
+                      value={mangaTitle}
+                      onChange={e => setMangaTitle(e.target.value)}
+                      placeholder="Enter manga lesson title..."
+                      style={{
+                        width: '100%',
+                        padding: '8px',
+                        border: '1px solid var(--gray-7)',
+                        borderRadius: '4px',
+                        fontSize: '14px',
+                      }}
+                    />
+                  </Box>
 
-          {/* Error Message */}
-          {error && (
-            <Card
-              variant="surface"
-              style={{
-                backgroundColor: 'var(--red-2)',
-                borderColor: 'var(--red-7)',
-                marginTop: '16px',
-              }}
-            >
-              <Text size="2" color="red">
-                {error}
-              </Text>
-            </Card>
-          )}
+                  {/* Manga Lesson Image Upload */}
+                  <Box>
+                    <Text size="2" weight="medium" mb="2" as="div">
+                      Lesson Cover Image (Optional)
+                    </Text>
+                    <input
+                      id="manga-image-upload"
+                      type="file"
+                      accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
+                      onChange={handleMangaImageChange}
+                      style={{
+                        width: '100%',
+                        padding: '8px',
+                        border: '1px solid var(--gray-7)',
+                        borderRadius: '4px',
+                        fontSize: '14px',
+                      }}
+                    />
+                    {mangaImage && (
+                      <Text size="1" color="green" mt="1">
+                        Selected: {mangaImage.name}
+                      </Text>
+                    )}
+                  </Box>
 
-          {/* Success Message */}
-          {success && (
-            <Card
-              variant="surface"
-              style={{
-                backgroundColor: 'var(--green-2)',
-                borderColor: 'var(--green-7)',
-                marginTop: '16px',
-              }}
-            >
-              <Text size="2" color="green">
-                {success}
-              </Text>
-            </Card>
-          )}
+                  {/* Manga Pages Upload */}
+                  <Box>
+                    <Text size="2" weight="medium" mb="2" as="div">
+                      Manga Pages (Required) - JPG files only, max 20 pages
+                    </Text>
+                    <input
+                      id="manga-files-upload"
+                      type="file"
+                      accept="image/jpeg,.jpg"
+                      multiple
+                      onChange={handleMangaFilesChange}
+                      style={{
+                        width: '100%',
+                        padding: '8px',
+                        border: '1px solid var(--gray-7)',
+                        borderRadius: '4px',
+                        fontSize: '14px',
+                      }}
+                    />
+                    {mangaFiles.length > 0 && (
+                      <Text size="1" color="green" mt="1">
+                        Selected: {mangaFiles.length} files
+                      </Text>
+                    )}
+                    <Text size="1" color="gray" mt="1">
+                      Pages will be processed using OCR to extract text for
+                      learning
+                    </Text>
+                  </Box>
+                </Flex>
+              </Tabs.Content>
+            </Box>
 
-          {/* Action Buttons */}
-          <Flex gap="3" mt="4" justify="end">
-            <Dialog.Close>
-              <Button variant="soft" color="gray" disabled={uploading}>
-                Cancel
-              </Button>
-            </Dialog.Close>
-            {activeTab === 'text' ? (
-              <Button
-                onClick={handleUpload}
-                disabled={uploading || !lessonFile}
+            {/* Error Message */}
+            {error && (
+              <Card
+                variant="surface"
+                style={{
+                  backgroundColor: 'var(--red-2)',
+                  borderColor: 'var(--red-7)',
+                  marginTop: '16px',
+                }}
               >
-                {uploading ? (
-                  <>
-                    <UploadIcon />
-                    Uploading...
-                  </>
-                ) : (
-                  <>
-                    <UploadIcon />
-                    Upload Lesson
-                  </>
-                )}
-              </Button>
-            ) : (
-              <Button
-                onClick={handleMangaUpload}
-                disabled={uploading || mangaFiles.length === 0}
-              >
-                {uploading ? (
-                  <>
-                    <UploadIcon />
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    <UploadIcon />
-                    Upload Manga
-                  </>
-                )}
-              </Button>
+                <Text size="2" color="red">
+                  {error}
+                </Text>
+              </Card>
             )}
-          </Flex>
-        </Tabs.Root>
-      </Dialog.Content>
-    </Dialog.Root>
+
+            {/* Success Message */}
+            {success && (
+              <Card
+                variant="surface"
+                style={{
+                  backgroundColor: 'var(--green-2)',
+                  borderColor: 'var(--green-7)',
+                  marginTop: '16px',
+                }}
+              >
+                <Text size="2" color="green">
+                  {success}
+                </Text>
+              </Card>
+            )}
+
+            {/* Action Buttons */}
+            <Flex gap="3" mt="4" justify="end">
+              <Dialog.Close>
+                <Button variant="soft" color="gray" disabled={uploading}>
+                  Cancel
+                </Button>
+              </Dialog.Close>
+              {activeTab === 'text' ? (
+                <Button
+                  onClick={handleUpload}
+                  disabled={uploading || !lessonFile}
+                >
+                  {uploading ? (
+                    <>
+                      <UpdateIcon style={spinningIconStyle} />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <UploadIcon />
+                      Upload Lesson
+                    </>
+                  )}
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleMangaUpload}
+                  disabled={uploading || mangaFiles.length === 0}
+                >
+                  {uploading ? (
+                    <>
+                      <UpdateIcon style={spinningIconStyle} />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <UploadIcon />
+                      Upload Manga
+                    </>
+                  )}
+                </Button>
+              )}
+            </Flex>
+          </Tabs.Root>
+        </Dialog.Content>
+      </Dialog.Root>
+    </>
   );
 };
 
