@@ -1,4 +1,4 @@
-import { Lesson, Prisma } from '@prisma/client';
+import { Prisma, LessonType } from '@prisma/client';
 import { ConfigService } from './configService';
 import { S3Service } from './s3Service';
 import { TextProcessingService } from './textProcessingService';
@@ -59,14 +59,41 @@ export class LessonService {
         };
       }
 
+      // Determine lesson type based on file if provided
+      let lessonType: LessonType = LessonType.text; // default to text
+
+      if (lessonData.fileKey) {
+        try {
+          // Download file content to determine type
+          const fileContent = await S3Service.getFileContent(
+            lessonData.fileKey
+          );
+          const fileName = lessonData.fileKey.split('/').pop() || '';
+
+          // Use TextProcessingService to detect file type
+          const detectedFileType = TextProcessingService.getFileType(
+            fileContent,
+            fileName
+          );
+          lessonType =
+            detectedFileType === 'srt' ? LessonType.subtitle : LessonType.text;
+        } catch (error) {
+          console.error(
+            'Error detecting file type, defaulting to text:',
+            error
+          );
+          lessonType = LessonType.text;
+        }
+      }
+
       // Create lesson in database
       const lesson = await prisma.lesson.create({
         data: {
           created_by: userId,
           title: lessonData.title,
+          lesson_type: lessonType,
           language_code: lessonData.languageCode,
           image_s3_key: lessonData.imageKey || null,
-          file_s3_key: lessonData.fileKey || null,
           audio_s3_key: lessonData.audioKey || null,
         },
       });
@@ -93,7 +120,6 @@ export class LessonService {
           title: lesson.title,
           languageCode: lesson.language_code,
           ...(lesson.image_s3_key && { imageUrl: lesson.image_s3_key }),
-          ...(lesson.file_s3_key && { fileUrl: lesson.file_s3_key }),
           ...(lesson.audio_s3_key && { audioUrl: lesson.audio_s3_key }),
           createdAt: lesson.created_at,
         },
@@ -115,6 +141,14 @@ export class LessonService {
     fileKey: string
   ): Promise<void> {
     try {
+      // Create lesson file record
+      const lessonFile = await prisma.lessonFile.create({
+        data: {
+          lesson_id: lessonId,
+          file_s3_key: fileKey,
+        },
+      });
+
       // Download file content from S3
       const fileContent = await S3Service.getFileContent(fileKey);
 
@@ -138,6 +172,7 @@ export class LessonService {
       // Create sentence records in database
       const sentenceData = processedSentences.map(sentence => ({
         lesson_id: lessonId,
+        lesson_file_id: lessonFile.id,
         original_text: sentence.text,
         split_text: Prisma.JsonNull, // Keep null as requested using Prisma.JsonNull
         start_time: sentence.startTime ? sentence.startTime / 1000 : null, // Convert milliseconds to seconds for Decimal
@@ -167,15 +202,18 @@ export class LessonService {
         where: {
           created_by: userId,
         },
+        include: {
+          lessonFiles: true,
+        },
         orderBy: {
           id: 'desc', // Most recent first
         },
       });
 
       const lessonsWithUrls = await Promise.all(
-        lessons.map(async (lesson: Lesson) => {
+        lessons.map(async lesson => {
           let imageUrl = lesson.image_s3_key;
-          let fileUrl = lesson.file_s3_key;
+          let fileUrl = null;
           let audioUrl = lesson.audio_s3_key;
 
           // Generate signed URLs for S3 keys
@@ -188,9 +226,16 @@ export class LessonService {
             }
           }
 
-          if (lesson.file_s3_key) {
+          // Get file URL from the first lesson file if any
+          if (
+            lesson.lessonFiles &&
+            lesson.lessonFiles.length > 0 &&
+            lesson.lessonFiles[0]?.file_s3_key
+          ) {
             try {
-              fileUrl = await S3Service.getDownloadUrl(lesson.file_s3_key);
+              fileUrl = await S3Service.getDownloadUrl(
+                lesson.lessonFiles[0]?.file_s3_key
+              );
             } catch (error) {
               console.error('Error generating file download URL:', error);
               fileUrl = null;
@@ -269,15 +314,18 @@ export class LessonService {
           created_by: userId,
           language_code: languageCode,
         },
+        include: {
+          lessonFiles: true,
+        },
         orderBy: {
           id: 'desc',
         },
       });
 
       const lessonsWithUrls = await Promise.all(
-        lessons.map(async (lesson: Lesson) => {
+        lessons.map(async lesson => {
           let imageUrl = lesson.image_s3_key;
-          let fileUrl = lesson.file_s3_key;
+          let fileUrl = null;
           let audioUrl = lesson.audio_s3_key;
 
           if (lesson.image_s3_key) {
@@ -289,9 +337,16 @@ export class LessonService {
             }
           }
 
-          if (lesson.file_s3_key) {
+          // Get file URL from the first lesson file if any
+          if (
+            lesson.lessonFiles &&
+            lesson.lessonFiles.length > 0 &&
+            lesson.lessonFiles[0]?.file_s3_key
+          ) {
             try {
-              fileUrl = await S3Service.getDownloadUrl(lesson.file_s3_key);
+              fileUrl = await S3Service.getDownloadUrl(
+                lesson.lessonFiles[0]?.file_s3_key
+              );
             } catch (error) {
               console.error('Error generating file download URL:', error);
               fileUrl = null;
@@ -432,9 +487,6 @@ export class LessonService {
           ...(updatedLesson.image_s3_key && {
             imageUrl: updatedLesson.image_s3_key,
           }),
-          ...(updatedLesson.file_s3_key && {
-            fileUrl: updatedLesson.file_s3_key,
-          }),
           ...(updatedLesson.audio_s3_key && {
             audioUrl: updatedLesson.audio_s3_key,
           }),
@@ -464,6 +516,9 @@ export class LessonService {
           id: lessonId,
           created_by: userId,
         },
+        include: {
+          lessonFiles: true,
+        },
       });
 
       if (!lesson) {
@@ -476,14 +531,23 @@ export class LessonService {
       // Store S3 keys for deletion after database operations
       const s3KeysToDelete = {
         imageKey: lesson.image_s3_key,
-        fileKey: lesson.file_s3_key,
+        fileKeys: lesson.lessonFiles
+          .map(lf => lf.file_s3_key)
+          .filter((key): key is string => Boolean(key)),
         audioKey: lesson.audio_s3_key,
       };
 
-      // Delete lesson and all associated sentences in a transaction
+      // Delete lesson and all associated records in a transaction
       await prisma.$transaction(async tx => {
         // First, delete all sentences associated with the lesson
         await tx.sentence.deleteMany({
+          where: {
+            lesson_id: lessonId,
+          },
+        });
+
+        // Delete all lesson files associated with the lesson
+        await tx.lessonFile.deleteMany({
           where: {
             lesson_id: lessonId,
           },
@@ -497,22 +561,23 @@ export class LessonService {
         });
       });
 
-      await Promise.all(
-        [
-          s3KeysToDelete.imageKey &&
-            S3Service.deleteFile(s3KeysToDelete.imageKey).catch(error => {
-              console.error('Error deleting image from S3:', error);
-            }),
-          s3KeysToDelete.fileKey &&
-            S3Service.deleteFile(s3KeysToDelete.fileKey).catch(error => {
-              console.error('Error deleting file from S3:', error);
-            }),
-          s3KeysToDelete.audioKey &&
-            S3Service.deleteFile(s3KeysToDelete.audioKey).catch(error => {
-              console.error('Error deleting audio from S3:', error);
-            }),
-        ].filter(Boolean)
-      );
+      const s3DeletePromises = [
+        s3KeysToDelete.imageKey &&
+          S3Service.deleteFile(s3KeysToDelete.imageKey).catch(error => {
+            console.error('Error deleting image from S3:', error);
+          }),
+        ...s3KeysToDelete.fileKeys.map(fileKey =>
+          S3Service.deleteFile(fileKey).catch(error => {
+            console.error('Error deleting file from S3:', error);
+          })
+        ),
+        s3KeysToDelete.audioKey &&
+          S3Service.deleteFile(s3KeysToDelete.audioKey).catch(error => {
+            console.error('Error deleting audio from S3:', error);
+          }),
+      ].filter(Boolean);
+
+      await Promise.all(s3DeletePromises);
 
       return {
         success: true,

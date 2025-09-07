@@ -1,0 +1,2 @@
+ALTER TABLE `sentence` MODIFY COLUMN `lesson_file_id` INTEGER NOT NULL AFTER `lesson_id`;
+ALTER TABLE `lesson` MODIFY `lesson_type` ENUM('text', 'subtitle', 'manga') NOT NULL DEFAULT 'subtitle' AFTER `created_by`;

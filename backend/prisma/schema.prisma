@@ -29,22 +29,42 @@ model User {
   @@map("user")
 }
 
+enum LessonType {
+  text
+  subtitle
+  manga
+}
+
 model Lesson {
-  id            Int      @id @default(autoincrement())
+  id            Int        @id @default(autoincrement())
   created_by    Int
-  title         String   @db.VarChar(255)
-  language_code String   @db.VarChar(10)
-  image_s3_key  String?  @db.VarChar(500)
-  file_s3_key   String?  @db.VarChar(500)
-  audio_s3_key  String?  @db.VarChar(500)
-  created_at    DateTime @default(now()) @db.Timestamp(0)
-  updated_at    DateTime @default(now()) @updatedAt @db.Timestamp(0)
+  title         String     @db.VarChar(255)
+  lesson_type   LessonType @default(subtitle)
+  language_code String     @db.VarChar(10)
+  image_s3_key  String?    @db.VarChar(500)
+  audio_s3_key  String?    @db.VarChar(500)
+  created_at    DateTime   @default(now()) @db.Timestamp(0)
+  updated_at    DateTime   @default(now()) @updatedAt @db.Timestamp(0)
 
   user                 User                 @relation(fields: [created_by], references: [id])
   sentences            Sentence[]
   userLessonProgresses UserLessonProgress[]
+  lessonFiles          LessonFile[]
 
   @@map("lesson")
+}
+
+model LessonFile {
+  id          Int      @id @default(autoincrement())
+  lesson_id   Int
+  file_s3_key String?  @db.VarChar(500)
+  created_at  DateTime @default(now()) @db.Timestamp(0)
+  updated_at  DateTime @default(now()) @updatedAt @db.Timestamp(0)
+
+  lesson   Lesson     @relation(fields: [lesson_id], references: [id])
+  sentence Sentence[]
+
+  @@map("lesson_file")
 }
 
 enum UserLessonProgressStatus {
@@ -70,16 +90,18 @@ model UserLessonProgress {
 }
 
 model Sentence {
-  id            Int      @id @default(autoincrement())
-  lesson_id     Int
-  original_text String   @db.Text
-  split_text    Json?
-  start_time    Decimal? @db.Decimal(10, 3)
-  end_time      Decimal? @db.Decimal(10, 3)
-  created_at    DateTime @default(now()) @db.Timestamp(0)
-  updated_at    DateTime @default(now()) @updatedAt @db.Timestamp(0)
+  id             Int      @id @default(autoincrement())
+  lesson_id      Int
+  lesson_file_id Int
+  original_text  String   @db.Text
+  split_text     Json?
+  start_time     Decimal? @db.Decimal(10, 3)
+  end_time       Decimal? @db.Decimal(10, 3)
+  created_at     DateTime @default(now()) @db.Timestamp(0)
+  updated_at     DateTime @default(now()) @updatedAt @db.Timestamp(0)
 
   lesson               Lesson                @relation(fields: [lesson_id], references: [id])
+  lessonFile           LessonFile            @relation(fields: [lesson_file_id], references: [id])
   sentenceTranslations SentenceTranslation[]
   sentenceWords        SentenceWord[]
   userLessonProgresses UserLessonProgress[]
