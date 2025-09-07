@@ -20,6 +20,7 @@ interface Lesson {
   id: number;
   title: string;
   languageCode: string;
+  processingStatus: 'pending' | 'completed' | 'failed';
   imageUrl?: string;
   fileUrl?: string;
   audioUrl?: string;
@@ -79,6 +80,23 @@ const LessonList: React.FC<LessonListProps> = ({
       fetchLessons();
     }
   }, [isAuthenticated, selectedLanguage, refreshTrigger]);
+
+  // Auto-refresh for pending lessons
+  useEffect(() => {
+    const hasPendingLessons = lessons.some(
+      lesson => lesson.processingStatus === 'pending'
+    );
+
+    if (hasPendingLessons) {
+      const interval = setInterval(() => {
+        fetchLessons();
+      }, 10000); // Refresh every 10 seconds if there are pending lessons
+
+      return () => clearInterval(interval);
+    }
+
+    return undefined;
+  }, [lessons]);
 
   const handleDeleteLesson = async (lessonId: number) => {
     try {
@@ -150,20 +168,37 @@ const LessonList: React.FC<LessonListProps> = ({
                   <Badge variant="soft" color="blue">
                     {lesson.languageCode.toUpperCase()}
                   </Badge>
-                  {lesson.userProgress && (
-                    <Badge
-                      variant="soft"
-                      color={
-                        lesson.userProgress.status === 'finished'
-                          ? 'green'
-                          : 'orange'
-                      }
-                    >
-                      {lesson.userProgress.status === 'finished'
-                        ? '✓ Completed'
-                        : '📖 In Progress'}
-                    </Badge>
-                  )}
+                  <Badge
+                    variant="soft"
+                    color={
+                      lesson.processingStatus === 'completed'
+                        ? 'green'
+                        : lesson.processingStatus === 'pending'
+                          ? 'yellow'
+                          : 'red'
+                    }
+                  >
+                    {lesson.processingStatus === 'completed'
+                      ? '✓ Ready'
+                      : lesson.processingStatus === 'pending'
+                        ? '⏳ Processing'
+                        : '❌ Failed'}
+                  </Badge>
+                  {lesson.userProgress &&
+                    lesson.processingStatus === 'completed' && (
+                      <Badge
+                        variant="soft"
+                        color={
+                          lesson.userProgress.status === 'finished'
+                            ? 'green'
+                            : 'orange'
+                        }
+                      >
+                        {lesson.userProgress.status === 'finished'
+                          ? '✓ Completed'
+                          : '📖 In Progress'}
+                      </Badge>
+                    )}
                   <Text size="2" color="gray">
                     Lesson #{lesson.id}
                   </Text>
@@ -223,10 +258,29 @@ const LessonList: React.FC<LessonListProps> = ({
                   Created: {dayjs(lesson.createdAt).format('MM/DD/YYYY')}
                 </Text>
 
+                {lesson.processingStatus === 'pending' && (
+                  <Box mt="3">
+                    <Text size="2" color="orange">
+                      📤 Your lesson is being processed. This may take a few
+                      minutes for manga lessons with multiple pages.
+                    </Text>
+                  </Box>
+                )}
+
+                {lesson.processingStatus === 'failed' && (
+                  <Box mt="3">
+                    <Text size="2" color="red">
+                      ⚠️ Processing failed. Please try uploading your lesson
+                      again or contact support if the issue persists.
+                    </Text>
+                  </Box>
+                )}
+
                 <Flex gap="2" mt="3">
                   <Button
                     variant="soft"
                     size="2"
+                    disabled={lesson.processingStatus !== 'completed'}
                     onClick={() => navigate(`/lessons/${lesson.id}`)}
                   >
                     <EyeOpenIcon />
@@ -235,6 +289,7 @@ const LessonList: React.FC<LessonListProps> = ({
                   <Button
                     variant="soft"
                     size="2"
+                    disabled={lesson.processingStatus !== 'completed'}
                     onClick={() => navigate(`/lessons/${lesson.id}/video`)}
                   >
                     <VideoIcon />

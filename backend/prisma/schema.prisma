@@ -35,16 +35,23 @@ enum LessonType {
   manga
 }
 
+enum LessonProcessingStatus {
+  pending
+  completed
+  failed
+}
+
 model Lesson {
-  id            Int        @id @default(autoincrement())
-  created_by    Int
-  title         String     @db.VarChar(255)
-  lesson_type   LessonType @default(subtitle)
-  language_code String     @db.VarChar(10)
-  image_s3_key  String?    @db.VarChar(500)
-  audio_s3_key  String?    @db.VarChar(500)
-  created_at    DateTime   @default(now()) @db.Timestamp(0)
-  updated_at    DateTime   @default(now()) @updatedAt @db.Timestamp(0)
+  id                Int                    @id @default(autoincrement())
+  created_by        Int
+  title             String                 @db.VarChar(255)
+  lesson_type       LessonType             @default(subtitle)
+  processing_status LessonProcessingStatus @default(completed)
+  language_code     String                 @db.VarChar(10)
+  image_s3_key      String?                @db.VarChar(500)
+  audio_s3_key      String?                @db.VarChar(500)
+  created_at        DateTime               @default(now()) @db.Timestamp(0)
+  updated_at        DateTime               @default(now()) @updatedAt @db.Timestamp(0)
 
   user                 User                 @relation(fields: [created_by], references: [id])
   sentences            Sentence[]

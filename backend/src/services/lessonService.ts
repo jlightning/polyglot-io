@@ -1,4 +1,4 @@
-import { Prisma, LessonType } from '@prisma/client';
+import { Prisma, LessonType, LessonProcessingStatus } from '@prisma/client';
 import { ConfigService } from './configService';
 import { S3Service } from './s3Service';
 import { TextProcessingService } from './textProcessingService';
@@ -34,6 +34,7 @@ export interface LessonResponse {
     id: number;
     title: string;
     languageCode: string;
+    processingStatus: string;
     imageUrl?: string;
     fileUrl?: string;
     audioUrl?: string;
@@ -43,6 +44,7 @@ export interface LessonResponse {
     id: number;
     title: string;
     languageCode: string;
+    processingStatus: string;
     imageUrl?: string;
     fileUrl?: string;
     audioUrl?: string;
@@ -127,6 +129,7 @@ export class LessonService {
           id: lesson.id,
           title: lesson.title,
           languageCode: lesson.language_code,
+          processingStatus: lesson.processing_status,
           ...(lesson.image_s3_key && { imageUrl: lesson.image_s3_key }),
           ...(lesson.audio_s3_key && { audioUrl: lesson.audio_s3_key }),
           createdAt: lesson.created_at,
@@ -157,7 +160,7 @@ export class LessonService {
         };
       }
 
-      // Create manga lesson in database
+      // Create manga lesson in database with pending processing status
       const lesson = await prisma.lesson.create({
         data: {
           created_by: userId,
@@ -166,15 +169,30 @@ export class LessonService {
           language_code: lessonData.languageCode,
           image_s3_key: lessonData.imageKey || null,
           audio_s3_key: null, // Manga lessons don't have audio
+          processing_status: LessonProcessingStatus.pending,
         },
       });
 
-      // Process manga pages with OCR
-      await this.processMangaPages(
+      // Process manga pages with OCR in background
+      this.processMangaPages(
         lesson.id,
         lessonData.mangaPageKeys,
         lessonData.languageCode
-      );
+      ).catch(error => {
+        console.error('Error processing manga pages:', error);
+        // Update lesson status to failed if processing fails
+        prisma.lesson
+          .update({
+            where: { id: lesson.id },
+            data: { processing_status: LessonProcessingStatus.failed },
+          })
+          .catch(updateError => {
+            console.error(
+              'Failed to update lesson status to failed:',
+              updateError
+            );
+          });
+      });
 
       return {
         success: true,
@@ -183,6 +201,7 @@ export class LessonService {
           id: lesson.id,
           title: lesson.title,
           languageCode: lesson.language_code,
+          processingStatus: lesson.processing_status,
           ...(lesson.image_s3_key && {
             imageUrl: S3Service.getFileUrl(lesson.image_s3_key),
           }),
@@ -203,6 +222,7 @@ export class LessonService {
 
   /**
    * Process manga pages with OCR and create sentence records
+   * Processes pages in batches of 5 but maintains sequential order
    */
   private static async processMangaPages(
     lessonId: number,
@@ -211,67 +231,155 @@ export class LessonService {
   ): Promise<void> {
     try {
       const openaiService = new OpenAIService();
-
-      for (let i = 0; i < mangaPageKeys.length; i++) {
-        const pageKey = mangaPageKeys[i];
-
-        if (!pageKey) {
-          console.warn(`Skipping empty page key at index ${i}`);
-          continue;
-        }
-
-        // Create lesson file record for this manga page
-        const lessonFile = await prisma.lessonFile.create({
-          data: {
-            lesson_id: lessonId,
-            file_s3_key: pageKey,
-          },
-        });
-
-        try {
-          // Download image from S3 and convert to base64
-          const imageBuffer = await S3Service.getFileBuffer(pageKey);
-          const imageBase64 = imageBuffer.toString('base64');
-
-          // Extract text using OpenAI Vision API
-          const extractedTexts = await openaiService.extractTextFromImage(
-            imageBase64,
-            languageCode
-          );
-
-          if (extractedTexts.length === 0) {
-            console.warn(`No text found in manga page: ${pageKey}`);
-            continue;
-          }
-
-          // Create sentence records for extracted text
-          const sentenceData = extractedTexts.map(text => ({
-            lesson_id: lessonId,
-            lesson_file_id: lessonFile.id,
-            original_text: text,
-            split_text: Prisma.JsonNull,
-            start_time: null,
-            end_time: null,
-          }));
-
-          await prisma.sentence.createMany({
-            data: sentenceData,
-          });
-
-          console.log(
-            `Successfully processed ${extractedTexts.length} text segments from manga page ${i + 1}/${mangaPageKeys.length}`
-          );
-        } catch (error) {
-          console.error(`Error processing manga page ${pageKey}:`, error);
-          // Continue processing other pages even if one fails
-        }
-      }
+      const batchSize = 5;
+      const totalPages = mangaPageKeys.length;
 
       console.log(
-        `Successfully processed ${mangaPageKeys.length} manga pages for lesson ${lessonId}`
+        `Starting manga processing for lesson ${lessonId}: ${totalPages} pages in batches of ${batchSize}`
+      );
+
+      // Process pages in batches of 5
+      for (
+        let batchStart = 0;
+        batchStart < mangaPageKeys.length;
+        batchStart += batchSize
+      ) {
+        const batchEnd = Math.min(batchStart + batchSize, mangaPageKeys.length);
+        const currentBatch = mangaPageKeys.slice(batchStart, batchEnd);
+
+        console.log(
+          `Processing batch ${Math.floor(batchStart / batchSize) + 1}: pages ${batchStart + 1}-${batchEnd}`
+        );
+
+        // Process batch in parallel but maintain order by using Promise.allSettled
+        const batchPromises = currentBatch.map(async (pageKey, batchIndex) => {
+          const globalPageIndex = batchStart + batchIndex;
+
+          if (!pageKey) {
+            console.warn(`Skipping empty page key at index ${globalPageIndex}`);
+            return {
+              success: false,
+              pageIndex: globalPageIndex,
+              error: 'Empty page key',
+            };
+          }
+
+          try {
+            // Create lesson file record for this manga page
+            const lessonFile = await prisma.lessonFile.create({
+              data: {
+                lesson_id: lessonId,
+                file_s3_key: pageKey,
+              },
+            });
+
+            // Download image from S3 and convert to base64
+            const imageBuffer = await S3Service.getFileBuffer(pageKey);
+            const imageBase64 = imageBuffer.toString('base64');
+
+            // Extract text using OpenAI Vision API
+            const extractedTexts = await openaiService.extractTextFromImage(
+              imageBase64,
+              languageCode
+            );
+
+            if (extractedTexts.length === 0) {
+              console.warn(`No text found in manga page: ${pageKey}`);
+              return {
+                success: true,
+                pageIndex: globalPageIndex,
+                textCount: 0,
+              };
+            }
+
+            // Create sentence records for extracted text
+            const sentenceData = extractedTexts.map(text => ({
+              lesson_id: lessonId,
+              lesson_file_id: lessonFile.id,
+              original_text: text,
+              split_text: Prisma.JsonNull,
+              start_time: null,
+              end_time: null,
+            }));
+
+            await prisma.sentence.createMany({
+              data: sentenceData,
+            });
+
+            console.log(
+              `Successfully processed ${extractedTexts.length} text segments from manga page ${globalPageIndex + 1}/${totalPages}`
+            );
+
+            return {
+              success: true,
+              pageIndex: globalPageIndex,
+              textCount: extractedTexts.length,
+            };
+          } catch (error) {
+            console.error(
+              `Error processing manga page ${pageKey} (index ${globalPageIndex}):`,
+              error
+            );
+            return {
+              success: false,
+              pageIndex: globalPageIndex,
+              error: error instanceof Error ? error.message : 'Unknown error',
+            };
+          }
+        });
+
+        // Wait for all pages in the current batch to complete
+        const batchResults = await Promise.allSettled(batchPromises);
+
+        // Log batch completion
+        const successCount = batchResults.filter(
+          result => result.status === 'fulfilled' && result.value.success
+        ).length;
+
+        const errorCount = batchResults.length - successCount;
+
+        console.log(
+          `Batch ${Math.floor(batchStart / batchSize) + 1} completed: ${successCount} successful, ${errorCount} failed`
+        );
+
+        // Log any errors
+        batchResults.forEach((result, index) => {
+          if (result.status === 'rejected') {
+            console.error(
+              `Page ${batchStart + index + 1} batch promise rejected:`,
+              result.reason
+            );
+          } else if (!result.value.success) {
+            console.error(
+              `Page ${result.value.pageIndex + 1} processing failed:`,
+              result.value.error
+            );
+          }
+        });
+      }
+
+      // Update lesson status to completed after successful processing
+      await prisma.lesson.update({
+        where: { id: lessonId },
+        data: { processing_status: LessonProcessingStatus.completed },
+      });
+
+      console.log(
+        `Successfully completed manga processing for lesson ${lessonId}: ${totalPages} pages processed`
       );
     } catch (error) {
       console.error('Error in processMangaPages:', error);
+
+      // Update lesson status to failed
+      try {
+        await prisma.lesson.update({
+          where: { id: lessonId },
+          data: { processing_status: LessonProcessingStatus.failed },
+        });
+      } catch (updateError) {
+        console.error('Failed to update lesson status to failed:', updateError);
+      }
+
       throw error;
     }
   }
@@ -408,6 +516,7 @@ export class LessonService {
             id: lesson.id,
             title: lesson.title,
             languageCode: lesson.language_code,
+            processingStatus: lesson.processing_status,
             ...(imageUrl && { imageUrl }),
             ...(fileUrl && { fileUrl }),
             ...(audioUrl && { audioUrl }),
@@ -519,6 +628,7 @@ export class LessonService {
             id: lesson.id,
             title: lesson.title,
             languageCode: lesson.language_code,
+            processingStatus: lesson.processing_status,
             ...(imageUrl && { imageUrl }),
             ...(fileUrl && { fileUrl }),
             ...(audioUrl && { audioUrl }),
@@ -627,6 +737,7 @@ export class LessonService {
           id: updatedLesson.id,
           title: updatedLesson.title,
           languageCode: updatedLesson.language_code,
+          processingStatus: updatedLesson.processing_status,
           ...(updatedLesson.image_s3_key && {
             imageUrl: updatedLesson.image_s3_key,
           }),
