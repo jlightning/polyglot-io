@@ -283,11 +283,16 @@ export class OpenAIService {
         throw new Error('Image data cannot be empty');
       }
 
+      const lowerLang = sourceLanguage.toLowerCase();
+
       const systemPrompt = [
         'You are an OCR specialist that extracts text from manga/comic images.',
         '',
         `The image contains text in ${sourceLanguage}.`,
         '',
+        ...(lowerLang.includes('japanese') || lowerLang === 'ja'
+          ? 'Text is read top to bottom and from right to left'
+          : ''),
         'Your task is to:',
         '1. Extract ALL visible text from the image in reading order',
         '2. Include speech bubbles, thought bubbles, sound effects, and any other text',
