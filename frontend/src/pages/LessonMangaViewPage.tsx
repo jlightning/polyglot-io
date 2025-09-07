@@ -117,6 +117,21 @@ const LessonMangaViewPage: React.FC = () => {
     WordPronunciation[] | null
   >(null);
 
+  // OCR selection state
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [isProcessingOCR, setIsProcessingOCR] = useState(false);
+  const [isSelecting, setIsSelecting] = useState(false);
+  const [selection, setSelection] = useState<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null>(null);
+  const [startPoint, setStartPoint] = useState<{ x: number; y: number } | null>(
+    null
+  );
+  const imageRef = useRef<HTMLImageElement>(null);
+
   // Load basic lesson info and first page of sentences
   useEffect(() => {
     const fetchLessonInfo = async () => {
@@ -545,6 +560,146 @@ const LessonMangaViewPage: React.FC = () => {
     }
   };
 
+  const toggleSelectionMode = () => {
+    setIsSelectionMode(!isSelectionMode);
+    setSelection(null);
+    setIsSelecting(false);
+    setStartPoint(null);
+  };
+
+  const getRelativeCoordinates = useCallback(
+    (clientX: number, clientY: number) => {
+      if (!imageRef.current) return { x: 0, y: 0 };
+
+      const imageRect = imageRef.current.getBoundingClientRect();
+
+      // Calculate relative coordinates within the actual image bounds
+      const x = (clientX - imageRect.left) / imageRect.width;
+      const y = (clientY - imageRect.top) / imageRect.height;
+
+      return {
+        x: Math.max(0, Math.min(1, x)),
+        y: Math.max(0, Math.min(1, y)),
+      };
+    },
+    []
+  );
+
+  const getImageDisplayInfo = useCallback(() => {
+    if (!imageRef.current) return null;
+
+    const imageElement = imageRef.current;
+    const container = imageElement.parentElement;
+    if (!container) return null;
+
+    const imageRect = imageElement.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+
+    // Calculate where the image is positioned within the container
+    const leftOffset = imageRect.left - containerRect.left;
+    const topOffset = imageRect.top - containerRect.top;
+
+    return {
+      leftOffset,
+      topOffset,
+      imageWidth: imageRect.width,
+      imageHeight: imageRect.height,
+      containerWidth: containerRect.width,
+      containerHeight: containerRect.height,
+    };
+  }, []);
+
+  const handleImageMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      if (!isSelectionMode || isProcessingOCR) return;
+
+      e.preventDefault();
+      const coords = getRelativeCoordinates(e.clientX, e.clientY);
+      setStartPoint(coords);
+      setIsSelecting(true);
+      setSelection(null);
+    },
+    [isSelectionMode, getRelativeCoordinates, isProcessingOCR]
+  );
+
+  const handleImageMouseMove = useCallback(
+    (e: React.MouseEvent) => {
+      if (!isSelecting || !startPoint || !isSelectionMode || isProcessingOCR)
+        return;
+
+      e.preventDefault();
+      const coords = getRelativeCoordinates(e.clientX, e.clientY);
+
+      const newSelection = {
+        x: Math.min(startPoint.x, coords.x),
+        y: Math.min(startPoint.y, coords.y),
+        width: Math.abs(coords.x - startPoint.x),
+        height: Math.abs(coords.y - startPoint.y),
+      };
+
+      setSelection(newSelection);
+    },
+    [
+      isSelecting,
+      startPoint,
+      isSelectionMode,
+      getRelativeCoordinates,
+      isProcessingOCR,
+    ]
+  );
+
+  const handleImageMouseUp = useCallback(() => {
+    if (!isSelectionMode || isProcessingOCR) return;
+    setIsSelecting(false);
+    setStartPoint(null);
+  }, [isSelectionMode, isProcessingOCR]);
+
+  const handleClearSelection = () => {
+    setSelection(null);
+    setIsSelecting(false);
+    setStartPoint(null);
+  };
+
+  const handleConfirmSelection = async () => {
+    if (!selection || !lessonId || !lesson?.lessonFiles || !isAuthenticated)
+      return;
+
+    const currentFile = lesson.lessonFiles[currentMangaPageIndex];
+    if (!currentFile) return;
+
+    try {
+      setIsProcessingOCR(true);
+
+      const response = await axiosInstance.post(
+        `/api/lessons/${lessonId}/ocr-region`,
+        {
+          lessonFileId: currentFile.id,
+          selection: selection,
+        }
+      );
+
+      if (response.data.success) {
+        // Reload sentences for the current page to show the new sentences
+        await loadSentencesForMangaPage(currentMangaPageIndex);
+
+        // Clear selection and exit selection mode
+        setSelection(null);
+        setIsSelectionMode(false);
+
+        // Show success message (optional)
+        console.log('OCR completed successfully:', response.data.message);
+      } else {
+        console.error('OCR failed:', response.data.message);
+        // You could show an error toast here
+      }
+    } catch (error) {
+      console.error('Error processing OCR:', error);
+      // You could show an error toast here
+    } finally {
+      setIsProcessingOCR(false);
+    }
+  };
+
   // Check if user is on the last manga page (for finish button display)
   const isOnLastMangaPage = useMemo(() => {
     if (!lesson?.lessonFiles) return false;
@@ -563,8 +718,8 @@ const LessonMangaViewPage: React.FC = () => {
         return;
       }
 
-      // Don't handle navigation if sentences are loading
-      if (loadingSentences) return;
+      // Don't handle navigation if sentences are loading or in selection mode
+      if (loadingSentences || isSelectionMode) return;
 
       switch (event.code) {
         case 'ArrowLeft':
@@ -575,6 +730,13 @@ const LessonMangaViewPage: React.FC = () => {
           event.preventDefault();
           navigateToNextMangaPage();
           break;
+        case 'Escape':
+          if (isSelectionMode) {
+            event.preventDefault();
+            setIsSelectionMode(false);
+            setSelection(null);
+          }
+          break;
       }
     };
 
@@ -582,7 +744,7 @@ const LessonMangaViewPage: React.FC = () => {
     return () => {
       document.removeEventListener('keydown', handleKeydown);
     };
-  }, [currentMangaPageIndex, lesson, loadingSentences]);
+  }, [currentMangaPageIndex, lesson, loadingSentences, isSelectionMode]);
 
   if (authLoading || loading) {
     return (
@@ -703,6 +865,7 @@ const LessonMangaViewPage: React.FC = () => {
             padding: '0 24px 24px 24px',
             overflow: 'hidden',
             minHeight: 0, // Important for flex child to shrink
+            height: 'calc(100vh - 120px)', // Fixed height to prevent overflow
           }}
         >
           <Flex style={{ height: '100%' }} gap="4">
@@ -719,41 +882,131 @@ const LessonMangaViewPage: React.FC = () => {
                 <Flex direction="column" gap="3" style={{ height: '100%' }}>
                   <Flex align="center" justify="between">
                     <Heading size="4">Manga Page</Heading>
-                    <Text size="2" color="gray">
-                      Page {currentMangaPageIndex + 1} of{' '}
-                      {lesson.lessonFiles.length}
-                    </Text>
+                    <Flex align="center" gap="2">
+                      <Button
+                        variant={isSelectionMode ? 'solid' : 'soft'}
+                        {...(isSelectionMode && { color: 'blue' })}
+                        size="1"
+                        onClick={toggleSelectionMode}
+                        disabled={
+                          loadingSentences ||
+                          !currentMangaPage ||
+                          isProcessingOCR
+                        }
+                      >
+                        {isSelectionMode
+                          ? '✅ Selection Mode'
+                          : '📝 Select Text'}
+                      </Button>
+                      <Text size="2" color="gray">
+                        Page {currentMangaPageIndex + 1} of{' '}
+                        {lesson.lessonFiles.length}
+                      </Text>
+                    </Flex>
                   </Flex>
 
                   {/* Manga Image */}
                   <Box
                     style={{
-                      flex: 1,
                       position: 'relative',
-                      minHeight: 0,
+                      height: 'calc(100% - 160px)', // Reserve space for selection controls and navigation buttons
+                      minHeight: '200px',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
+                      overflow: 'hidden',
                     }}
                   >
                     {currentMangaPage ? (
-                      <img
-                        src={
-                          currentMangaPage.imageUrl ||
-                          `/api/files/${currentMangaPage.fileS3Key}`
-                        }
-                        alt={`Manga page ${currentMangaPageIndex + 1}`}
+                      <Box
                         style={{
-                          maxWidth: '100%',
-                          maxHeight: '100%',
-                          width: 'auto',
-                          height: 'auto',
-                          objectFit: 'contain',
-                          objectPosition: 'center',
-                          borderRadius: '8px',
-                          border: '1px solid var(--gray-6)',
+                          position: 'relative',
+                          width: '100%',
+                          height: '100%',
                         }}
-                      />
+                      >
+                        <img
+                          ref={imageRef}
+                          src={
+                            currentMangaPage.imageUrl ||
+                            `/api/files/${currentMangaPage.fileS3Key}`
+                          }
+                          alt={`Manga page ${currentMangaPageIndex + 1}`}
+                          style={{
+                            maxWidth: '100%',
+                            maxHeight: '100%',
+                            objectFit: 'contain',
+                            objectPosition: 'center',
+                            borderRadius: '8px',
+                            border: `2px solid ${isSelectionMode ? 'var(--blue-8)' : 'var(--gray-6)'}`,
+                            cursor: isSelectionMode ? 'crosshair' : 'default',
+                            userSelect: 'none',
+                            display: 'block',
+                            margin: '0 auto',
+                          }}
+                          onMouseDown={handleImageMouseDown}
+                          onMouseMove={handleImageMouseMove}
+                          onMouseUp={handleImageMouseUp}
+                          onMouseLeave={handleImageMouseUp}
+                          draggable={false}
+                        />
+
+                        {selection &&
+                          isSelectionMode &&
+                          (() => {
+                            const imageInfo = getImageDisplayInfo();
+                            if (!imageInfo) return null;
+
+                            return (
+                              <Box
+                                style={{
+                                  position: 'absolute',
+                                  left: `${imageInfo.leftOffset + selection.x * imageInfo.imageWidth}px`,
+                                  top: `${imageInfo.topOffset + selection.y * imageInfo.imageHeight}px`,
+                                  width: `${selection.width * imageInfo.imageWidth}px`,
+                                  height: `${selection.height * imageInfo.imageHeight}px`,
+                                  border: '2px solid var(--blue-9)',
+                                  backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                                  pointerEvents: 'none',
+                                  borderRadius: '2px',
+                                }}
+                              />
+                            );
+                          })()}
+
+                        {isProcessingOCR && (
+                          <Box
+                            style={{
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              right: 0,
+                              bottom: 0,
+                              backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              borderRadius: '8px',
+                            }}
+                          >
+                            <Flex direction="column" align="center" gap="3">
+                              <div
+                                style={{
+                                  width: '40px',
+                                  height: '40px',
+                                  border: '3px solid var(--gray-6)',
+                                  borderTop: '3px solid var(--blue-9)',
+                                  borderRadius: '50%',
+                                  animation: 'spin 1s linear infinite',
+                                }}
+                              />
+                              <Text size="3" weight="medium">
+                                Processing OCR...
+                              </Text>
+                            </Flex>
+                          </Box>
+                        )}
+                      </Box>
                     ) : (
                       <Flex
                         align="center"
@@ -772,24 +1025,79 @@ const LessonMangaViewPage: React.FC = () => {
                     )}
                   </Box>
 
+                  {/* Selection Controls */}
+                  {isSelectionMode && (
+                    <Box
+                      style={{
+                        padding: '12px',
+                        backgroundColor: 'var(--blue-2)',
+                        borderRadius: '6px',
+                        border: '1px solid var(--blue-6)',
+                      }}
+                    >
+                      <Flex direction="column">
+                        <Flex gap="2">
+                          <Button
+                            size="1"
+                            onClick={handleConfirmSelection}
+                            disabled={
+                              isProcessingOCR &&
+                              !(
+                                selection &&
+                                selection.width > 0.01 &&
+                                selection.height > 0.01
+                              )
+                            }
+                          >
+                            {isProcessingOCR ? 'Processing...' : 'Extract Text'}
+                          </Button>
+                          <Button
+                            size="1"
+                            variant="soft"
+                            color="gray"
+                            onClick={handleClearSelection}
+                            disabled={
+                              isProcessingOCR &&
+                              !(
+                                selection &&
+                                selection.width > 0.01 &&
+                                selection.height > 0.01
+                              )
+                            }
+                          >
+                            Clear Selection
+                          </Button>
+                        </Flex>
+                      </Flex>
+                    </Box>
+                  )}
+
                   {/* Manga Navigation */}
                   <Flex align="center" justify="between">
                     <Button
                       variant="soft"
                       onClick={navigateToPreviousMangaPage}
-                      disabled={currentMangaPageIndex === 0 || loadingSentences}
+                      disabled={
+                        currentMangaPageIndex === 0 ||
+                        loadingSentences ||
+                        isSelectionMode
+                      }
                     >
                       ← Previous Page
                     </Button>
                     <Text size="2" color="gray">
-                      Use ←→ arrow keys
+                      {isSelectionMode
+                        ? 'Navigation disabled in selection mode'
+                        : 'Use ←→ arrow keys'}
                     </Text>
                     <Button
                       variant="soft"
                       onClick={navigateToNextMangaPage}
                       disabled={
                         currentMangaPageIndex >=
-                          lesson.lessonFiles.length - 1 || loadingSentences
+                          lesson.lessonFiles.length - 1 ||
+                        loadingSentences ||
+                        isSelectionMode
                       }
                     >
                       Next Page →

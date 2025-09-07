@@ -175,7 +175,7 @@ export class SentenceService {
    * @param languageCode - Language code for OpenAI processing
    * @returns Array of processed sentences with split_text
    */
-  private static async processSentenceSplitText(
+  static async processSentenceSplitText(
     sentences: Array<{
       id: number;
       original_text: string;

@@ -532,4 +532,70 @@ router.get('/progress/overview', async (req: Request, res: Response) => {
   }
 });
 
+// OCR on selected region of manga page
+router.post('/:lessonId/ocr-region', async (req: Request, res: Response) => {
+  try {
+    const lessonId = parseInt(req.params['lessonId'] || '0');
+    const { lessonFileId, selection } = req.body;
+
+    if (isNaN(lessonId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid lesson ID',
+      });
+    }
+
+    if (!lessonFileId || isNaN(parseInt(lessonFileId))) {
+      return res.status(400).json({
+        success: false,
+        message: 'Valid lesson file ID is required',
+      });
+    }
+
+    if (!selection || typeof selection !== 'object') {
+      return res.status(400).json({
+        success: false,
+        message: 'Selection coordinates are required',
+      });
+    }
+
+    const { x, y, width, height } = selection;
+    if (
+      typeof x !== 'number' ||
+      typeof y !== 'number' ||
+      typeof width !== 'number' ||
+      typeof height !== 'number' ||
+      x < 0 ||
+      y < 0 ||
+      width <= 0 ||
+      height <= 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          'Valid selection coordinates (x, y, width, height) are required',
+      });
+    }
+
+    const result = await LessonService.processOCROnSelectedRegion(
+      req.userId!,
+      lessonId,
+      parseInt(lessonFileId),
+      { x, y, width, height }
+    );
+
+    if (result.success) {
+      return res.json(result);
+    } else {
+      return res.status(400).json(result);
+    }
+  } catch (error) {
+    console.error('OCR region route error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+});
+
 export default router;

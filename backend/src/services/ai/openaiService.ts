@@ -535,4 +535,214 @@ export class OpenAIService {
       throw new Error('Failed to translate sentence with OpenAI');
     }
   }
+
+  /**
+   * Extract text from a selected region of a manga image using OpenAI Vision API
+   * @param imageBase64 - Base64 encoded image data
+   * @param sourceLanguage - The source language expected in the image
+   * @param selection - Selection coordinates {x, y, width, height} as percentages (0-1)
+   * @returns Promise<string[]> - Array of extracted sentences/text lines
+   */
+  async extractTextFromImageRegion(
+    imageBase64: string,
+    sourceLanguage: string,
+    selection: { x: number; y: number; width: number; height: number }
+  ): Promise<string[]> {
+    try {
+      if (!imageBase64 || imageBase64.trim().length === 0) {
+        throw new Error('Image data cannot be empty');
+      }
+
+      // Crop the image to the selected region
+      const croppedImageBase64 = await this.cropImageToRegion(
+        imageBase64,
+        selection
+      );
+
+      const lowerLang = sourceLanguage.toLowerCase();
+
+      const systemPrompt = [
+        'You are an OCR specialist that extracts text from manga/comic images.',
+        '',
+        `The image contains text in ${sourceLanguage}.`,
+        '',
+        ...(lowerLang.includes('japanese') || lowerLang === 'ja'
+          ? 'Text is read top to bottom and from right to left'
+          : ''),
+        'Your task is to:',
+        '1. Extract ALL visible text from this cropped image region in reading order',
+        '2. Include speech bubbles, thought bubbles, sound effects, and any other text',
+        '3. Separate different sentences or text blocks into individual array items',
+        '4. Maintain the original language and text exactly as written',
+        '5. Return the text using the structured format',
+        '',
+        'Guidelines:',
+        '- Read text in the correct order for the language (left-to-right, right-to-left, top-to-bottom)',
+        '- Include punctuation and special characters as they appear',
+        '- If text is unclear or partially obscured, make your best guess',
+        '- Skip decorative elements that are not readable text',
+        '- Each array item should be a complete sentence or text unit',
+        '- If no text is found, return an empty array',
+        '- Focus only on the text in this specific region',
+      ].join('\n');
+
+      const userPrompt = [
+        'Please extract all text from this selected region of the manga image.',
+        'Focus only on the text within this cropped area.',
+      ].join('\n');
+
+      const completion = await this.client.chat.completions.create({
+        model: OPENAI_MODEL.GPT_41,
+        messages: [
+          {
+            role: 'system',
+            content: systemPrompt,
+          },
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: userPrompt,
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: `data:image/jpeg;base64,${croppedImageBase64}`,
+                  detail: 'high',
+                },
+              },
+            ],
+          },
+        ],
+        response_format: {
+          type: 'json_schema',
+          json_schema: {
+            name: 'text_extraction',
+            schema: {
+              type: 'object',
+              properties: {
+                extracted_texts: {
+                  type: 'array',
+                  items: {
+                    type: 'string',
+                  },
+                  description: 'Array of extracted text strings from the image',
+                },
+              },
+              required: ['extracted_texts'],
+              additionalProperties: false,
+            },
+          },
+        },
+        temperature: 0.1,
+        max_tokens: 1000,
+      });
+
+      const responseContent = completion.choices[0]?.message?.content;
+
+      if (!responseContent) {
+        throw new Error('No response received from OpenAI Vision API');
+      }
+
+      const parsedResponse = JSON.parse(responseContent);
+
+      if (!parsedResponse || !Array.isArray(parsedResponse.extracted_texts)) {
+        throw new Error('Invalid response format from OpenAI Vision API');
+      }
+
+      return parsedResponse.extracted_texts.filter(
+        (text: string) => text && text.trim().length > 0
+      );
+    } catch (error) {
+      console.error('Error in extractTextFromImageRegion:', error);
+
+      if (error instanceof Error) {
+        // Re-throw known errors
+        if (
+          error.message.includes('OPENAI_API_KEY') ||
+          error.message.includes('Image data cannot be empty') ||
+          error.message.includes('No response received') ||
+          error.message.includes('Invalid response format')
+        ) {
+          throw error;
+        }
+      }
+
+      // Handle OpenAI API errors
+      if (error && typeof error === 'object' && 'error' in error) {
+        const openaiError = error as {
+          error: { message: string; type: string };
+        };
+        throw new Error(
+          `OpenAI Vision API error: ${openaiError.error.message}`
+        );
+      }
+
+      // Generic error fallback
+      throw new Error(
+        'Failed to extract text from image region with OpenAI Vision API'
+      );
+    }
+  }
+
+  /**
+   * Crop image to specified region using sharp
+   * @param imageBase64 - Base64 encoded image data
+   * @param selection - Selection coordinates {x, y, width, height} as percentages (0-1)
+   * @returns Promise<string> - Base64 encoded cropped image
+   */
+  private async cropImageToRegion(
+    imageBase64: string,
+    selection: { x: number; y: number; width: number; height: number }
+  ): Promise<string> {
+    const sharp = require('sharp');
+
+    try {
+      // Convert base64 to buffer
+      const imageBuffer = Buffer.from(imageBase64, 'base64');
+
+      // Get image metadata to calculate pixel coordinates
+      const metadata = await sharp(imageBuffer).metadata();
+
+      if (!metadata.width || !metadata.height) {
+        throw new Error('Could not determine image dimensions');
+      }
+
+      // Convert percentage coordinates to pixel coordinates
+      const left = Math.round(selection.x * metadata.width);
+      const top = Math.round(selection.y * metadata.height);
+      const width = Math.round(selection.width * metadata.width);
+      const height = Math.round(selection.height * metadata.height);
+
+      // Ensure coordinates are within image bounds
+      const clampedLeft = Math.max(0, Math.min(left, metadata.width - 1));
+      const clampedTop = Math.max(0, Math.min(top, metadata.height - 1));
+      const clampedWidth = Math.max(
+        1,
+        Math.min(width, metadata.width - clampedLeft)
+      );
+      const clampedHeight = Math.max(
+        1,
+        Math.min(height, metadata.height - clampedTop)
+      );
+
+      // Crop the image
+      const croppedBuffer = await sharp(imageBuffer)
+        .extract({
+          left: clampedLeft,
+          top: clampedTop,
+          width: clampedWidth,
+          height: clampedHeight,
+        })
+        .jpeg({ quality: 90 })
+        .toBuffer();
+
+      // Convert back to base64
+      return croppedBuffer.toString('base64');
+    } catch (error) {
+      console.error('Error cropping image:', error);
+      throw new Error('Failed to crop image region');
+    }
+  }
 }

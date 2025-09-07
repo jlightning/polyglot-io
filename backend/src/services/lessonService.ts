@@ -3,8 +3,12 @@ import { ConfigService } from './configService';
 import { S3Service } from './s3Service';
 import { TextProcessingService } from './textProcessingService';
 import { OpenAIService } from './ai/openaiService';
+import { SentenceService } from './sentenceService';
 
 import { prisma } from './index';
+
+// Create OpenAI service instance
+const openaiService = new OpenAIService();
 
 export interface CreateLessonData {
   title: string;
@@ -175,30 +179,38 @@ export class LessonService {
           language_code: lessonData.languageCode,
           image_s3_key: lessonData.imageKey || null,
           audio_s3_key: null, // Manga lessons don't have audio
-          processing_status: LessonProcessingStatus.pending,
+          processing_status: LessonProcessingStatus.completed,
         },
       });
 
-      // Process manga pages with OCR in background
-      this.processMangaPages(
-        lesson.id,
-        lessonData.mangaPageKeys,
-        lessonData.languageCode
-      ).catch(error => {
-        console.error('Error processing manga pages:', error);
-        // Update lesson status to failed if processing fails
-        prisma.lesson
-          .update({
-            where: { id: lesson.id },
-            data: { processing_status: LessonProcessingStatus.failed },
-          })
-          .catch(updateError => {
-            console.error(
-              'Failed to update lesson status to failed:',
-              updateError
-            );
-          });
+      // Create lesson file record for this manga page
+      await prisma.lessonFile.createMany({
+        data: lessonData.mangaPageKeys.map(p => ({
+          lesson_id: lesson.id,
+          file_s3_key: p,
+        })),
       });
+
+      // Process manga pages with OCR in background
+      // this.processMangaPages(
+      //   lesson.id,
+      //   lessonData.mangaPageKeys,
+      //   lessonData.languageCode
+      // ).catch(error => {
+      //   console.error('Error processing manga pages:', error);
+      //   // Update lesson status to failed if processing fails
+      //   prisma.lesson
+      //     .update({
+      //       where: { id: lesson.id },
+      //       data: { processing_status: LessonProcessingStatus.failed },
+      //     })
+      //     .catch(updateError => {
+      //       console.error(
+      //         'Failed to update lesson status to failed:',
+      //         updateError
+      //       );
+      //     });
+      // });
 
       return {
         success: true,
@@ -1029,6 +1041,124 @@ export class LessonService {
       return {
         success: false,
         message: 'Failed to delete lesson',
+      };
+    }
+  }
+
+  /**
+   * Process OCR on a selected region of a manga page and add extracted sentences
+   */
+  static async processOCROnSelectedRegion(
+    userId: number,
+    lessonId: number,
+    lessonFileId: number,
+    selection: { x: number; y: number; width: number; height: number }
+  ): Promise<{
+    success: boolean;
+    message: string;
+    sentences?: any[];
+    error?: string;
+  }> {
+    try {
+      // Verify lesson ownership
+      const lesson = await prisma.lesson.findFirst({
+        where: {
+          id: lessonId,
+        },
+        include: {
+          lessonFiles: {
+            where: {
+              id: lessonFileId,
+            },
+          },
+        },
+      });
+
+      if (!lesson) {
+        return {
+          success: false,
+          message: 'Lesson not found or access denied',
+        };
+      }
+
+      const lessonFile = lesson.lessonFiles[0];
+      if (!lessonFile) {
+        return {
+          success: false,
+          message: 'Lesson file not found',
+        };
+      }
+
+      // Download image from S3 and convert to base64
+      if (!lessonFile.file_s3_key) {
+        return {
+          success: false,
+          message: 'Lesson file S3 key not found',
+        };
+      }
+
+      const imageBuffer = await S3Service.getFileBuffer(lessonFile.file_s3_key);
+      const imageBase64 = imageBuffer.toString('base64');
+
+      // Extract text from selected region using OpenAI Vision API
+      const extractedTexts = await openaiService.extractTextFromImageRegion(
+        imageBase64,
+        lesson.language_code,
+        selection
+      );
+
+      if (extractedTexts.length === 0) {
+        return {
+          success: true,
+          message: 'No text found in selected region',
+          sentences: [],
+        };
+      }
+
+      // Create new sentences from extracted text
+      const newSentenceRecords = [];
+      for (const text of extractedTexts) {
+        try {
+          const sentence = await prisma.sentence.create({
+            data: {
+              lesson_id: lessonId,
+              lesson_file_id: lessonFileId,
+              original_text: text,
+              split_text: Prisma.JsonNull,
+              start_time: null,
+              end_time: null,
+            },
+          });
+
+          newSentenceRecords.push({
+            id: sentence.id,
+            original_text: sentence.original_text,
+            split_text: null,
+            start_time: null,
+            end_time: null,
+          });
+        } catch (error) {
+          console.error('Error creating sentence:', error);
+        }
+      }
+
+      // Process all new sentences using SentenceService to split text and store translations
+      const processedSentences = await SentenceService.processSentenceSplitText(
+        newSentenceRecords,
+        lesson.language_code
+      );
+
+      return {
+        success: true,
+        message: `Successfully extracted ${extractedTexts.length} sentence(s) from selected region`,
+        sentences: processedSentences,
+      };
+    } catch (error) {
+      console.error('Process OCR on selected region error:', error);
+      return {
+        success: false,
+        message: 'Failed to process OCR on selected region',
+        error: error instanceof Error ? error.message : 'Unknown error',
       };
     }
   }
