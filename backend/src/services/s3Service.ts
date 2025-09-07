@@ -107,6 +107,60 @@ export class S3Service {
   }
 
   /**
+   * Get file buffer from S3 (for binary files like images)
+   */
+  static async getFileBuffer(key: string): Promise<Buffer> {
+    if (!this.s3Client) {
+      this.initialize();
+    }
+
+    try {
+      const command = new GetObjectCommand({
+        Bucket: this.bucketName,
+        Key: key,
+      });
+
+      const response = await this.s3Client.send(command);
+
+      if (!response.Body) {
+        throw new Error('File content is empty');
+      }
+
+      // Convert the stream to buffer
+      const chunks: Uint8Array[] = [];
+      const reader = response.Body.transformToWebStream().getReader();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+      }
+
+      // Combine all chunks into a single buffer
+      const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+      const buffer = new Uint8Array(totalLength);
+      let offset = 0;
+
+      for (const chunk of chunks) {
+        buffer.set(chunk, offset);
+        offset += chunk.length;
+      }
+
+      return Buffer.from(buffer);
+    } catch (error) {
+      console.error('Error getting file buffer from S3:', error);
+      throw new Error('Failed to download file buffer from S3');
+    }
+  }
+
+  /**
+   * Get public file URL from S3
+   */
+  static getFileUrl(key: string): string {
+    return `https://${this.bucketName}.s3.${this.region}.amazonaws.com/${key}`;
+  }
+
+  /**
    * Delete a file from S3
    */
   static async deleteFile(key: string): Promise<boolean> {

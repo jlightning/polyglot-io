@@ -22,6 +22,25 @@ export interface SentenceAnalysis {
   language: string; // Source language
 }
 
+// OpenAI structured output schema for OCR text extraction
+const ocrTextExtractionSchema = {
+  type: 'object',
+  properties: {
+    extractedTexts: {
+      type: 'array',
+      description:
+        'Array of extracted text segments from the image in reading order',
+      items: {
+        type: 'string',
+        description:
+          'Individual text segment or sentence extracted from the image',
+      },
+    },
+  },
+  required: ['extractedTexts'],
+  additionalProperties: false,
+} as const;
+
 // OpenAI structured output schema for word translations
 const wordTranslationSchema = {
   type: 'object',
@@ -246,6 +265,142 @@ export class OpenAIService {
 
       // Generic error fallback
       throw new Error('Failed to analyze sentence with OpenAI');
+    }
+  }
+
+  /**
+   * Extract text from manga image using OpenAI Vision API
+   * @param imageBase64 - Base64 encoded image data
+   * @param sourceLanguage - The source language expected in the image
+   * @returns Promise<string[]> - Array of extracted sentences/text lines
+   */
+  async extractTextFromImage(
+    imageBase64: string,
+    sourceLanguage: string
+  ): Promise<string[]> {
+    try {
+      if (!imageBase64 || imageBase64.trim().length === 0) {
+        throw new Error('Image data cannot be empty');
+      }
+
+      const systemPrompt = [
+        'You are an OCR specialist that extracts text from manga/comic images.',
+        '',
+        `The image contains text in ${sourceLanguage}.`,
+        '',
+        'Your task is to:',
+        '1. Extract ALL visible text from the image in reading order',
+        '2. Include speech bubbles, thought bubbles, sound effects, and any other text',
+        '3. Separate different sentences or text blocks into individual array items',
+        '4. Maintain the original language and text exactly as written',
+        '5. Return the text using the structured format',
+        '',
+        'Guidelines:',
+        '- Read text in the correct order for the language (left-to-right, right-to-left, top-to-bottom)',
+        '- Include punctuation and special characters as they appear',
+        '- If text is unclear or partially obscured, make your best guess',
+        '- Skip decorative elements that are not readable text',
+        '- Each array item should be a complete sentence or text unit',
+        '- If no text is found, return an empty array',
+      ].join('\n');
+
+      const userPrompt = [
+        'Please extract all text from this manga image.',
+        'Return each text segment as a separate item in the extractedTexts array, maintaining reading order.',
+      ].join('\n');
+
+      const completion = await this.client.chat.completions.create({
+        model: OPENAI_MODEL,
+        messages: [
+          {
+            role: 'system',
+            content: systemPrompt,
+          },
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: userPrompt,
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: `data:image/jpeg;base64,${imageBase64}`,
+                },
+              },
+            ],
+          },
+        ],
+        response_format: {
+          type: 'json_schema',
+          json_schema: {
+            name: 'ocr_text_extraction',
+            schema: ocrTextExtractionSchema,
+          },
+        },
+        temperature: 0.1, // Low temperature for consistent results
+        max_tokens: 1000,
+      });
+
+      const responseContent = completion.choices[0]?.message?.content;
+
+      if (!responseContent) {
+        throw new Error('No response received from OpenAI Vision API');
+      }
+
+      let ocrResult: { extractedTexts: string[] };
+      try {
+        ocrResult = JSON.parse(responseContent);
+      } catch (parseError) {
+        console.error('Failed to parse OpenAI response:', parseError);
+        throw new Error('Invalid response format from OpenAI Vision API');
+      }
+
+      // Validate the response structure
+      if (
+        !ocrResult ||
+        typeof ocrResult !== 'object' ||
+        !ocrResult.extractedTexts ||
+        !Array.isArray(ocrResult.extractedTexts)
+      ) {
+        throw new Error('Invalid response structure from OpenAI Vision API');
+      }
+
+      // Filter out empty strings and clean text
+      const cleanedTexts = ocrResult.extractedTexts
+        .map(text => (typeof text === 'string' ? text.trim() : ''))
+        .filter(text => text.length > 0);
+
+      return cleanedTexts;
+    } catch (error) {
+      console.error('Error in extractTextFromImage:', error);
+
+      if (error instanceof Error) {
+        // Re-throw known errors
+        if (
+          error.message.includes('OPENAI_API_KEY') ||
+          error.message.includes('Image data cannot be empty') ||
+          error.message.includes('Invalid response')
+        ) {
+          throw error;
+        }
+      }
+
+      // Handle OpenAI API errors
+      if (error && typeof error === 'object' && 'error' in error) {
+        const openaiError = error as {
+          error: { message: string; type: string };
+        };
+        throw new Error(
+          `OpenAI Vision API error: ${openaiError.error.message}`
+        );
+      }
+
+      // Generic error fallback
+      throw new Error(
+        'Failed to extract text from image with OpenAI Vision API'
+      );
     }
   }
 

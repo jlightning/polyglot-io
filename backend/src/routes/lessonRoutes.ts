@@ -47,6 +47,51 @@ router.post('/', async (req: Request, res: Response) => {
   }
 });
 
+// Create a new manga lesson with OCR processing
+router.post('/manga', async (req: Request, res: Response) => {
+  try {
+    const { title, languageCode, imageKey, mangaPageKeys } = req.body;
+
+    if (!title || !languageCode) {
+      return res.status(400).json({
+        success: false,
+        message: 'Title and language code are required',
+      });
+    }
+
+    // Validate that at least one manga page is provided
+    if (
+      !mangaPageKeys ||
+      !Array.isArray(mangaPageKeys) ||
+      mangaPageKeys.length === 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: 'At least one manga page is required',
+      });
+    }
+
+    const result = await LessonService.createMangaLesson(req.userId!, {
+      title,
+      languageCode,
+      imageKey,
+      mangaPageKeys,
+    });
+
+    if (result.success) {
+      return res.status(201).json(result);
+    } else {
+      return res.status(400).json(result);
+    }
+  } catch (error) {
+    console.error('Create manga lesson route error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+});
+
 // Get all lessons for the authenticated user
 router.get('/', async (req: Request, res: Response) => {
   try {

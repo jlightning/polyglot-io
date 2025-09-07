@@ -2,6 +2,7 @@ import { Prisma, LessonType } from '@prisma/client';
 import { ConfigService } from './configService';
 import { S3Service } from './s3Service';
 import { TextProcessingService } from './textProcessingService';
+import { OpenAIService } from './ai/openaiService';
 
 import { prisma } from './index';
 
@@ -17,6 +18,13 @@ export interface UpdateLessonData {
   title: string;
   imageKey?: string;
   audioKey?: string;
+}
+
+export interface CreateMangaLessonData {
+  title: string;
+  languageCode: string;
+  imageKey?: string;
+  mangaPageKeys: string[];
 }
 
 export interface LessonResponse {
@@ -130,6 +138,141 @@ export class LessonService {
         success: false,
         message: 'Failed to create lesson',
       };
+    }
+  }
+
+  /**
+   * Create a new manga lesson and process manga pages with OCR
+   */
+  static async createMangaLesson(
+    userId: number,
+    lessonData: CreateMangaLessonData
+  ): Promise<LessonResponse> {
+    try {
+      // Validate language code
+      if (!ConfigService.isLanguageEnabled(lessonData.languageCode)) {
+        return {
+          success: false,
+          message: 'Language not supported or not enabled',
+        };
+      }
+
+      // Create manga lesson in database
+      const lesson = await prisma.lesson.create({
+        data: {
+          created_by: userId,
+          title: lessonData.title,
+          lesson_type: LessonType.manga,
+          language_code: lessonData.languageCode,
+          image_s3_key: lessonData.imageKey || null,
+          audio_s3_key: null, // Manga lessons don't have audio
+        },
+      });
+
+      // Process manga pages with OCR
+      await this.processMangaPages(
+        lesson.id,
+        lessonData.mangaPageKeys,
+        lessonData.languageCode
+      );
+
+      return {
+        success: true,
+        message: 'Manga lesson created and processed successfully',
+        lesson: {
+          id: lesson.id,
+          title: lesson.title,
+          languageCode: lesson.language_code,
+          ...(lesson.image_s3_key && {
+            imageUrl: S3Service.getFileUrl(lesson.image_s3_key),
+          }),
+          createdAt: lesson.created_at,
+        },
+      };
+    } catch (error) {
+      console.error('Error in createMangaLesson:', error);
+      return {
+        success: false,
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Failed to create manga lesson',
+      };
+    }
+  }
+
+  /**
+   * Process manga pages with OCR and create sentence records
+   */
+  private static async processMangaPages(
+    lessonId: number,
+    mangaPageKeys: string[],
+    languageCode: string
+  ): Promise<void> {
+    try {
+      const openaiService = new OpenAIService();
+
+      for (let i = 0; i < mangaPageKeys.length; i++) {
+        const pageKey = mangaPageKeys[i];
+
+        if (!pageKey) {
+          console.warn(`Skipping empty page key at index ${i}`);
+          continue;
+        }
+
+        // Create lesson file record for this manga page
+        const lessonFile = await prisma.lessonFile.create({
+          data: {
+            lesson_id: lessonId,
+            file_s3_key: pageKey,
+          },
+        });
+
+        try {
+          // Download image from S3 and convert to base64
+          const imageBuffer = await S3Service.getFileBuffer(pageKey);
+          const imageBase64 = imageBuffer.toString('base64');
+
+          // Extract text using OpenAI Vision API
+          const extractedTexts = await openaiService.extractTextFromImage(
+            imageBase64,
+            languageCode
+          );
+
+          if (extractedTexts.length === 0) {
+            console.warn(`No text found in manga page: ${pageKey}`);
+            continue;
+          }
+
+          // Create sentence records for extracted text
+          const sentenceData = extractedTexts.map(text => ({
+            lesson_id: lessonId,
+            lesson_file_id: lessonFile.id,
+            original_text: text,
+            split_text: Prisma.JsonNull,
+            start_time: null,
+            end_time: null,
+          }));
+
+          await prisma.sentence.createMany({
+            data: sentenceData,
+          });
+
+          console.log(
+            `Successfully processed ${extractedTexts.length} text segments from manga page ${i + 1}/${mangaPageKeys.length}`
+          );
+        } catch (error) {
+          console.error(`Error processing manga page ${pageKey}:`, error);
+          // Continue processing other pages even if one fails
+        }
+      }
+
+      console.log(
+        `Successfully processed ${mangaPageKeys.length} manga pages for lesson ${lessonId}`
+      );
+    } catch (error) {
+      console.error('Error in processMangaPages:', error);
+      throw error;
     }
   }
 
@@ -539,6 +682,35 @@ export class LessonService {
 
       // Delete lesson and all associated records in a transaction
       await prisma.$transaction(async tx => {
+        await tx.userLessonProgress.deleteMany({
+          where: {
+            lesson_id: lessonId,
+          },
+        });
+
+        const allSentences = await tx.sentence.findMany({
+          where: {
+            lesson_id: lessonId,
+          },
+          select: {
+            id: true,
+          },
+        });
+
+        const sentenceIds = allSentences.map(s => s.id);
+
+        await tx.sentenceWord.deleteMany({
+          where: {
+            sentence_id: { in: sentenceIds },
+          },
+        });
+
+        await tx.sentenceTranslation.deleteMany({
+          where: {
+            sentence_id: { in: sentenceIds },
+          },
+        });
+
         // First, delete all sentences associated with the lesson
         await tx.sentence.deleteMany({
           where: {
