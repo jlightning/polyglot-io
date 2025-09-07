@@ -111,6 +111,34 @@ router.get('/', async (req: Request, res: Response) => {
   }
 });
 
+// Get a specific lesson by ID
+router.get('/:lessonId', async (req: Request, res: Response) => {
+  try {
+    const lessonId = parseInt(req.params['lessonId'] || '0');
+
+    if (isNaN(lessonId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid lesson ID',
+      });
+    }
+
+    const result = await LessonService.getLessonById(req.userId!, lessonId);
+
+    if (result.success) {
+      return res.json(result);
+    } else {
+      return res.status(404).json(result);
+    }
+  } catch (error) {
+    console.error('Get lesson by ID route error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+});
+
 // Update a lesson
 router.put('/:lessonId', async (req: Request, res: Response) => {
   try {
@@ -214,12 +242,26 @@ router.get('/:lessonId/sentences', async (req: Request, res: Response) => {
   try {
     const lessonId = parseInt(req.params['lessonId'] || '0');
     const page = parseInt(req.query['page'] as string) || 1;
-    const limit = parseInt(req.query['limit'] as string) || 10;
+    const lessonFileId = req.query['lesson_file_id']
+      ? parseInt(req.query['lesson_file_id'] as string)
+      : undefined;
+
+    // Set limit to 100 if lesson_file_id is provided (for manga), otherwise use query param or default to 10
+    const limit = lessonFileId
+      ? 100
+      : parseInt(req.query['limit'] as string) || 10;
 
     if (isNaN(lessonId)) {
       return res.status(400).json({
         success: false,
         message: 'Invalid lesson ID',
+      });
+    }
+
+    if (lessonFileId && isNaN(lessonFileId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid lesson file ID',
       });
     }
 
@@ -235,7 +277,8 @@ router.get('/:lessonId/sentences', async (req: Request, res: Response) => {
       lessonId,
       req.userId!,
       page,
-      limit
+      limit,
+      lessonFileId
     );
 
     if (result.success) {

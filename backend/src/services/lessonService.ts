@@ -34,21 +34,27 @@ export interface LessonResponse {
     id: number;
     title: string;
     languageCode: string;
+    lessonType?: string;
     processingStatus: string;
+    totalSentences?: number;
     imageUrl?: string;
     fileUrl?: string;
     audioUrl?: string;
+    lessonFiles?: any[];
+    userProgress?: any;
     createdAt: Date;
   };
   lessons?: {
     id: number;
     title: string;
     languageCode: string;
+    lessonType?: string;
     processingStatus: string;
     imageUrl?: string;
     fileUrl?: string;
     audioUrl?: string;
     createdAt: Date;
+    userProgress?: any;
   }[];
 }
 
@@ -334,7 +340,7 @@ export class LessonService {
         // Collect sentence data from successful pages in this batch in order
         const batchSentenceData: Prisma.SentenceCreateManyInput[] = [];
 
-        batchResults.forEach((result, index) => {
+        batchResults.forEach(result => {
           if (result.status === 'fulfilled' && result.value.success) {
             batchSentenceData.push(...result.value.sentenceData);
           }
@@ -536,6 +542,7 @@ export class LessonService {
             id: lesson.id,
             title: lesson.title,
             languageCode: lesson.language_code,
+            lessonType: lesson.lesson_type,
             processingStatus: lesson.processing_status,
             ...(imageUrl && { imageUrl }),
             ...(fileUrl && { fileUrl }),
@@ -561,6 +568,136 @@ export class LessonService {
       return {
         success: false,
         message: 'Failed to retrieve lessons',
+      };
+    }
+  }
+
+  /**
+   * Get a specific lesson by ID
+   */
+  static async getLessonById(
+    userId: number,
+    lessonId: number
+  ): Promise<LessonResponse> {
+    try {
+      const lesson = await prisma.lesson.findFirst({
+        where: {
+          id: lessonId,
+          created_by: userId,
+        },
+        include: {
+          lessonFiles: true,
+        },
+      });
+
+      if (!lesson) {
+        return {
+          success: false,
+          message: 'Lesson not found or access denied',
+        };
+      }
+
+      let imageUrl = lesson.image_s3_key;
+      let fileUrl = null;
+      let audioUrl = lesson.audio_s3_key;
+
+      // Generate signed URLs for S3 keys
+      if (lesson.image_s3_key) {
+        try {
+          imageUrl = await S3Service.getDownloadUrl(lesson.image_s3_key);
+        } catch (error) {
+          console.error('Error generating image download URL:', error);
+          imageUrl = null;
+        }
+      }
+
+      // Get file URL from the first lesson file if any
+      if (
+        lesson.lessonFiles &&
+        lesson.lessonFiles.length > 0 &&
+        lesson.lessonFiles[0]?.file_s3_key
+      ) {
+        try {
+          fileUrl = await S3Service.getDownloadUrl(
+            lesson.lessonFiles[0]?.file_s3_key
+          );
+        } catch (error) {
+          console.error('Error generating file download URL:', error);
+          fileUrl = null;
+        }
+      }
+
+      if (lesson.audio_s3_key) {
+        try {
+          audioUrl = await S3Service.getDownloadUrl(lesson.audio_s3_key);
+        } catch (error) {
+          console.error('Error generating audio download URL:', error);
+          audioUrl = null;
+        }
+      }
+
+      // Get user progress for this lesson
+      const progress = await prisma.userLessonProgress.findUnique({
+        where: {
+          user_id_lesson_id: {
+            user_id: userId,
+            lesson_id: lesson.id,
+          },
+        },
+      });
+
+      // Generate download URLs for lesson files (for manga lessons)
+      let lessonFiles: any[] = [];
+      if (lesson.lessonFiles && lesson.lessonFiles.length > 0) {
+        lessonFiles = await Promise.all(
+          lesson.lessonFiles.map(async file => {
+            let imageUrl: string | undefined;
+            if (file.file_s3_key) {
+              try {
+                imageUrl = await S3Service.getDownloadUrl(file.file_s3_key);
+              } catch (error) {
+                console.error('Error generating file download URL:', error);
+              }
+            }
+            return {
+              id: file.id,
+              fileS3Key: file.file_s3_key,
+              ...(imageUrl && { imageUrl }),
+            };
+          })
+        );
+      }
+
+      return {
+        success: true,
+        message: 'Lesson retrieved successfully',
+        lesson: {
+          id: lesson.id,
+          title: lesson.title,
+          languageCode: lesson.language_code,
+          lessonType: lesson.lesson_type,
+          processingStatus: lesson.processing_status,
+          totalSentences: await prisma.sentence.count({
+            where: { lesson_id: lesson.id },
+          }),
+          ...(imageUrl && { imageUrl }),
+          ...(fileUrl && { fileUrl }),
+          ...(audioUrl && { audioUrl }),
+          ...(lessonFiles.length > 0 && { lessonFiles }),
+          createdAt: lesson.created_at,
+          ...(progress && {
+            userProgress: {
+              status: progress.status,
+              readTillSentenceId: progress.read_till_sentence_id,
+            },
+          }),
+        },
+      };
+    } catch (error) {
+      console.error('Get lesson by ID error:', error);
+      return {
+        success: false,
+        message: 'Failed to retrieve lesson',
       };
     }
   }
@@ -648,6 +785,7 @@ export class LessonService {
             id: lesson.id,
             title: lesson.title,
             languageCode: lesson.language_code,
+            lessonType: lesson.lesson_type,
             processingStatus: lesson.processing_status,
             ...(imageUrl && { imageUrl }),
             ...(fileUrl && { fileUrl }),

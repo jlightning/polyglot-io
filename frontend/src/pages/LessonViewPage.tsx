@@ -46,6 +46,7 @@ interface Lesson {
   id: number;
   title: string;
   languageCode: string;
+  lessonType?: string;
   sentences: Sentence[];
   totalSentences: number;
   audioUrl?: string;
@@ -176,6 +177,13 @@ const LessonViewPage: React.FC = () => {
   const [progressLoaded, setProgressLoaded] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isFinishingLesson, setIsFinishingLesson] = useState(false);
+
+  // Redirect manga lessons to manga view page
+  useEffect(() => {
+    if (lesson && lesson.lessonType === 'manga') {
+      navigate(`/lessons/${lessonId}/manga`);
+    }
+  }, [lesson, navigate, lessonId]);
 
   // First useEffect: Load progress and determine initial page
   useEffect(() => {
@@ -472,12 +480,22 @@ const LessonViewPage: React.FC = () => {
             <Badge variant="soft">{lesson.languageCode.toUpperCase()}</Badge>
           </Flex>
           <Flex gap="3">
-            <Button
-              variant="soft"
-              onClick={() => navigate(`/lessons/${lessonId}/video`)}
-            >
-              Video View
-            </Button>
+            {lesson?.lessonType !== 'manga' && (
+              <Button
+                variant="soft"
+                onClick={() => navigate(`/lessons/${lessonId}/video`)}
+              >
+                Video View
+              </Button>
+            )}
+            {lesson?.lessonType === 'manga' && (
+              <Button
+                variant="soft"
+                onClick={() => navigate(`/lessons/${lessonId}/manga`)}
+              >
+                Manga View
+              </Button>
+            )}
             <Button variant="soft" onClick={() => setIsEditDialogOpen(true)}>
               Edit Lesson
             </Button>

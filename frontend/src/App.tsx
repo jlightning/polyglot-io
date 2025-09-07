@@ -13,6 +13,7 @@ import {
   LessonPage,
   LessonViewPage,
   LessonVideoViewPage,
+  LessonMangaViewPage,
   WordsPage,
 } from './pages';
 import { Flex, Text } from '@radix-ui/themes';
@@ -52,6 +53,10 @@ const AppContent: React.FC = () => {
                 <Route
                   path="/lessons/:lessonId/video"
                   element={<LessonVideoViewPage />}
+                />
+                <Route
+                  path="/lessons/:lessonId/manga"
+                  element={<LessonMangaViewPage />}
                 />
                 <Route path="/words" element={<WordsPage />} />
               </Routes>

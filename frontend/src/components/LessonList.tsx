@@ -20,6 +20,7 @@ interface Lesson {
   id: number;
   title: string;
   languageCode: string;
+  lessonType?: 'text' | 'subtitle' | 'manga';
   processingStatus: 'pending' | 'completed' | 'failed';
   imageUrl?: string;
   fileUrl?: string;
@@ -286,15 +287,17 @@ const LessonList: React.FC<LessonListProps> = ({
                     <EyeOpenIcon />
                     View Lesson
                   </Button>
-                  <Button
-                    variant="soft"
-                    size="2"
-                    disabled={lesson.processingStatus !== 'completed'}
-                    onClick={() => navigate(`/lessons/${lesson.id}/video`)}
-                  >
-                    <VideoIcon />
-                    View Lesson with Video
-                  </Button>
+                  {lesson.lessonType === 'subtitle' && (
+                    <Button
+                      variant="soft"
+                      size="2"
+                      disabled={lesson.processingStatus !== 'completed'}
+                      onClick={() => navigate(`/lessons/${lesson.id}/video`)}
+                    >
+                      <VideoIcon />
+                      View Lesson with Video
+                    </Button>
+                  )}
                 </Flex>
               </Flex>
 

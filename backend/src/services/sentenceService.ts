@@ -30,9 +30,15 @@ export interface LessonWithSentences {
   id: number;
   title: string;
   languageCode: string;
+  lessonType: string;
   sentences: SentenceWithSplitText[];
   totalSentences: number;
   audioUrl?: string;
+  lessonFiles?: {
+    id: number;
+    fileS3Key: string;
+    imageUrl?: string;
+  }[];
   userProgress?: {
     status: string;
     readTillSentenceId: number;
@@ -407,7 +413,8 @@ export class SentenceService {
     lessonId: number,
     userId: number,
     page: number = 1,
-    limit: number = 10
+    limit: number = 10,
+    lessonFileId?: number
   ): Promise<GetSentencesResponse> {
     try {
       // First, verify the lesson exists and belongs to the user
@@ -420,6 +427,7 @@ export class SentenceService {
           id: true,
           title: true,
           language_code: true,
+          lesson_type: true,
           audio_s3_key: true,
         },
       });
@@ -433,7 +441,9 @@ export class SentenceService {
 
       // Get total count of sentences for pagination
       const totalSentences = await prisma.sentence.count({
-        where: { lesson_id: lessonId },
+        where: lessonFileId
+          ? { lesson_id: lessonId, lesson_file_id: lessonFileId }
+          : { lesson_id: lessonId },
       });
 
       // Calculate offset for pagination
@@ -441,7 +451,9 @@ export class SentenceService {
 
       // Get sentences with pagination
       const sentences = await prisma.sentence.findMany({
-        where: { lesson_id: lessonId },
+        where: lessonFileId
+          ? { lesson_id: lessonId, lesson_file_id: lessonFileId }
+          : { lesson_id: lessonId },
         orderBy: { id: 'asc' },
         skip: offset,
         take: limit,
@@ -487,15 +499,53 @@ export class SentenceService {
         }
       }
 
+      // Get lesson files for manga lessons
+      let lessonFiles: any[] = [];
+      if (lesson.lesson_type === 'manga') {
+        try {
+          const files = await prisma.lessonFile.findMany({
+            where: { lesson_id: lessonId },
+            select: {
+              id: true,
+              file_s3_key: true,
+            },
+            orderBy: { id: 'asc' },
+          });
+
+          // Generate download URLs for each manga page
+          lessonFiles = await Promise.all(
+            files.map(async file => {
+              let imageUrl: string | undefined;
+              if (file.file_s3_key) {
+                try {
+                  imageUrl = await S3Service.getDownloadUrl(file.file_s3_key);
+                } catch (error) {
+                  console.error('Error generating image download URL:', error);
+                }
+              }
+              return {
+                id: file.id,
+                fileS3Key: file.file_s3_key,
+                ...(imageUrl && { imageUrl }),
+              };
+            })
+          );
+        } catch (error) {
+          console.error('Error fetching lesson files:', error);
+        }
+      }
+
       return {
         success: true,
         lesson: {
           id: lesson.id,
           title: lesson.title,
           languageCode: lesson.language_code,
+          lessonType: lesson.lesson_type,
           sentences: processedSentences,
           totalSentences,
           ...(audioUrl && { audioUrl }),
+          ...(lessonFiles.length > 0 && { lessonFiles }),
           userProgress,
         },
       };
