@@ -11,6 +11,7 @@
     "dev": "concurrently \"yarn workspace backend dev\" \"yarn workspace frontend dev\"",
     "build": "yarn workspace backend build && yarn workspace frontend build",
     "start": "yarn workspace backend start",
+    "clean": "yarn workspace backend clean && yarn workspace frontend clean",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
     "db:migrate": "yarn workspace backend db:migrate",
