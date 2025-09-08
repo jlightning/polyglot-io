@@ -592,7 +592,7 @@ export class OpenAIService {
       ].join('\n');
 
       const completion = await this.client.chat.completions.create({
-        model: OPENAI_MODEL.GPT_41_MINI,
+        model: OPENAI_MODEL.GPT_41,
         messages: [
           {
             role: 'system',
