@@ -76,7 +76,7 @@ const Sidebar: React.FC<SidebarProps> = () => {
               direction="row"
               align="end"
               gap="2"
-              style={{ height: '80px', padding: '0 4px' }}
+              style={{ height: '90px', padding: '0 4px' }}
             >
               {scoreHistory.map(day => {
                 const maxScore = Math.max(
@@ -95,6 +95,9 @@ const Sidebar: React.FC<SidebarProps> = () => {
                     gap="1"
                     style={{ flex: 1, minWidth: '28px' }}
                   >
+                    <Text size="1" style={{ fontSize: '8px' }}>
+                      {day.score}
+                    </Text>
                     <Box
                       style={{
                         width: '24px',
