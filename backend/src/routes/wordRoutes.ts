@@ -159,13 +159,6 @@ router.post('/marks/bulk', async (req: Request, res: Response) => {
       });
     }
 
-    if (words.length > 100) {
-      return res.status(400).json({
-        success: false,
-        message: 'Maximum 100 words allowed per request',
-      });
-    }
-
     const result = await WordService.getBulkWordUserMarks(
       req.userId!,
       words,
