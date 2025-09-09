@@ -103,6 +103,7 @@ const LessonViewPage: React.FC = () => {
             ...(wordMark !== undefined
               ? getDifficultyStyles(wordMark)
               : { border: '1px solid transparent' }),
+            cursor: 'pointer',
           }}
           className="word-badge"
           onClick={() =>

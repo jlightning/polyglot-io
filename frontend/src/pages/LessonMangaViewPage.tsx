@@ -416,6 +416,7 @@ const LessonMangaViewPage: React.FC = () => {
             ...(wordMark !== undefined
               ? getDifficultyStyles(wordMark)
               : { border: '1px solid transparent' }),
+            cursor: 'pointer',
           }}
           onClick={() =>
             handleWordClick(
