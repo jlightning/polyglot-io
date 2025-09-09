@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Card, Text, Flex, Button, Dialog, Box, Tabs } from '@radix-ui/themes';
+import { Card, Text, Flex, Dialog, Box, Tabs } from '@radix-ui/themes';
+import MyButton from './MyButton';
 import { PlusIcon, UploadIcon, UpdateIcon } from '@radix-ui/react-icons';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
@@ -470,10 +471,10 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
       </style>
       <Dialog.Root open={isOpen} onOpenChange={setIsOpen}>
         <Dialog.Trigger>
-          <Button>
+          <MyButton>
             <PlusIcon />
             Upload New Lesson
-          </Button>
+          </MyButton>
         </Dialog.Trigger>
         <Dialog.Content style={{ maxWidth: 600 }}>
           <Dialog.Title>Upload New Lesson</Dialog.Title>
@@ -705,12 +706,12 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
             {/* Action Buttons */}
             <Flex gap="3" mt="4" justify="end">
               <Dialog.Close>
-                <Button variant="soft" color="gray" disabled={uploading}>
+                <MyButton variant="soft" color="gray" disabled={uploading}>
                   Cancel
-                </Button>
+                </MyButton>
               </Dialog.Close>
               {activeTab === 'text' ? (
-                <Button
+                <MyButton
                   onClick={handleUpload}
                   disabled={uploading || !lessonFile}
                 >
@@ -725,9 +726,9 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
                       Upload Lesson
                     </>
                   )}
-                </Button>
+                </MyButton>
               ) : (
-                <Button
+                <MyButton
                   onClick={handleMangaUpload}
                   disabled={uploading || mangaFiles.length === 0}
                 >
@@ -742,7 +743,7 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
                       Upload Manga
                     </>
                   )}
-                </Button>
+                </MyButton>
               )}
             </Flex>
           </Tabs.Root>

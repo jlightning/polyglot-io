@@ -6,15 +6,8 @@ import React, {
   useMemo,
 } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import {
-  Flex,
-  Heading,
-  Text,
-  Box,
-  Button,
-  Card,
-  Badge,
-} from '@radix-ui/themes';
+import { Flex, Heading, Text, Box, Card, Badge } from '@radix-ui/themes';
+import MyButton from '../components/MyButton';
 
 import { useAuth } from '../contexts/AuthContext';
 import { useWordMark } from '../contexts/WordMarkContext';
@@ -415,7 +408,6 @@ const LessonMangaViewPage: React.FC = () => {
           variant="soft"
           size="2"
           style={{
-            cursor: 'pointer',
             transition: 'all 0.2s ease',
             color: 'white',
             margin: '0',
@@ -789,9 +781,9 @@ const LessonMangaViewPage: React.FC = () => {
       >
         <Box style={{ padding: '16px 24px' }}>
           <Flex direction="column" gap="4">
-            <Button variant="ghost" onClick={() => navigate('/lessons')}>
+            <MyButton variant="ghost" onClick={() => navigate('/lessons')}>
               ← Back to Lessons
-            </Button>
+            </MyButton>
             <Flex
               direction="column"
               align="center"
@@ -833,13 +825,13 @@ const LessonMangaViewPage: React.FC = () => {
         <Box style={{ padding: '12px 24px', flexShrink: 0 }}>
           <Flex direction="column" gap="2">
             <Flex align="center" justify="between">
-              <Button
+              <MyButton
                 variant="ghost"
                 size="2"
                 onClick={() => navigate('/lessons')}
               >
                 ← Back to Lessons
-              </Button>
+              </MyButton>
             </Flex>
             <Flex align="center" gap="2">
               <Heading size="5">{lesson.title} - Manga View</Heading>
@@ -876,7 +868,7 @@ const LessonMangaViewPage: React.FC = () => {
                   <Flex align="center" justify="between">
                     <Heading size="4">Manga Page</Heading>
                     <Flex align="center" gap="2">
-                      <Button
+                      <MyButton
                         variant={isSelectionMode ? 'solid' : 'soft'}
                         {...(isSelectionMode && { color: 'blue' })}
                         size="1"
@@ -890,7 +882,7 @@ const LessonMangaViewPage: React.FC = () => {
                         {isSelectionMode
                           ? '✅ Selection Mode'
                           : '📝 Select Text'}
-                      </Button>
+                      </MyButton>
                       <Text size="2" color="gray">
                         Page {currentMangaPageIndex + 1} of{' '}
                         {lesson.lessonFiles.length}
@@ -1030,7 +1022,7 @@ const LessonMangaViewPage: React.FC = () => {
                     >
                       <Flex direction="column">
                         <Flex gap="2">
-                          <Button
+                          <MyButton
                             size="1"
                             onClick={handleConfirmSelection}
                             disabled={
@@ -1043,8 +1035,8 @@ const LessonMangaViewPage: React.FC = () => {
                             }
                           >
                             {isProcessingOCR ? 'Processing...' : 'Extract Text'}
-                          </Button>
-                          <Button
+                          </MyButton>
+                          <MyButton
                             size="1"
                             variant="soft"
                             color="gray"
@@ -1059,7 +1051,7 @@ const LessonMangaViewPage: React.FC = () => {
                             }
                           >
                             Clear Selection
-                          </Button>
+                          </MyButton>
                         </Flex>
                       </Flex>
                     </Box>
@@ -1067,7 +1059,7 @@ const LessonMangaViewPage: React.FC = () => {
 
                   {/* Manga Navigation */}
                   <Flex align="center" justify="between">
-                    <Button
+                    <MyButton
                       variant="soft"
                       onClick={navigateToPreviousMangaPage}
                       disabled={
@@ -1077,13 +1069,13 @@ const LessonMangaViewPage: React.FC = () => {
                       }
                     >
                       ← Previous Page
-                    </Button>
+                    </MyButton>
                     <Text size="2" color="gray">
                       {isSelectionMode
                         ? 'Navigation disabled in selection mode'
                         : 'Use ←→ arrow keys'}
                     </Text>
-                    <Button
+                    <MyButton
                       variant="soft"
                       onClick={navigateToNextMangaPage}
                       disabled={
@@ -1094,7 +1086,7 @@ const LessonMangaViewPage: React.FC = () => {
                       }
                     >
                       Next Page →
-                    </Button>
+                    </MyButton>
                   </Flex>
                 </Flex>
               </Card>
@@ -1188,25 +1180,21 @@ const LessonMangaViewPage: React.FC = () => {
 
                                 {/* Translation Section */}
                                 <Box>
-                                  <Button
+                                  <MyButton
                                     variant="soft"
                                     size="1"
                                     onClick={() =>
                                       toggleTranslation(sentence.id)
                                     }
                                     disabled={loadingTranslations[sentence.id]}
-                                    style={{
-                                      cursor: loadingTranslations[sentence.id]
-                                        ? 'not-allowed'
-                                        : 'pointer',
-                                    }}
+                                    style={{}}
                                   >
                                     {loadingTranslations[sentence.id]
                                       ? 'Loading...'
                                       : translations[sentence.id]
                                         ? 'Hide translation'
                                         : 'Show translation'}
-                                  </Button>
+                                  </MyButton>
 
                                   {translations[sentence.id] && (
                                     <Box
@@ -1252,22 +1240,18 @@ const LessonMangaViewPage: React.FC = () => {
                                   You've reached the last page of this manga
                                   lesson.
                                 </Text>
-                                <Button
+                                <MyButton
                                   size="2"
                                   variant="solid"
                                   color="green"
                                   onClick={handleFinishLesson}
                                   disabled={isFinishingLesson}
-                                  style={{
-                                    cursor: isFinishingLesson
-                                      ? 'not-allowed'
-                                      : 'pointer',
-                                  }}
+                                  style={{}}
                                 >
                                   {isFinishingLesson
                                     ? 'Finishing...'
                                     : 'Finish Lesson'}
-                                </Button>
+                                </MyButton>
                               </Flex>
                             </Box>
                           )}
@@ -1285,13 +1269,13 @@ const LessonMangaViewPage: React.FC = () => {
                                 Great job! You have successfully completed this
                                 lesson. 🎉
                               </Text>
-                              <Button
+                              <MyButton
                                 size="2"
                                 variant="soft"
                                 onClick={() => navigate('/lessons')}
                               >
                                 Back to Lessons
-                              </Button>
+                              </MyButton>
                             </Flex>
                           </Box>
                         )}

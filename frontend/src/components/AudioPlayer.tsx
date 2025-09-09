@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Button, Flex, Text, Box } from '@radix-ui/themes';
+import { Flex, Text, Box } from '@radix-ui/themes';
+import MyButton from './MyButton';
 import { PlayIcon, PauseIcon, SpeakerLoudIcon } from '@radix-ui/react-icons';
 
 interface AudioPlayerProps {
@@ -91,14 +92,14 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ audioUrl, title }) => {
       <Flex direction="column" gap="2">
         {/* Play/Pause and Time */}
         <Flex align="center" gap="2">
-          <Button
+          <MyButton
             variant="soft"
             size="2"
             onClick={togglePlay}
             style={{ minWidth: '40px' }}
           >
             {isPlaying ? <PauseIcon /> : <PlayIcon />}
-          </Button>
+          </MyButton>
 
           <Text size="1" style={{ minWidth: '80px' }}>
             {formatTime(currentTime)} / {formatTime(duration)}

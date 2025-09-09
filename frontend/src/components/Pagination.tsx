@@ -1,5 +1,6 @@
 import React from 'react';
-import { Flex, Button, Text, IconButton } from '@radix-ui/themes';
+import { Flex, Text, IconButton } from '@radix-ui/themes';
+import MyButton from './MyButton';
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -96,7 +97,7 @@ const Pagination: React.FC<PaginationProps> = ({
       {/* Page Number Buttons */}
       <Flex align="center" gap="1">
         {visiblePages.map(page => (
-          <Button
+          <MyButton
             key={page}
             variant={page === currentPage ? 'solid' : 'soft'}
             color={page === currentPage ? 'blue' : 'gray'}
@@ -105,11 +106,10 @@ const Pagination: React.FC<PaginationProps> = ({
             size="2"
             style={{
               minWidth: '40px',
-              cursor: disabled ? 'not-allowed' : 'pointer',
             }}
           >
             {page}
-          </Button>
+          </MyButton>
         ))}
       </Flex>
 
@@ -120,7 +120,7 @@ const Pagination: React.FC<PaginationProps> = ({
         disabled={disabled || isLastPage}
         onClick={handleNext}
         size="2"
-        style={{ cursor: disabled || isLastPage ? 'not-allowed' : 'pointer' }}
+        style={{}}
       >
         <ChevronRightIcon />
       </IconButton>
@@ -132,7 +132,7 @@ const Pagination: React.FC<PaginationProps> = ({
         disabled={disabled || isLastPage}
         onClick={handleLast}
         size="2"
-        style={{ cursor: disabled || isLastPage ? 'not-allowed' : 'pointer' }}
+        style={{}}
       >
         <DoubleArrowRightIcon />
       </IconButton>

@@ -4,12 +4,12 @@ import {
   Card,
   Text,
   Flex,
-  Button,
   Badge,
   Dialog,
   IconButton,
   Box,
 } from '@radix-ui/themes';
+import MyButton from './MyButton';
 import { TrashIcon, EyeOpenIcon, VideoIcon } from '@radix-ui/react-icons';
 import axios from 'axios';
 import dayjs from 'dayjs';
@@ -134,9 +134,9 @@ const LessonList: React.FC<LessonListProps> = ({
     return (
       <Card>
         <Text color="red">{error}</Text>
-        <Button onClick={fetchLessons} variant="soft" mt="2">
+        <MyButton onClick={fetchLessons} variant="soft" mt="2">
           Retry
-        </Button>
+        </MyButton>
       </Card>
     );
   }
@@ -278,7 +278,7 @@ const LessonList: React.FC<LessonListProps> = ({
                 )}
 
                 <Flex gap="2" mt="3">
-                  <Button
+                  <MyButton
                     variant="soft"
                     size="2"
                     disabled={lesson.processingStatus !== 'completed'}
@@ -286,9 +286,9 @@ const LessonList: React.FC<LessonListProps> = ({
                   >
                     <EyeOpenIcon />
                     View Lesson
-                  </Button>
+                  </MyButton>
                   {lesson.lessonType === 'subtitle' && (
-                    <Button
+                    <MyButton
                       variant="soft"
                       size="2"
                       disabled={lesson.processingStatus !== 'completed'}
@@ -296,7 +296,7 @@ const LessonList: React.FC<LessonListProps> = ({
                     >
                       <VideoIcon />
                       View Lesson with Video
-                    </Button>
+                    </MyButton>
                   )}
                 </Flex>
               </Flex>
@@ -320,12 +320,12 @@ const LessonList: React.FC<LessonListProps> = ({
 
                   <Flex gap="3" mt="4" justify="end">
                     <Dialog.Close>
-                      <Button variant="soft" color="gray">
+                      <MyButton variant="soft" color="gray">
                         Cancel
-                      </Button>
+                      </MyButton>
                     </Dialog.Close>
                     <Dialog.Close>
-                      <Button
+                      <MyButton
                         variant="solid"
                         color="red"
                         onClick={() => handleDeleteLesson(lesson.id)}
@@ -334,7 +334,7 @@ const LessonList: React.FC<LessonListProps> = ({
                         {deletingLessonId === lesson.id
                           ? 'Deleting...'
                           : 'Delete'}
-                      </Button>
+                      </MyButton>
                     </Dialog.Close>
                   </Flex>
                 </Dialog.Content>

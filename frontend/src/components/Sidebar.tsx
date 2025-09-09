@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
-import { Box, Flex, Text, Button, Separator } from '@radix-ui/themes';
+import { Box, Flex, Text, Separator } from '@radix-ui/themes';
+import MyButton from './MyButton';
 import { ReaderIcon, ExitIcon, BookmarkIcon } from '@radix-ui/react-icons';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -77,13 +78,12 @@ const Sidebar: React.FC<SidebarProps> = () => {
               gap="2"
               style={{ height: '80px', padding: '0 4px' }}
             >
-              {scoreHistory.map((day, index) => {
+              {scoreHistory.map(day => {
                 const maxScore = Math.max(
                   ...scoreHistory.map(d => d.score),
                   200
                 ); // Use 200 as minimum max for better scaling
                 const heightRatio = maxScore > 0 ? day.score / maxScore : 0;
-                const isToday = index === scoreHistory.length - 1;
                 const barHeight =
                   day.score > 0 ? Math.max(heightRatio * 60, 6) : 3; // 60px max height, minimum 6px for scores, 3px for zero
 
@@ -149,28 +149,28 @@ const Sidebar: React.FC<SidebarProps> = () => {
           Navigation
         </Text>
         <Flex direction="column" gap="2">
-          <Button
+          <MyButton
             variant={isLessonsActive ? 'solid' : 'soft'}
             style={{ justifyContent: 'flex-start' }}
             onClick={() => navigate('/lessons')}
           >
             <ReaderIcon />
             Lessons
-          </Button>
-          <Button
+          </MyButton>
+          <MyButton
             variant={isWordsActive ? 'solid' : 'soft'}
             style={{ justifyContent: 'flex-start' }}
             onClick={() => navigate('/words')}
           >
             <BookmarkIcon />
             Words
-          </Button>
+          </MyButton>
         </Flex>
       </Box>
 
       {/* Footer */}
       <Box p="4">
-        <Button
+        <MyButton
           variant="ghost"
           color="red"
           onClick={handleLogout}
@@ -178,7 +178,7 @@ const Sidebar: React.FC<SidebarProps> = () => {
         >
           <ExitIcon />
           Logout
-        </Button>
+        </MyButton>
       </Box>
     </Box>
   );

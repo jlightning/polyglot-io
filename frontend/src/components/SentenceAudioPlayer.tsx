@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Button, Flex, Text } from '@radix-ui/themes';
+import { Flex, Text } from '@radix-ui/themes';
+import MyButton from './MyButton';
 import { PlayIcon, StopIcon } from '@radix-ui/react-icons';
 import TimeFormat from 'hh-mm-ss';
 
@@ -105,7 +106,7 @@ const SentenceAudioPlayer: React.FC<SentenceAudioPlayerProps> = ({
         {formatTime(startTime)} - {formatTime(endTime)}
       </Text>
 
-      <Button
+      <MyButton
         variant="soft"
         size="1"
         onClick={handlePlayStop}
@@ -120,7 +121,7 @@ const SentenceAudioPlayer: React.FC<SentenceAudioPlayerProps> = ({
         }}
       >
         {isPlaying ? <StopIcon /> : <PlayIcon />}
-      </Button>
+      </MyButton>
     </Flex>
   );
 };

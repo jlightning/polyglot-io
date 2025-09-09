@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import * as Form from '@radix-ui/react-form';
 import * as Label from '@radix-ui/react-label';
 import * as Tabs from '@radix-ui/react-tabs';
-import { Card, Button, Text, Heading, TextField } from '@radix-ui/themes';
+import { Card, Text, Heading, TextField } from '@radix-ui/themes';
+import MyButton from '../components/MyButton';
 import { useAuth } from '../contexts/AuthContext';
 
 const AuthPage: React.FC = () => {
@@ -164,14 +165,14 @@ const AuthPage: React.FC = () => {
                   </Form.Field>
 
                   <Form.Submit asChild>
-                    <Button
+                    <MyButton
                       type="submit"
                       disabled={isLoading}
                       className="w-full"
                       size="3"
                     >
                       {isLoading ? 'Signing in...' : 'Sign in'}
-                    </Button>
+                    </MyButton>
                   </Form.Submit>
                 </div>
               </Form.Root>
@@ -276,14 +277,14 @@ const AuthPage: React.FC = () => {
                   </Form.Field>
 
                   <Form.Submit asChild>
-                    <Button
+                    <MyButton
                       type="submit"
                       disabled={isLoading}
                       className="w-full"
                       size="3"
                     >
                       {isLoading ? 'Creating account...' : 'Create account'}
-                    </Button>
+                    </MyButton>
                   </Form.Submit>
                 </div>
               </Form.Root>

@@ -6,11 +6,11 @@ import {
   Heading,
   Text,
   Box,
-  Button,
   Card,
   Badge,
   Separator,
 } from '@radix-ui/themes';
+import MyButton from '../components/MyButton';
 
 import { useAuth } from '../contexts/AuthContext';
 import { useWordMark } from '../contexts/WordMarkContext';
@@ -95,7 +95,6 @@ const LessonViewPage: React.FC = () => {
           variant="soft"
           size="2"
           style={{
-            cursor: 'pointer',
             transition: 'all 0.2s ease',
             color: 'white',
             margin: '0',
@@ -449,9 +448,9 @@ const LessonViewPage: React.FC = () => {
     return (
       <Container size="4" p="4">
         <Flex direction="column" gap="4">
-          <Button variant="ghost" onClick={() => navigate('/lessons')}>
+          <MyButton variant="ghost" onClick={() => navigate('/lessons')}>
             ← Back to Lessons
-          </Button>
+          </MyButton>
           <Flex
             direction="column"
             align="center"
@@ -471,9 +470,9 @@ const LessonViewPage: React.FC = () => {
     <Container size="4" p="4">
       {/* Header */}
       <Flex direction="column" gap="4" mb="6">
-        <Button variant="ghost" onClick={() => navigate('/lessons')}>
+        <MyButton variant="ghost" onClick={() => navigate('/lessons')}>
           ← Back to Lessons
-        </Button>
+        </MyButton>
         <Flex align="center" gap="3" justify="between">
           <Flex align="center" gap="3">
             <Heading size="6">{lesson.title}</Heading>
@@ -481,24 +480,24 @@ const LessonViewPage: React.FC = () => {
           </Flex>
           <Flex gap="3">
             {lesson?.lessonType !== 'manga' && (
-              <Button
+              <MyButton
                 variant="soft"
                 onClick={() => navigate(`/lessons/${lessonId}/video`)}
               >
                 Video View
-              </Button>
+              </MyButton>
             )}
             {lesson?.lessonType === 'manga' && (
-              <Button
+              <MyButton
                 variant="soft"
                 onClick={() => navigate(`/lessons/${lessonId}/manga`)}
               >
                 Manga View
-              </Button>
+              </MyButton>
             )}
-            <Button variant="soft" onClick={() => setIsEditDialogOpen(true)}>
+            <MyButton variant="soft" onClick={() => setIsEditDialogOpen(true)}>
               Edit Lesson
-            </Button>
+            </MyButton>
           </Flex>
         </Flex>
         <Flex direction="column" gap="1">
@@ -562,23 +561,19 @@ const LessonViewPage: React.FC = () => {
 
                 {/* Translation Section */}
                 <Box>
-                  <Button
+                  <MyButton
                     variant="soft"
                     size="2"
                     onClick={() => toggleTranslation(sentence.id)}
                     disabled={loadingTranslations[sentence.id]}
-                    style={{
-                      cursor: loadingTranslations[sentence.id]
-                        ? 'not-allowed'
-                        : 'pointer',
-                    }}
+                    style={{}}
                   >
                     {loadingTranslations[sentence.id]
                       ? 'Loading translation...'
                       : translations[sentence.id]
                         ? 'Hide translation'
                         : 'Show translation'}
-                  </Button>
+                  </MyButton>
 
                   {translations[sentence.id] && (
                     <Box
@@ -623,18 +618,16 @@ const LessonViewPage: React.FC = () => {
       {currentPage === totalPages &&
         lesson?.userProgress?.status !== 'finished' && (
           <Flex justify="center" mt="6">
-            <Button
+            <MyButton
               size="3"
               variant="solid"
               color="green"
               onClick={handleFinishLesson}
               disabled={isFinishingLesson}
-              style={{
-                cursor: isFinishingLesson ? 'not-allowed' : 'pointer',
-              }}
+              style={{}}
             >
               {isFinishingLesson ? 'Finishing Lesson...' : 'Finish Lesson'}
-            </Button>
+            </MyButton>
           </Flex>
         )}
 

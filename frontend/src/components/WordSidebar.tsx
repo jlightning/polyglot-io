@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Flex, Text, Button, Card, Separator } from '@radix-ui/themes';
+import { Box, Flex, Text, Card, Separator } from '@radix-ui/themes';
+import MyButton from './MyButton';
 import { Cross2Icon, TrashIcon } from '@radix-ui/react-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { useWordMark } from '../contexts/WordMarkContext';
@@ -155,7 +156,7 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
   }> = ({ currentMark, onMarkSave, disabled }) => (
     <Flex gap="1" wrap="wrap">
       {/* Trash/Ignore button (0) */}
-      <Button
+      <MyButton
         variant="soft"
         size="2"
         onClick={() => onMarkSave(0)}
@@ -169,15 +170,14 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
           opacity: currentMark === 0 ? 1 : 0.7,
           boxShadow:
             currentMark === 0 ? '0 0 0 2px rgba(255, 255, 255, 0.5)' : 'none',
-          cursor: disabled ? 'not-allowed' : 'pointer',
         }}
       >
         <TrashIcon />
-      </Button>
+      </MyButton>
 
       {/* Rating buttons 1-5 */}
       {[1, 2, 3, 4, 5].map(mark => (
-        <Button
+        <MyButton
           key={mark}
           variant="soft"
           size="2"
@@ -195,11 +195,10 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
               currentMark === mark
                 ? '0 0 0 2px rgba(255, 255, 255, 0.5)'
                 : 'none',
-            cursor: disabled ? 'not-allowed' : 'pointer',
           }}
         >
           {mark}
-        </Button>
+        </MyButton>
       ))}
     </Flex>
   );
@@ -332,9 +331,9 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
         <Text size="4" weight="bold">
           Translation
         </Text>
-        <Button variant="ghost" size="2" onClick={onClose}>
+        <MyButton variant="ghost" size="2" onClick={onClose}>
           <Cross2Icon />
-        </Button>
+        </MyButton>
       </Flex>
 
       {/* Content */}

@@ -6,15 +6,8 @@ import React, {
   useMemo,
 } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import {
-  Flex,
-  Heading,
-  Text,
-  Box,
-  Button,
-  Card,
-  Badge,
-} from '@radix-ui/themes';
+import { Flex, Heading, Text, Box, Card, Badge } from '@radix-ui/themes';
+import MyButton from '../components/MyButton';
 
 import { useAuth } from '../contexts/AuthContext';
 import { useWordMark } from '../contexts/WordMarkContext';
@@ -630,7 +623,6 @@ const LessonVideoViewPage: React.FC = () => {
           variant="soft"
           size="2"
           style={{
-            cursor: 'pointer',
             transition: 'all 0.2s ease',
             color: 'white',
             margin: '0',
@@ -916,9 +908,9 @@ const LessonVideoViewPage: React.FC = () => {
       >
         <Box style={{ padding: '16px 24px' }}>
           <Flex direction="column" gap="4">
-            <Button variant="ghost" onClick={() => navigate('/lessons')}>
+            <MyButton variant="ghost" onClick={() => navigate('/lessons')}>
               ← Back to Lessons
-            </Button>
+            </MyButton>
             <Flex
               direction="column"
               align="center"
@@ -944,13 +936,13 @@ const LessonVideoViewPage: React.FC = () => {
       <Box style={{ padding: '12px 24px' }}>
         <Flex direction="column" gap="2">
           <Flex align="center" justify="between">
-            <Button
+            <MyButton
               variant="ghost"
               size="2"
               onClick={() => navigate('/lessons')}
             >
               ← Back to Lessons
-            </Button>
+            </MyButton>
           </Flex>
           <Flex align="center" gap="2">
             <Heading size="5">{lesson.title} - Video View</Heading>
@@ -1020,9 +1012,9 @@ const LessonVideoViewPage: React.FC = () => {
                       : 'Drag and drop a video file here, or click to select'}
                   </Text>
                   {!isDragging && (
-                    <Button onClick={handleVideoSelect}>
+                    <MyButton onClick={handleVideoSelect}>
                       Choose Video File
-                    </Button>
+                    </MyButton>
                   )}
                 </Box>
               </Flex>
@@ -1033,15 +1025,15 @@ const LessonVideoViewPage: React.FC = () => {
                 {/* Custom Video Controls */}
                 <Box style={{ padding: '0 16px' }}>
                   <Flex align="center" gap="3" wrap="wrap">
-                    <Button onClick={handlePlayPause}>
+                    <MyButton onClick={handlePlayPause}>
                       {isPlaying ? 'Pause' : 'Play'}
-                    </Button>
+                    </MyButton>
                     <Text size="2">
                       {formatTime(currentTime)} / {formatTime(duration)}
                     </Text>
 
                     {/* Sentence Overlay Toggle */}
-                    <Button
+                    <MyButton
                       variant={showSentenceOverlay ? 'solid' : 'soft'}
                       size="2"
                       onClick={() =>
@@ -1056,12 +1048,12 @@ const LessonVideoViewPage: React.FC = () => {
                       {showSentenceOverlay
                         ? '📖 Hide Subtitles'
                         : '📖 Show Subtitles'}
-                    </Button>
+                    </MyButton>
 
                     {/* Backend Progress Controls */}
                     {lesson?.userProgress?.sentenceInfo?.startTime &&
                       !hasRestoredVideoProgress && (
-                        <Button
+                        <MyButton
                           variant="soft"
                           color="green"
                           size="2"
@@ -1083,10 +1075,10 @@ const LessonVideoViewPage: React.FC = () => {
                           {formatTime(
                             lesson.userProgress.sentenceInfo.startTime
                           )}
-                        </Button>
+                        </MyButton>
                       )}
 
-                    <Button
+                    <MyButton
                       variant="soft"
                       size="2"
                       onClick={() => {
@@ -1095,7 +1087,7 @@ const LessonVideoViewPage: React.FC = () => {
                       }}
                     >
                       Change Video
-                    </Button>
+                    </MyButton>
                   </Flex>
 
                   {/* Seek Bar */}
@@ -1224,23 +1216,19 @@ const LessonVideoViewPage: React.FC = () => {
 
                     {/* Translation Section */}
                     <Box>
-                      <Button
+                      <MyButton
                         variant="soft"
                         size="1"
                         onClick={() => toggleTranslation(activeSentence.id)}
                         disabled={loadingTranslations[activeSentence.id]}
-                        style={{
-                          cursor: loadingTranslations[activeSentence.id]
-                            ? 'not-allowed'
-                            : 'pointer',
-                        }}
+                        style={{}}
                       >
                         {loadingTranslations[activeSentence.id]
                           ? 'Loading...'
                           : translations[activeSentence.id]
                             ? 'Hide translation'
                             : 'Show translation'}
-                      </Button>
+                      </MyButton>
 
                       {translations[activeSentence.id] && (
                         <Box
@@ -1320,18 +1308,16 @@ const LessonVideoViewPage: React.FC = () => {
                   <Text size="2" color="gray" style={{ textAlign: 'center' }}>
                     You've reached the last sentence of this lesson.
                   </Text>
-                  <Button
+                  <MyButton
                     size="2"
                     variant="solid"
                     color="green"
                     onClick={handleFinishLesson}
                     disabled={isFinishingLesson}
-                    style={{
-                      cursor: isFinishingLesson ? 'not-allowed' : 'pointer',
-                    }}
+                    style={{}}
                   >
                     {isFinishingLesson ? 'Finishing...' : 'Finish Lesson'}
-                  </Button>
+                  </MyButton>
                 </Flex>
               </Box>
             )}
@@ -1344,13 +1330,13 @@ const LessonVideoViewPage: React.FC = () => {
                 <Text size="2" color="green" style={{ textAlign: 'center' }}>
                   Great job! You have successfully completed this lesson. 🎉
                 </Text>
-                <Button
+                <MyButton
                   size="2"
                   variant="soft"
                   onClick={() => navigate('/lessons')}
                 >
                   Back to Lessons
-                </Button>
+                </MyButton>
               </Flex>
             </Box>
           )}

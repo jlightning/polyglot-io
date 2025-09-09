@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Text, Flex, Button, Dialog, Box } from '@radix-ui/themes';
+import { Card, Text, Flex, Dialog, Box } from '@radix-ui/themes';
+import MyButton from './MyButton';
 import { Pencil1Icon, UploadIcon } from '@radix-ui/react-icons';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
@@ -261,10 +262,10 @@ const LessonEditDialog: React.FC<LessonEditDialogProps> = ({
   };
 
   const defaultTrigger = (
-    <Button variant="soft" size="2">
+    <MyButton variant="soft" size="2">
       <Pencil1Icon />
       Edit
-    </Button>
+    </MyButton>
   );
 
   return (
@@ -410,11 +411,11 @@ const LessonEditDialog: React.FC<LessonEditDialogProps> = ({
           {/* Action Buttons */}
           <Flex gap="3" mt="4" justify="end">
             <Dialog.Close>
-              <Button variant="soft" color="gray" disabled={updating}>
+              <MyButton variant="soft" color="gray" disabled={updating}>
                 Cancel
-              </Button>
+              </MyButton>
             </Dialog.Close>
-            <Button onClick={handleUpdate} disabled={updating}>
+            <MyButton onClick={handleUpdate} disabled={updating}>
               {updating ? (
                 <>
                   <UploadIcon />
@@ -426,7 +427,7 @@ const LessonEditDialog: React.FC<LessonEditDialogProps> = ({
                   Update Lesson
                 </>
               )}
-            </Button>
+            </MyButton>
           </Flex>
         </Flex>
       </Dialog.Content>

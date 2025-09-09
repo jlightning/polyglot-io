@@ -3,7 +3,6 @@ import {
   Box,
   Flex,
   Text,
-  Button,
   Badge,
   TextField,
   Separator,
@@ -16,6 +15,7 @@ import {
   Dialog,
   Tabs,
 } from '@radix-ui/themes';
+import MyButton from '../components/MyButton';
 import {
   MagnifyingGlassIcon,
   ReloadIcon,
@@ -312,18 +312,22 @@ const WordsPage: React.FC = () => {
         <Flex align="center" justify="between">
           <Heading size="6">My Words</Heading>
           <Flex gap="2">
-            <Button
+            <MyButton
               variant="soft"
               onClick={() => setImportDialogOpen(true)}
               disabled={loading}
             >
               <DownloadIcon />
               Import
-            </Button>
-            <Button variant="ghost" onClick={handleRefresh} disabled={loading}>
+            </MyButton>
+            <MyButton
+              variant="ghost"
+              onClick={handleRefresh}
+              disabled={loading}
+            >
               <ReloadIcon />
               Refresh
-            </Button>
+            </MyButton>
           </Flex>
         </Flex>
 
@@ -351,9 +355,9 @@ const WordsPage: React.FC = () => {
               <MagnifyingGlassIcon height="16" width="16" />
             </TextField.Slot>
           </TextField.Root>
-          <Button onClick={handleSearch} disabled={loading}>
+          <MyButton onClick={handleSearch} disabled={loading}>
             Search
-          </Button>
+          </MyButton>
         </Flex>
 
         {/* Difficulty Filter */}
@@ -683,14 +687,14 @@ const WordsPage: React.FC = () => {
                   )}
 
                   <Flex gap="2" justify="end">
-                    <Button
+                    <MyButton
                       variant="soft"
                       onClick={resetImportDialog}
                       disabled={importLoading}
                     >
                       Reset
-                    </Button>
-                    <Button
+                    </MyButton>
+                    <MyButton
                       onClick={handleLingqImport}
                       disabled={
                         importLoading ||
@@ -700,7 +704,7 @@ const WordsPage: React.FC = () => {
                       loading={importLoading}
                     >
                       {importLoading ? 'Importing...' : 'Import from LingQ'}
-                    </Button>
+                    </MyButton>
                   </Flex>
                 </Flex>
               </Tabs.Content>
@@ -709,13 +713,13 @@ const WordsPage: React.FC = () => {
 
           <Flex gap="3" mt="4" justify="end">
             <Dialog.Close>
-              <Button
+              <MyButton
                 variant="soft"
                 color="gray"
                 onClick={handleImportDialogClose}
               >
                 Close
-              </Button>
+              </MyButton>
             </Dialog.Close>
           </Flex>
         </Dialog.Content>
