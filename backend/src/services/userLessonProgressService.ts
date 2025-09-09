@@ -11,6 +11,7 @@ export interface UserLessonProgressData {
   sentenceInfo?: {
     id: number;
     originalText: string;
+    lesson_file_id?: number;
     startTime: number | null;
     endTime: number | null;
   };
@@ -182,14 +183,7 @@ export class UserLessonProgressService {
           },
         },
         include: {
-          sentence: {
-            select: {
-              id: true,
-              original_text: true,
-              start_time: true,
-              end_time: true,
-            },
-          },
+          sentence: true,
         },
       });
 
@@ -226,6 +220,7 @@ export class UserLessonProgressService {
           sentenceInfo: {
             id: progress.sentence.id,
             originalText: progress.sentence.original_text,
+            lesson_file_id: progress.sentence.lesson_file_id,
             startTime: progress.sentence.start_time
               ? progress.sentence.start_time.toNumber()
               : null,

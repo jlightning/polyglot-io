@@ -183,11 +183,11 @@ const LessonMangaViewPage: React.FC = () => {
           // Restore user progress by finding the correct manga page
           if (
             progressResponse.data.success &&
-            progressResponse.data.progress?.readTillSentenceId
+            progressResponse.data.progress.sentenceInfo?.lesson_file_id
           ) {
             await restoreUserProgress(
               lesson,
-              progressResponse.data.progress.readTillSentenceId
+              progressResponse.data.progress.sentenceInfo.lesson_file_id
             );
           } else {
             // No previous progress, start from first page
@@ -288,7 +288,7 @@ const LessonMangaViewPage: React.FC = () => {
 
   // Restore user progress by finding which manga page contains the target sentence
   const restoreUserProgress = useCallback(
-    async (lessonData: Lesson, targetSentenceId: number) => {
+    async (lessonData: Lesson, targetFileId: number) => {
       if (!lessonId || !isAuthenticated || !lessonData.lessonFiles) {
         return;
       }
@@ -302,7 +302,7 @@ const LessonMangaViewPage: React.FC = () => {
         ) {
           const file = lessonData.lessonFiles[pageIndex];
 
-          if (!file) continue;
+          if (!file || file.id !== targetFileId) continue;
 
           const response = await axiosInstance.get(
             `/api/lessons/${lessonId}/sentences`,
@@ -316,17 +316,10 @@ const LessonMangaViewPage: React.FC = () => {
           );
 
           if (response.data.success) {
-            const sentences = response.data.lesson.sentences;
-            const foundSentence = sentences.find(
-              (s: Sentence) => s.id === targetSentenceId
-            );
-
-            if (foundSentence) {
-              // Found the target sentence on this manga page
-              setCurrentMangaPageIndex(pageIndex);
-              setHasRestoredProgress(true);
-              return;
-            }
+            // Found the target sentence on this manga page
+            setCurrentMangaPageIndex(pageIndex);
+            setHasRestoredProgress(true);
+            return;
           }
         }
 
