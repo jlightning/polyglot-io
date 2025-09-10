@@ -578,7 +578,6 @@ router.post('/:lessonId/ocr-region', async (req: Request, res: Response) => {
     }
 
     const result = await LessonService.processOCROnSelectedRegion(
-      req.userId!,
       lessonId,
       parseInt(lessonFileId),
       { x, y, width, height }

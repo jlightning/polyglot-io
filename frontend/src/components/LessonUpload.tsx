@@ -200,8 +200,16 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
     const validFiles: File[] = [];
     for (const file of files) {
       const fileType = getFileType(file);
-      if (fileType !== 'image/jpeg') {
-        setError('Please select only JPG files for manga pages');
+      const validImageTypes = [
+        'image/jpeg',
+        'image/png',
+        'image/gif',
+        'image/webp',
+      ];
+      if (!validImageTypes.includes(fileType)) {
+        setError(
+          'Please select only JPG, PNG, GIF, or WebP files for manga pages'
+        );
         return;
       }
       // Validate file size (max 10MB per file)
@@ -641,12 +649,12 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
                   {/* Manga Pages Upload */}
                   <Box>
                     <Text size="2" weight="medium" mb="2" as="div">
-                      Manga Pages (Required) - JPG Only
+                      Manga Pages (Required) - JPG, PNG, GIF, or WebP
                     </Text>
                     <input
                       id="manga-files-upload"
                       type="file"
-                      accept="image/jpeg,.jpg"
+                      accept="image/jpeg,.jpg,image/png,.png,image/gif,.gif,image/webp,.webp"
                       multiple
                       onChange={handleMangaFilesChange}
                       style={{

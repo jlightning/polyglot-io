@@ -6,6 +6,7 @@ import {
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import dayjs from 'dayjs';
+import sharp from 'sharp';
 
 export class S3Service {
   private static s3Client: S3Client;
@@ -157,7 +158,8 @@ export class S3Service {
    * Get public file URL from S3
    */
   static getFileUrl(key: string): string {
-    return `https://${this.bucketName}.s3.${this.region}.amazonaws.com/${key}`;
+    const region = process.env['AWS_REGION'] || 'us-east-1';
+    return `https://${this.bucketName}.s3.${region}.amazonaws.com/${key}`;
   }
 
   /**
@@ -180,5 +182,57 @@ export class S3Service {
       console.error('Error deleting file from S3:', error);
       return false;
     }
+  }
+
+  /**
+   * Convert image file (PNG, GIF, WebP) to JPG and replace it in S3
+   * Downloads image from S3, converts to JPG, uploads JPG, and deletes original
+   */
+  static async convertImageToJpgAndReplace(
+    imageKey: string,
+    _userId: number
+  ): Promise<string> {
+    if (!this.s3Client) {
+      this.initialize();
+    }
+
+    try {
+      // Download image file from S3
+      const imageBuffer = await this.getFileBuffer(imageKey);
+
+      // Convert image to JPG using Sharp
+      const jpgBuffer = await sharp(imageBuffer)
+        .jpeg({ quality: 90 }) // High quality JPG
+        .toBuffer();
+
+      // Generate new JPG key (replace extension with .jpg)
+      const jpgKey = imageKey.replace(/\.(png|gif|webp)$/i, '.jpg');
+
+      // Upload JPG to S3
+      const uploadCommand = new PutObjectCommand({
+        Bucket: this.bucketName,
+        Key: jpgKey,
+        Body: jpgBuffer,
+        ContentType: 'image/jpeg',
+      });
+
+      await this.s3Client.send(uploadCommand);
+
+      // Delete original image file
+      await this.deleteFile(imageKey);
+
+      console.log(`Successfully converted ${imageKey} to ${jpgKey}`);
+      return jpgKey;
+    } catch (error) {
+      console.error('Error converting image to JPG:', error);
+      throw new Error('Failed to convert image to JPG');
+    }
+  }
+
+  /**
+   * Check if a file is PNG based on its S3 key (kept for backward compatibility)
+   */
+  static isPngFile(key: string): boolean {
+    return key.toLowerCase().endsWith('.png');
   }
 }

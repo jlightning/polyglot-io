@@ -176,7 +176,7 @@ const LessonMangaViewPage: React.FC = () => {
           // Restore user progress by finding the correct manga page
           if (
             progressResponse.data.success &&
-            progressResponse.data.progress.sentenceInfo?.lesson_file_id
+            progressResponse.data.progress?.sentenceInfo?.lesson_file_id
           ) {
             await restoreUserProgress(
               lesson,

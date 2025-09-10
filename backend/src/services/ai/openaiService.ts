@@ -735,7 +735,7 @@ export class OpenAIService {
           width: clampedWidth,
           height: clampedHeight,
         })
-        .jpeg({ quality: 90 })
+        .jpeg({ quality: 70 })
         .toBuffer();
 
       // Convert back to base64
