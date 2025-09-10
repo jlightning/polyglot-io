@@ -125,6 +125,9 @@ const LessonMangaViewPage: React.FC = () => {
   );
   const imageRef = useRef<HTMLImageElement>(null);
 
+  // Image orientation state
+  const [isImageLandscape, setIsImageLandscape] = useState(false);
+
   // Load basic lesson info and first page of sentences
   useEffect(() => {
     const fetchLessonInfo = async () => {
@@ -595,6 +598,15 @@ const LessonMangaViewPage: React.FC = () => {
     };
   }, []);
 
+  // Handle image load to detect orientation
+  const handleImageLoad = useCallback(() => {
+    if (!imageRef.current) return;
+
+    const img = imageRef.current;
+    const isLandscape = img.naturalWidth > img.naturalHeight;
+    setIsImageLandscape(isLandscape);
+  }, []);
+
   const handleImageMouseDown = useCallback(
     (e: React.MouseEvent) => {
       if (!isSelectionMode || isProcessingOCR) return;
@@ -856,7 +868,12 @@ const LessonMangaViewPage: React.FC = () => {
         >
           <Flex style={{ height: '100%' }} gap="4">
             {/* Left Side - Manga Page */}
-            <Box style={{ flex: 1, minHeight: 0 }}>
+            <Box
+              style={{
+                flex: isImageLandscape ? 3 : 1, // 60% when landscape (3/5), 50% when portrait (1/2)
+                minHeight: 0,
+              }}
+            >
               <Card
                 style={{
                   padding: '16px',
@@ -930,6 +947,7 @@ const LessonMangaViewPage: React.FC = () => {
                             display: 'block',
                             margin: '0 auto',
                           }}
+                          onLoad={handleImageLoad}
                           onMouseDown={handleImageMouseDown}
                           onMouseMove={handleImageMouseMove}
                           onMouseUp={handleImageMouseUp}
