@@ -1,4 +1,9 @@
-import { Prisma, LessonType, LessonProcessingStatus } from '@prisma/client';
+import {
+  Prisma,
+  LessonType,
+  LessonProcessingStatus,
+  PrismaClient,
+} from '@prisma/client';
 import { ConfigService } from './configService';
 import { S3Service } from './s3Service';
 import { TextProcessingService } from './textProcessingService';
@@ -106,31 +111,26 @@ export class LessonService {
         }
       }
 
-      // Create lesson in database
-      const lesson = await prisma.lesson.create({
-        data: {
-          created_by: userId,
-          title: lessonData.title,
-          lesson_type: lessonType,
-          language_code: lessonData.languageCode,
-          image_s3_key: lessonData.imageKey || null,
-          audio_s3_key: lessonData.audioKey || null,
-        },
-      });
+      const lesson = await prisma.$transaction(async tx => {
+        // Create lesson in database
+        const lesson = await tx.lesson.create({
+          data: {
+            created_by: userId,
+            title: lessonData.title,
+            lesson_type: lessonType,
+            language_code: lessonData.languageCode,
+            image_s3_key: lessonData.imageKey || null,
+            audio_s3_key: lessonData.audioKey || null,
+          },
+        });
 
-      // Process lesson file if provided
-      if (lessonData.fileKey) {
-        try {
-          await this.processLessonFile(lesson.id, lessonData.fileKey);
-        } catch (error) {
-          console.error('Error processing lesson file:', error);
-          // Note: We don't fail the lesson creation if file processing fails
-          // The lesson is still created, but without sentences
-          console.warn(
-            `Lesson ${lesson.id} created but file processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`
-          );
+        // Process lesson file if provided
+        if (lessonData.fileKey) {
+          await this.processLessonFile(tx, lesson.id, lessonData.fileKey);
         }
-      }
+
+        return lesson;
+      });
 
       return {
         success: true,
@@ -455,12 +455,13 @@ export class LessonService {
    * Process a lesson file (SRT or TXT) and create sentence records
    */
   private static async processLessonFile(
+    tx: Prisma.TransactionClient,
     lessonId: number,
     fileKey: string
   ): Promise<void> {
     try {
       // Create lesson file record
-      const lessonFile = await prisma.lessonFile.create({
+      const lessonFile = await tx.lessonFile.create({
         data: {
           lesson_id: lessonId,
           file_s3_key: fileKey,
@@ -498,7 +499,7 @@ export class LessonService {
       }));
 
       // Create sentence records in database
-      await prisma.sentence.createMany({
+      await tx.sentence.createMany({
         data: sentenceData,
       });
 
