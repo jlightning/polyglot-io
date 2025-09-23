@@ -173,6 +173,7 @@ export class OpenAIService {
         '- Provide English translation for the word in the context of the sentence',
         '- Be consistent with word segmentation',
         '- Exclude punctuation marks from the word list',
+        '- If there is a name, split the name into first name and last name as 2 words and separate that from suffix',
         pronunciationInfo.guideline,
       ].join('\n');
 
