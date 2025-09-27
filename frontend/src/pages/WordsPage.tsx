@@ -28,6 +28,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import Pagination from '../components/Pagination';
+import WordSidebar from '../components/WordSidebar';
 import {
   getDifficultyLabel,
   getDifficultyColor,
@@ -52,6 +53,19 @@ interface Word {
     title: string;
     language_code: string;
   }>;
+  translations: WordTranslation[];
+  pronunciations: WordPronunciation[];
+}
+
+interface WordTranslation {
+  word: string;
+  translation: string;
+}
+
+interface WordPronunciation {
+  word: string;
+  pronunciation: string;
+  pronunciationType: string;
 }
 
 interface WordUserMark {
@@ -112,6 +126,17 @@ const WordsPage: React.FC = () => {
   const [importLoading, setImportLoading] = useState(false);
   const [importError, setImportError] = useState('');
   const [importSuccess, setImportSuccess] = useState('');
+
+  // Word sidebar state
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [selectedWord, setSelectedWord] = useState<string | null>(null);
+  const [wordTranslations, setWordTranslations] = useState<
+    WordTranslation[] | null
+  >(null);
+  const [wordPronunciations, setWordPronunciations] = useState<
+    WordPronunciation[] | null
+  >(null);
+  const [sidebarLoading, setSidebarLoading] = useState(false);
 
   const fetchWords = async (
     page: number = 1,
@@ -305,6 +330,25 @@ const WordsPage: React.FC = () => {
     resetImportDialog();
   };
 
+  // Handle word click to open sidebar
+  const handleWordClick = (wordMark: WordUserMark) => {
+    setSelectedWord(wordMark.word.word);
+    setSidebarOpen(true);
+    setSidebarLoading(false);
+
+    // Use the translations and pronunciations from the existing data
+    setWordTranslations(wordMark.word.translations || []);
+    setWordPronunciations(wordMark.word.pronunciations || []);
+  };
+
+  // Handle sidebar close
+  const handleSidebarClose = () => {
+    setSidebarOpen(false);
+    setSelectedWord(null);
+    setWordTranslations(null);
+    setWordPronunciations(null);
+  };
+
   return (
     <Container size="4" p="4">
       {/* Header */}
@@ -437,7 +481,16 @@ const WordsPage: React.FC = () => {
                     {/* Word */}
                     <Table.Cell>
                       <Flex direction="column" gap="1">
-                        <Text size="3" weight="bold">
+                        <Text
+                          size="3"
+                          weight="bold"
+                          style={{
+                            cursor: 'pointer',
+                            color: 'var(--blue-9)',
+                            textDecoration: 'underline',
+                          }}
+                          onClick={() => handleWordClick(wordMark)}
+                        >
                           {wordMark.word.word}
                         </Text>
                         {wordMark.note && (
@@ -724,6 +777,17 @@ const WordsPage: React.FC = () => {
           </Flex>
         </Dialog.Content>
       </Dialog.Root>
+
+      {/* Word Sidebar */}
+      <WordSidebar
+        isOpen={sidebarOpen}
+        onClose={handleSidebarClose}
+        selectedWord={selectedWord}
+        wordTranslations={wordTranslations}
+        wordPronunciations={wordPronunciations}
+        loading={sidebarLoading}
+        languageCode={selectedLanguage}
+      />
     </Container>
   );
 };

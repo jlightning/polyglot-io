@@ -365,6 +365,12 @@ export class WordService {
                   },
                   take: 3, // Limit to 3 sentences per word
                 },
+                wordTranslations: {
+                  where: {
+                    language_code: 'en', // English translations
+                  },
+                },
+                wordPronunciations: true, // Include all pronunciations
               },
             },
           },
@@ -411,6 +417,18 @@ export class WordService {
         });
         const lessons = Array.from(lessonMap.values()).slice(0, 3); // Limit to 3 lessons
 
+        // Transform translations and pronunciations
+        const translations = wordMark.word.wordTranslations.map(wt => ({
+          word: wordMark.word.word,
+          translation: wt.translation,
+        }));
+
+        const pronunciations = wordMark.word.wordPronunciations.map(wp => ({
+          word: wordMark.word.word,
+          pronunciation: wp.pronunciation,
+          pronunciationType: wp.pronunciation_type || 'unknown',
+        }));
+
         return {
           ...wordMark,
           word: {
@@ -418,6 +436,8 @@ export class WordService {
             sentences: sentences.slice(0, 3), // Limit to 3 sentences
             totalSentenceCount: sentenceCountMap.get(wordMark.word.id) || 0,
             lessons,
+            translations,
+            pronunciations,
           },
         };
       });
