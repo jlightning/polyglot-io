@@ -490,4 +490,76 @@ export class WordService {
       };
     }
   }
+
+  /**
+   * Get word translations by word and language
+   */
+  static async getWordTranslations(
+    word: string,
+    sourceLanguage: string,
+    targetLanguage: string = 'en'
+  ) {
+    try {
+      const translations = await prisma.wordTranslation.findMany({
+        where: {
+          word: {
+            word: word,
+            language_code: sourceLanguage,
+          },
+          language_code: targetLanguage,
+        },
+        include: {
+          word: true,
+        },
+      });
+
+      return {
+        success: true,
+        data: translations.map(t => ({
+          word: t.word.word,
+          translation: t.translation,
+        })),
+      };
+    } catch (error) {
+      console.error('Error getting word translations:', error);
+      return {
+        success: false,
+        message: 'Failed to get word translations',
+      };
+    }
+  }
+
+  /**
+   * Get word pronunciations by word and language
+   */
+  static async getWordPronunciations(word: string, languageCode: string) {
+    try {
+      const pronunciations = await prisma.wordPronunciation.findMany({
+        where: {
+          word: {
+            word: word,
+            language_code: languageCode,
+          },
+        },
+        include: {
+          word: true,
+        },
+      });
+
+      return {
+        success: true,
+        data: pronunciations.map(p => ({
+          word: p.word.word,
+          pronunciation: p.pronunciation,
+          pronunciationType: p.pronunciation_type || 'unknown',
+        })),
+      };
+    } catch (error) {
+      console.error('Error getting word pronunciations:', error);
+      return {
+        success: false,
+        message: 'Failed to get word pronunciations',
+      };
+    }
+  }
 }

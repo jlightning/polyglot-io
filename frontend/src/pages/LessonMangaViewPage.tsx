@@ -103,12 +103,6 @@ const LessonMangaViewPage: React.FC = () => {
   // Word sidebar state
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [selectedWord, setSelectedWord] = useState<string | null>(null);
-  const [currentWordTranslations, setCurrentWordTranslations] = useState<
-    WordTranslation[] | null
-  >(null);
-  const [currentWordPronunciations, setCurrentWordPronunciations] = useState<
-    WordPronunciation[] | null
-  >(null);
 
   // OCR selection state
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -392,12 +386,7 @@ const LessonMangaViewPage: React.FC = () => {
     sentence: Sentence,
     fontSize = '16px'
   ) => {
-    const {
-      original_text: originalText,
-      split_text: splitWords,
-      word_translations,
-      word_pronunciations,
-    } = sentence;
+    const { original_text: originalText, split_text: splitWords } = sentence;
 
     if (!splitWords || splitWords.length === 0) {
       return originalText;
@@ -421,13 +410,7 @@ const LessonMangaViewPage: React.FC = () => {
               : { border: '1px solid transparent' }),
             cursor: 'pointer',
           }}
-          onClick={() =>
-            handleWordClick(
-              word,
-              word_translations || null,
-              word_pronunciations || null
-            )
-          }
+          onClick={() => handleWordClick(word)}
         >
           {word}
         </Badge>
@@ -460,22 +443,14 @@ const LessonMangaViewPage: React.FC = () => {
     return elements;
   };
 
-  const handleWordClick = (
-    word: string,
-    sentenceTranslations: WordTranslation[] | null,
-    sentencePronunciations: WordPronunciation[] | null
-  ) => {
+  const handleWordClick = (word: string) => {
     setSelectedWord(word);
-    setCurrentWordTranslations(sentenceTranslations);
-    setCurrentWordPronunciations(sentencePronunciations);
     setIsSidebarOpen(true);
   };
 
   const handleCloseSidebar = () => {
     setIsSidebarOpen(false);
     setSelectedWord(null);
-    setCurrentWordTranslations(null);
-    setCurrentWordPronunciations(null);
   };
 
   const toggleTranslation = async (sentenceId: number) => {
@@ -1312,9 +1287,8 @@ const LessonMangaViewPage: React.FC = () => {
           isOpen={isSidebarOpen}
           onClose={handleCloseSidebar}
           selectedWord={selectedWord}
-          wordTranslations={currentWordTranslations}
-          wordPronunciations={currentWordPronunciations}
           languageCode={lesson?.languageCode}
+          targetLanguage="en"
         />
       </Flex>
     </>

@@ -232,4 +232,73 @@ router.get('/marks/details', async (req: Request, res: Response) => {
   }
 });
 
+// Get word translations
+router.get(
+  '/translations/:word/:sourceLanguage/:targetLanguage',
+  async (req: Request, res: Response) => {
+    try {
+      const { word, sourceLanguage, targetLanguage } = req.params;
+
+      if (!word || !sourceLanguage || !targetLanguage) {
+        return res.status(400).json({
+          success: false,
+          message: 'Word, source language, and target language are required',
+        });
+      }
+
+      const result = await WordService.getWordTranslations(
+        decodeURIComponent(word),
+        sourceLanguage,
+        targetLanguage
+      );
+
+      if (result.success) {
+        return res.json(result);
+      } else {
+        return res.status(400).json(result);
+      }
+    } catch (error) {
+      console.error('Get word translations route error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+      });
+    }
+  }
+);
+
+// Get word pronunciations
+router.get(
+  '/pronunciations/:word/:languageCode',
+  async (req: Request, res: Response) => {
+    try {
+      const { word, languageCode } = req.params;
+
+      if (!word || !languageCode) {
+        return res.status(400).json({
+          success: false,
+          message: 'Word and language code are required',
+        });
+      }
+
+      const result = await WordService.getWordPronunciations(
+        decodeURIComponent(word),
+        languageCode
+      );
+
+      if (result.success) {
+        return res.json(result);
+      } else {
+        return res.status(400).json(result);
+      }
+    } catch (error) {
+      console.error('Get word pronunciations route error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+      });
+    }
+  }
+);
+
 export default router;

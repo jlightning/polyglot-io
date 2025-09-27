@@ -130,13 +130,6 @@ const WordsPage: React.FC = () => {
   // Word sidebar state
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedWord, setSelectedWord] = useState<string | null>(null);
-  const [wordTranslations, setWordTranslations] = useState<
-    WordTranslation[] | null
-  >(null);
-  const [wordPronunciations, setWordPronunciations] = useState<
-    WordPronunciation[] | null
-  >(null);
-  const [sidebarLoading, setSidebarLoading] = useState(false);
 
   const fetchWords = async (
     page: number = 1,
@@ -334,19 +327,12 @@ const WordsPage: React.FC = () => {
   const handleWordClick = (wordMark: WordUserMark) => {
     setSelectedWord(wordMark.word.word);
     setSidebarOpen(true);
-    setSidebarLoading(false);
-
-    // Use the translations and pronunciations from the existing data
-    setWordTranslations(wordMark.word.translations || []);
-    setWordPronunciations(wordMark.word.pronunciations || []);
   };
 
   // Handle sidebar close
   const handleSidebarClose = () => {
     setSidebarOpen(false);
     setSelectedWord(null);
-    setWordTranslations(null);
-    setWordPronunciations(null);
   };
 
   return (
@@ -783,10 +769,8 @@ const WordsPage: React.FC = () => {
         isOpen={sidebarOpen}
         onClose={handleSidebarClose}
         selectedWord={selectedWord}
-        wordTranslations={wordTranslations}
-        wordPronunciations={wordPronunciations}
-        loading={sidebarLoading}
         languageCode={selectedLanguage}
+        targetLanguage="en"
       />
     </Container>
   );

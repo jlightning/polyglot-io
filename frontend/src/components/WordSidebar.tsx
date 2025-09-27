@@ -36,20 +36,16 @@ interface WordSidebarProps {
   isOpen: boolean;
   onClose: () => void;
   selectedWord: string | null;
-  wordTranslations: WordTranslation[] | null;
-  wordPronunciations?: WordPronunciation[] | null;
-  loading?: boolean;
   languageCode?: string;
+  targetLanguage?: string;
 }
 
 const WordSidebar: React.FC<WordSidebarProps> = ({
   isOpen,
   onClose,
   selectedWord,
-  wordTranslations,
-  wordPronunciations,
-  loading = false,
   languageCode,
+  targetLanguage = 'en',
 }) => {
   const { axiosInstance } = useAuth();
   const { saveWordMark, isSaving } = useWordMark();
@@ -57,11 +53,64 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
   const [currentMark, setCurrentMark] = useState<number | null>(null);
   const [, setUserMark] = useState<WordUserMark | null>(null);
   const [loadingMark, setLoadingMark] = useState(false);
+  const [wordTranslations, setWordTranslations] = useState<WordTranslation[]>(
+    []
+  );
+  const [wordPronunciations, setWordPronunciations] = useState<
+    WordPronunciation[]
+  >([]);
+  const [loadingTranslations, setLoadingTranslations] = useState(false);
+  const [loadingPronunciations, setLoadingPronunciations] = useState(false);
 
-  const selectedTranslations =
-    wordTranslations?.filter(wt => wt.word === selectedWord) || [];
-  const selectedPronunciations =
-    wordPronunciations?.filter(wp => wp.word === selectedWord) || [];
+  // Fetch translations and pronunciations when selectedWord changes
+  useEffect(() => {
+    const fetchWordData = async () => {
+      if (!selectedWord || !languageCode || !axiosInstance) {
+        setWordTranslations([]);
+        setWordPronunciations([]);
+        return;
+      }
+
+      try {
+        setLoadingTranslations(true);
+        setLoadingPronunciations(true);
+
+        const [translationsResponse, pronunciationsResponse] =
+          await Promise.all([
+            axiosInstance.get(
+              `/api/words/translations/${encodeURIComponent(selectedWord)}/${languageCode}/${targetLanguage}`
+            ),
+            axiosInstance.get(
+              `/api/words/pronunciations/${encodeURIComponent(selectedWord)}/${languageCode}`
+            ),
+          ]);
+
+        if (translationsResponse.data.success) {
+          setWordTranslations(translationsResponse.data.data || []);
+        } else {
+          setWordTranslations([]);
+        }
+
+        if (pronunciationsResponse.data.success) {
+          setWordPronunciations(pronunciationsResponse.data.data || []);
+        } else {
+          setWordPronunciations([]);
+        }
+      } catch (error) {
+        console.error('Error fetching word data:', error);
+        setWordTranslations([]);
+        setWordPronunciations([]);
+      } finally {
+        setLoadingTranslations(false);
+        setLoadingPronunciations(false);
+      }
+    };
+
+    fetchWordData();
+  }, [selectedWord, languageCode, targetLanguage, axiosInstance]);
+
+  const selectedTranslations = wordTranslations;
+  const selectedPronunciations = wordPronunciations;
 
   // Load existing word mark when selectedWord changes
   useEffect(() => {
@@ -338,7 +387,7 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
 
       {/* Content */}
       <Box p="4" style={{ flex: 1, overflow: 'auto' }}>
-        {loading ? (
+        {loadingTranslations || loadingPronunciations ? (
           <Flex
             direction="column"
             align="center"

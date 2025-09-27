@@ -75,12 +75,7 @@ const LessonViewPage: React.FC = () => {
 
   // Function to reconstruct sentence with word breakdown while preserving punctuation
   const reconstructSentenceWithWords = (sentence: Sentence) => {
-    const {
-      original_text: originalText,
-      split_text: splitWords,
-      word_translations,
-      word_pronunciations,
-    } = sentence;
+    const { original_text: originalText, split_text: splitWords } = sentence;
 
     if (!splitWords || splitWords.length === 0) {
       return null;
@@ -106,13 +101,7 @@ const LessonViewPage: React.FC = () => {
             cursor: 'pointer',
           }}
           className="word-badge"
-          onClick={() =>
-            handleWordClick(
-              word,
-              word_translations || null,
-              word_pronunciations || null
-            )
-          }
+          onClick={() => handleWordClick(word)}
         >
           {word}
         </Badge>
@@ -167,12 +156,6 @@ const LessonViewPage: React.FC = () => {
   }>({});
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [selectedWord, setSelectedWord] = useState<string | null>(null);
-  const [currentWordTranslations, setCurrentWordTranslations] = useState<
-    WordTranslation[] | null
-  >(null);
-  const [currentWordPronunciations, setCurrentWordPronunciations] = useState<
-    WordPronunciation[] | null
-  >(null);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [progressLoaded, setProgressLoaded] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -315,22 +298,14 @@ const LessonViewPage: React.FC = () => {
     setCurrentPage(page);
   };
 
-  const handleWordClick = (
-    word: string,
-    sentenceTranslations: WordTranslation[] | null,
-    sentencePronunciations: WordPronunciation[] | null
-  ) => {
+  const handleWordClick = (word: string) => {
     setSelectedWord(word);
-    setCurrentWordTranslations(sentenceTranslations);
-    setCurrentWordPronunciations(sentencePronunciations);
     setIsSidebarOpen(true);
   };
 
   const handleCloseSidebar = () => {
     setIsSidebarOpen(false);
     setSelectedWord(null);
-    setCurrentWordTranslations(null);
-    setCurrentWordPronunciations(null);
   };
 
   const handleLessonUpdated = (updatedLesson?: Partial<EditableLesson>) => {
@@ -637,9 +612,8 @@ const LessonViewPage: React.FC = () => {
         isOpen={isSidebarOpen}
         onClose={handleCloseSidebar}
         selectedWord={selectedWord}
-        wordTranslations={currentWordTranslations}
-        wordPronunciations={currentWordPronunciations}
         languageCode={lesson?.languageCode}
+        targetLanguage="en"
       />
 
       {/* Lesson Edit Dialog */}
