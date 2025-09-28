@@ -704,6 +704,116 @@ export class OpenAIService {
   }
 
   /**
+   * Simplify translations by selecting the most important ones
+   * @param word - The word being translated
+   * @param translations - Array of all translations
+   * @param sourceLanguage - Source language of the word
+   * @param targetLanguage - Target language (default: 'en')
+   * @returns Promise<string[]> - Array of simplified translations
+   */
+  async simplifyTranslations(
+    word: string,
+    translations: string[],
+    sourceLanguage: string,
+    targetLanguage: string = 'en'
+  ): Promise<string[]> {
+    try {
+      // JSON schema for structured output
+      const simplifyTranslationsSchema = {
+        type: 'object',
+        properties: {
+          simplifiedTranslations: {
+            type: 'array',
+            description: 'Array of simplified translations',
+            items: {
+              type: 'string',
+              description: 'A simplified translation',
+            },
+          },
+        },
+        required: ['simplifiedTranslations'],
+        additionalProperties: false,
+      } as const;
+
+      const systemPrompt = [
+        'You are a language expert that simplifies word translations.',
+        '',
+        `The word "${word}" in ${sourceLanguage} has ${translations.length} translations in ${targetLanguage}.`,
+        'Your task is to simplify the list to minimal list.',
+        '',
+        'Guidelines:',
+        '- Prioritize translations that cover different contexts or nuances',
+        '- Avoid very similar or redundant translations',
+        '- Maintain the original meaning and context',
+        '- Return a minimal but comprehensive set of translations',
+        '- Remove translation that the meaning is included in another translation',
+        '',
+        'Current translations:',
+        translations.map((t, i) => `${i + 1}. ${t}`).join('\n'),
+      ].join('\n');
+
+      const userPrompt = `Please simplify the translations for "${word}" and return them in the specified JSON format.`;
+
+      const completion = await this.client.chat.completions.create({
+        model: OPENAI_MODEL.GPT_41_MINI,
+        messages: [
+          {
+            role: 'system',
+            content: systemPrompt,
+          },
+          {
+            role: 'user',
+            content: userPrompt,
+          },
+        ],
+        response_format: {
+          type: 'json_schema',
+          json_schema: {
+            name: 'simplify_translations',
+            schema: simplifyTranslationsSchema,
+          },
+        },
+        temperature: 0.1,
+      });
+
+      const responseContent = completion.choices[0]?.message?.content;
+
+      if (!responseContent) {
+        throw new Error('No response received from OpenAI');
+      }
+
+      let parsedResponse: { simplifiedTranslations: string[] };
+      try {
+        parsedResponse = JSON.parse(responseContent);
+      } catch (parseError) {
+        console.error('Failed to parse OpenAI response:', parseError);
+        throw new Error('Invalid response format from OpenAI');
+      }
+
+      // Validate the response structure
+      if (
+        !parsedResponse ||
+        !Array.isArray(parsedResponse.simplifiedTranslations)
+      ) {
+        throw new Error('Invalid response structure from OpenAI');
+      }
+
+      // Clean and filter the translations
+      const simplifiedTranslations = parsedResponse.simplifiedTranslations
+        .map(t => t.trim())
+        .filter(t => t.length > 0);
+
+      console.log('simplifiedTranslations', simplifiedTranslations);
+
+      return simplifiedTranslations;
+    } catch (error) {
+      console.error('Error simplifying translations:', error);
+      // Fallback to first 3 translations if OpenAI fails
+      return translations.slice(0, 3);
+    }
+  }
+
+  /**
    * Crop image to specified region using sharp
    * @param imageBase64 - Base64 encoded image data
    * @param selection - Selection coordinates {x, y, width, height} as percentages (0-1)

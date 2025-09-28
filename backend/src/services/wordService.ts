@@ -1,5 +1,6 @@
 import { WordUserMarkSource } from '@prisma/client';
 import { UserActionLogService } from './userActionLogService';
+import { OpenAIService } from './ai/openaiService';
 
 import { prisma } from './index';
 
@@ -513,12 +514,64 @@ export class WordService {
         },
       });
 
+      const translationData = translations.map(t => ({
+        word: t.word.word,
+        translation: t.translation,
+      }));
+
+      // If there are more than 3 translations, simplify them using OpenAI
+      if (translationData.length >= 3) {
+        try {
+          const openaiService = new OpenAIService();
+          const translationTexts = translationData.map(t => t.translation);
+          const simplifiedTranslations =
+            await openaiService.simplifyTranslations(
+              word,
+              translationTexts,
+              sourceLanguage,
+              targetLanguage
+            );
+
+          if (!simplifiedTranslations?.length) {
+            return {
+              success: true,
+              data: translationData,
+              simplified: false,
+            };
+          }
+
+          // Update the database with simplified translations
+          await WordService.updateTranslationsInDatabase(
+            word,
+            sourceLanguage,
+            targetLanguage,
+            simplifiedTranslations
+          );
+
+          // Return the simplified translations
+          return {
+            success: true,
+            data: simplifiedTranslations.map(translation => ({
+              word: word,
+              translation: translation,
+            })),
+            simplified: true,
+          };
+        } catch (simplifyError) {
+          console.error('Error simplifying translations:', simplifyError);
+          // If simplification fails, return the original translations
+          return {
+            success: true,
+            data: translationData,
+            simplified: false,
+          };
+        }
+      }
+
       return {
         success: true,
-        data: translations.map(t => ({
-          word: t.word.word,
-          translation: t.translation,
-        })),
+        data: translationData,
+        simplified: false,
       };
     } catch (error) {
       console.error('Error getting word translations:', error);
@@ -593,6 +646,50 @@ export class WordService {
         success: false,
         message: 'Failed to get word stems',
       };
+    }
+  }
+
+  /**
+   * Update translations in database by replacing old ones with simplified ones
+   */
+  private static async updateTranslationsInDatabase(
+    word: string,
+    sourceLanguage: string,
+    targetLanguage: string,
+    simplifiedTranslations: string[]
+  ): Promise<void> {
+    try {
+      // First, get the word ID
+      const wordRecord = await prisma.word.findFirst({
+        where: {
+          word: word,
+          language_code: sourceLanguage,
+        },
+      });
+
+      if (!wordRecord) {
+        throw new Error(`Word "${word}" not found in database`);
+      }
+
+      // Delete existing translations for this word and target language
+      await prisma.wordTranslation.deleteMany({
+        where: {
+          word_id: wordRecord.id,
+          language_code: targetLanguage,
+        },
+      });
+
+      // Insert the simplified translations
+      await prisma.wordTranslation.createMany({
+        data: simplifiedTranslations.map(translation => ({
+          word_id: wordRecord.id,
+          language_code: targetLanguage,
+          translation: translation,
+        })),
+      });
+    } catch (error) {
+      console.error('Error updating translations in database:', error);
+      throw error;
     }
   }
 }
