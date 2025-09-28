@@ -301,4 +301,38 @@ router.get(
   }
 );
 
+// Get word stems
+router.get(
+  '/stems/:word/:languageCode',
+  async (req: Request, res: Response) => {
+    try {
+      const { word, languageCode } = req.params;
+
+      if (!word || !languageCode) {
+        return res.status(400).json({
+          success: false,
+          message: 'Word and language code are required',
+        });
+      }
+
+      const result = await WordService.getWordStems(
+        decodeURIComponent(word),
+        languageCode
+      );
+
+      if (result.success) {
+        return res.json(result);
+      } else {
+        return res.status(400).json(result);
+      }
+    } catch (error) {
+      console.error('Get word stems route error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+      });
+    }
+  }
+);
+
 export default router;

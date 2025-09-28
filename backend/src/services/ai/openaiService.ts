@@ -13,6 +13,7 @@ export interface WordTranslation {
   translation: string;
   pronunciation?: string;
   pronunciationType?: PronunciationType;
+  stems?: string[];
 }
 
 // Interface for the complete sentence analysis
@@ -77,6 +78,14 @@ const wordTranslationSchema = {
             type: 'string',
             enum: ['hiragana', 'romanization', 'pinyin', 'ipa'],
             description: 'Type of pronunciation provided',
+          },
+          stems: {
+            type: 'array',
+            items: {
+              type: 'string',
+            },
+            description:
+              'Word stems or root forms (e.g., for English: "running" -> ["run"], for Spanish: "corriendo" -> ["correr"])',
           },
         },
         required: ['word', 'translation', 'pronunciation', 'pronunciationType'],
@@ -166,6 +175,7 @@ export class OpenAIService {
         '2. Provide accurate English translations for each word',
         '3. Provide pronunciations for each word based on the language:',
         pronunciationInfo.instruction,
+        '4. Provide word stems or root forms for each word (e.g., for English: "running" -> ["run"], for Spanish: "corriendo" -> ["correr"])',
         '',
         'Guidelines:',
         '- Split compound words appropriately for the language',
@@ -174,6 +184,9 @@ export class OpenAIService {
         '- Be consistent with word segmentation',
         '- Exclude punctuation marks from the word list',
         '- If there is a name, split the name into first name and last name as 2 words and separate that from suffix',
+        '- For word stems: provide the base/root form of the word (e.g., infinitive for verbs, singular for nouns)',
+        '- Include multiple stems if the word has multiple meanings or can be derived from different roots',
+        '- For languages with complex morphology (like Spanish, French), always provide the canonical form',
         pronunciationInfo.guideline,
       ].join('\n');
 
@@ -236,6 +249,9 @@ export class OpenAIService {
         ...(word.pronunciationType && {
           pronunciationType: word.pronunciationType,
         }),
+        ...(word.stems &&
+          Array.isArray(word.stems) &&
+          word.stems.length > 0 && { stems: word.stems }),
       }));
 
       // Override the language with the provided source language

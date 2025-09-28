@@ -15,12 +15,18 @@ export interface WordWithPronunciation {
   pronunciationType: string;
 }
 
+export interface WordWithStems {
+  word: string;
+  stems: string[];
+}
+
 export interface SentenceWithSplitText {
   id: number;
   original_text: string;
   split_text: string[] | null;
   word_translations?: WordWithTranslation[] | null;
   word_pronunciations?: WordWithPronunciation[] | null;
+  word_stems?: WordWithStems[] | null;
   start_time: number | null;
   end_time: number | null;
   translation?: string | null;
@@ -69,6 +75,7 @@ export class SentenceService {
       pronunciation?: string;
       pronunciationType?: string;
       partOfSpeech?: string;
+      stems?: string[];
     }>,
     sourceLanguage: string,
     targetLanguage: string = 'en',
@@ -141,6 +148,33 @@ export class SentenceService {
           }
         }
 
+        // Store word stems if provided (skip if stem is same as original word)
+        if (
+          wordObj.stems &&
+          Array.isArray(wordObj.stems) &&
+          wordObj.stems.length > 0
+        ) {
+          for (const stem of wordObj.stems) {
+            const trimmedStem = stem.trim();
+            // Skip storing if stem is the same as the original word
+            if (trimmedStem && trimmedStem !== trimmedWord) {
+              await prisma.wordStem.upsert({
+                where: {
+                  word_id_stem: {
+                    word_id: word.id,
+                    stem: trimmedStem,
+                  },
+                },
+                update: {},
+                create: {
+                  word_id: word.id,
+                  stem: trimmedStem,
+                },
+              });
+            }
+          }
+        }
+
         // Link word to sentence if sentenceId is provided
         if (sentenceId) {
           try {
@@ -207,9 +241,10 @@ export class SentenceService {
           `Sentence ${sentence.id} already has split_text, fetching word translations`
         );
 
-        // Fetch word translations and pronunciations for existing split_text
+        // Fetch word translations, pronunciations, and stems for existing split_text
         const wordTranslations: WordWithTranslation[] = [];
         const wordPronunciations: WordWithPronunciation[] = [];
+        const wordStems: WordWithStems[] = [];
 
         for (const word of splitText) {
           const trimmedWord = word.trim();
@@ -228,6 +263,7 @@ export class SentenceService {
                 },
               },
               wordPronunciations: true, // Include all pronunciations
+              stems: true, // Include all stems
             },
           });
 
@@ -254,6 +290,15 @@ export class SentenceService {
               });
             });
           }
+
+          // Add stems separately
+          if (wordRecord && wordRecord.stems.length > 0) {
+            const stems = wordRecord.stems.map(stem => stem.stem);
+            wordStems.push({
+              word: trimmedWord,
+              stems: stems,
+            });
+          }
         }
 
         processedResults.push({
@@ -262,6 +307,7 @@ export class SentenceService {
           split_text: splitText,
           word_translations: wordTranslations,
           word_pronunciations: wordPronunciations,
+          word_stems: wordStems,
           start_time: sentence.start_time ? Number(sentence.start_time) : null,
           end_time: sentence.end_time ? Number(sentence.end_time) : null,
         });
@@ -325,6 +371,19 @@ export class SentenceService {
                 pronunciationType: wordObj.pronunciationType!,
               }));
 
+            // Create word stems array from analysis
+            const wordStems: WordWithStems[] = analysis.words
+              .filter(
+                wordObj =>
+                  wordObj.stems &&
+                  Array.isArray(wordObj.stems) &&
+                  wordObj.stems.length > 0
+              )
+              .map(wordObj => ({
+                word: wordObj.word,
+                stems: wordObj.stems!,
+              }));
+
             // Store words and translations in the database
             await this.storeWordTranslations(
               analysis.words,
@@ -345,6 +404,7 @@ export class SentenceService {
               split_text: splitText,
               word_translations: wordTranslations,
               word_pronunciations: wordPronunciations,
+              word_stems: wordStems,
               start_time: sentence.start_time
                 ? Number(sentence.start_time)
                 : null,
@@ -364,6 +424,7 @@ export class SentenceService {
           split_text: null as string[] | null,
           word_translations: null as WordWithTranslation[] | null,
           word_pronunciations: null as WordWithPronunciation[] | null,
+          word_stems: null as WordWithStems[] | null,
           start_time: sentence.start_time ? Number(sentence.start_time) : null,
           end_time: sentence.end_time ? Number(sentence.end_time) : null,
         }));
@@ -374,7 +435,7 @@ export class SentenceService {
     // Sort results by original order (by id)
     processedResults.sort((a, b) => a.id - b.id);
 
-    // Deduplicate word_translations and word_pronunciations for each sentence
+    // Deduplicate word_translations, word_pronunciations, and word_stems for each sentence
     processedResults.forEach(sentence => {
       if (sentence.word_translations) {
         // Deduplicate translations by word + translation combination
@@ -400,6 +461,18 @@ export class SentenceService {
         sentence.word_pronunciations = Array.from(
           uniquePronunciations.values()
         );
+      }
+
+      if (sentence.word_stems) {
+        // Deduplicate stems by word + stems combination
+        const uniqueStems = new Map<string, WordWithStems>();
+        sentence.word_stems.forEach(stemObj => {
+          const key = `${stemObj.word}|${stemObj.stems.sort().join(',')}`;
+          if (!uniqueStems.has(key)) {
+            uniqueStems.set(key, stemObj);
+          }
+        });
+        sentence.word_stems = Array.from(uniqueStems.values());
       }
     });
 

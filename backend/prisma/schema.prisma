@@ -141,6 +141,7 @@ model Word {
   wordPronunciations WordPronunciation[]
   wordUserMarks      WordUserMark[]
   sentenceWords      SentenceWord[]
+  stems              WordStem[]
 
   @@unique([word, language_code])
   @@index([word])
@@ -173,6 +174,19 @@ model WordPronunciation {
 
   @@unique([word_id, pronunciation, pronunciation_type])
   @@map("word_pronunciation")
+}
+
+model WordStem {
+  id         Int      @id @default(autoincrement())
+  word_id    Int
+  stem       String   @db.VarChar(255)
+  created_at DateTime @default(now()) @db.Timestamp(0)
+  updated_at DateTime @default(now()) @updatedAt @db.Timestamp(0)
+
+  word Word @relation(fields: [word_id], references: [id])
+
+  @@unique([word_id, stem])
+  @@map("word_stem")
 }
 
 enum WordUserMarkSource {

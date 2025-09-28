@@ -21,6 +21,11 @@ interface WordPronunciation {
   pronunciationType: string;
 }
 
+interface WordStems {
+  word: string;
+  stems: string[];
+}
+
 interface WordUserMark {
   id: number;
   note: string;
@@ -59,8 +64,10 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
   const [wordPronunciations, setWordPronunciations] = useState<
     WordPronunciation[]
   >([]);
+  const [wordStems, setWordStems] = useState<WordStems[]>([]);
   const [loadingTranslations, setLoadingTranslations] = useState(false);
   const [loadingPronunciations, setLoadingPronunciations] = useState(false);
+  const [loadingStems, setLoadingStems] = useState(false);
 
   // Fetch translations and pronunciations when selectedWord changes
   useEffect(() => {
@@ -68,20 +75,25 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
       if (!selectedWord || !languageCode || !axiosInstance) {
         setWordTranslations([]);
         setWordPronunciations([]);
+        setWordStems([]);
         return;
       }
 
       try {
         setLoadingTranslations(true);
         setLoadingPronunciations(true);
+        setLoadingStems(true);
 
-        const [translationsResponse, pronunciationsResponse] =
+        const [translationsResponse, pronunciationsResponse, stemsResponse] =
           await Promise.all([
             axiosInstance.get(
               `/api/words/translations/${encodeURIComponent(selectedWord)}/${languageCode}/${targetLanguage}`
             ),
             axiosInstance.get(
               `/api/words/pronunciations/${encodeURIComponent(selectedWord)}/${languageCode}`
+            ),
+            axiosInstance.get(
+              `/api/words/stems/${encodeURIComponent(selectedWord)}/${languageCode}`
             ),
           ]);
 
@@ -96,13 +108,21 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
         } else {
           setWordPronunciations([]);
         }
+
+        if (stemsResponse.data.success) {
+          setWordStems(stemsResponse.data.data || []);
+        } else {
+          setWordStems([]);
+        }
       } catch (error) {
         console.error('Error fetching word data:', error);
         setWordTranslations([]);
         setWordPronunciations([]);
+        setWordStems([]);
       } finally {
         setLoadingTranslations(false);
         setLoadingPronunciations(false);
+        setLoadingStems(false);
       }
     };
 
@@ -111,6 +131,7 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
 
   const selectedTranslations = wordTranslations;
   const selectedPronunciations = wordPronunciations;
+  const selectedStems = wordStems;
 
   // Load existing word mark when selectedWord changes
   useEffect(() => {
@@ -188,6 +209,35 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
                 <Text size="2" color="gray" ml="2">
                   ({pronunciation.pronunciationType})
                 </Text>
+              </Box>
+            ))}
+          </Flex>
+        </Box>
+        <Separator size="4" />
+      </>
+    );
+  };
+
+  // Reusable stems component
+  const StemsSection: React.FC<{
+    stems: WordStems[];
+  }> = ({ stems }) => {
+    if (stems.length === 0) return null;
+
+    return (
+      <>
+        <Box>
+          <Text size="2" color="gray" mb="2" as="div">
+            {stems.length > 1 ? 'Word Stems' : 'Word Stem'}
+          </Text>
+          <Flex direction="column" gap="2">
+            {stems.map((stemObj, index) => (
+              <Box key={index}>
+                {stemObj.stems.map((stem, stemIndex) => (
+                  <Text key={stemIndex} size="4" color="purple" weight="medium">
+                    {stem}
+                  </Text>
+                ))}
               </Box>
             ))}
           </Flex>
@@ -301,8 +351,9 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
     word: string;
     translations: WordTranslation[];
     pronunciations: WordPronunciation[];
+    stems: WordStems[];
     languageCode?: string | undefined;
-  }> = ({ word, translations, pronunciations, languageCode }) => (
+  }> = ({ word, translations, pronunciations, stems, languageCode }) => (
     <Card style={{ padding: '16px' }}>
       <Flex direction="column" gap="3">
         <Box>
@@ -318,6 +369,9 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
 
         {/* Pronunciation Section */}
         <PronunciationSection pronunciations={pronunciations} />
+
+        {/* Stems Section */}
+        <StemsSection stems={stems} />
 
         {/* Translation Section */}
         <Box>
@@ -387,7 +441,7 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
 
       {/* Content */}
       <Box p="4" style={{ flex: 1, overflow: 'auto' }}>
-        {loadingTranslations || loadingPronunciations ? (
+        {loadingTranslations || loadingPronunciations || loadingStems ? (
           <Flex
             direction="column"
             align="center"
@@ -403,6 +457,7 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
             word={selectedWord}
             translations={selectedTranslations}
             pronunciations={selectedPronunciations}
+            stems={selectedStems}
             languageCode={languageCode}
           />
         ) : (

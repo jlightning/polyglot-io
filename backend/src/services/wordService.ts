@@ -562,4 +562,37 @@ export class WordService {
       };
     }
   }
+
+  /**
+   * Get word stems by word and language
+   */
+  static async getWordStems(word: string, languageCode: string) {
+    try {
+      const stems = await prisma.wordStem.findMany({
+        where: {
+          word: {
+            word: word,
+            language_code: languageCode,
+          },
+        },
+        include: {
+          word: true,
+        },
+      });
+
+      return {
+        success: true,
+        data: stems.map(s => ({
+          word: s.word.word,
+          stems: [s.stem],
+        })),
+      };
+    } catch (error) {
+      console.error('Error getting word stems:', error);
+      return {
+        success: false,
+        message: 'Failed to get word stems',
+      };
+    }
+  }
 }
