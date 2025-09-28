@@ -12,7 +12,7 @@ import MyButton from '../components/MyButton';
 import { useAuth } from '../contexts/AuthContext';
 import { useWordMark } from '../contexts/WordMarkContext';
 import WordSidebar from '../components/WordSidebar';
-import { getDifficultyStyles } from '../constants/difficultyColors';
+import SentenceReconstructor from '../components/SentenceReconstructor';
 import axios from 'axios';
 
 interface WordTranslation {
@@ -69,7 +69,7 @@ const LessonMangaViewPage: React.FC = () => {
   const { lessonId } = useParams<{ lessonId: string }>();
   const navigate = useNavigate();
   const { axiosInstance, isAuthenticated, isLoading: authLoading } = useAuth();
-  const { getWordMark, addWords } = useWordMark();
+  const { addWords } = useWordMark();
 
   // Use a ref to store the current addWords function to avoid callback recreations
   const addWordsRef = useRef(addWords);
@@ -379,68 +379,6 @@ const LessonMangaViewPage: React.FC = () => {
     if (currentMangaPageIndex > 0) {
       setCurrentMangaPageIndex(currentMangaPageIndex - 1);
     }
-  };
-
-  // Sentence reconstruction with clickable words
-  const reconstructSentenceWithWords = (
-    sentence: Sentence,
-    fontSize = '16px'
-  ) => {
-    const { original_text: originalText, split_text: splitWords } = sentence;
-
-    if (!splitWords || splitWords.length === 0) {
-      return originalText;
-    }
-
-    const createWordBadge = (word: string, index: number) => {
-      const wordMark = getWordMark(word);
-      return (
-        <Badge
-          key={index}
-          variant="soft"
-          size="2"
-          style={{
-            transition: 'all 0.2s ease',
-            color: 'white',
-            margin: '0',
-            padding: '2px 0',
-            fontSize,
-            ...(wordMark !== undefined
-              ? getDifficultyStyles(wordMark)
-              : { border: '1px solid transparent' }),
-            cursor: 'pointer',
-          }}
-          onClick={() => handleWordClick(word)}
-        >
-          {word}
-        </Badge>
-      );
-    };
-
-    const elements: (string | JSX.Element)[] = [];
-    let currentIndex = 0;
-    let wordIndex = 0;
-
-    for (const word of splitWords) {
-      const wordStartIndex = originalText.indexOf(word, currentIndex);
-
-      if (wordStartIndex !== -1) {
-        if (wordStartIndex > currentIndex) {
-          const beforeWord = originalText.slice(currentIndex, wordStartIndex);
-          elements.push(beforeWord);
-        }
-        currentIndex = wordStartIndex + word.length;
-      }
-
-      elements.push(createWordBadge(word, wordIndex));
-      wordIndex++;
-    }
-
-    if (currentIndex < originalText.length) {
-      elements.push(originalText.slice(currentIndex));
-    }
-
-    return elements;
   };
 
   const handleWordClick = (word: string) => {
@@ -1160,7 +1098,12 @@ const LessonMangaViewPage: React.FC = () => {
                                   >
                                     {sentence.split_text &&
                                     sentence.split_text.length > 0 ? (
-                                      reconstructSentenceWithWords(sentence)
+                                      <SentenceReconstructor
+                                        sentence={sentence}
+                                        fontSize="16px"
+                                        onWordClick={handleWordClick}
+                                        fallbackToOriginalText={true}
+                                      />
                                     ) : (
                                       <Text
                                         size="3"

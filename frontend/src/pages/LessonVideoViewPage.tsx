@@ -12,7 +12,7 @@ import MyButton from '../components/MyButton';
 import { useAuth } from '../contexts/AuthContext';
 import { useWordMark } from '../contexts/WordMarkContext';
 import WordSidebar from '../components/WordSidebar';
-import { getDifficultyStyles } from '../constants/difficultyColors';
+import SentenceReconstructor from '../components/SentenceReconstructor';
 import axios from 'axios';
 
 interface WordTranslation {
@@ -593,68 +593,6 @@ const LessonVideoViewPage: React.FC = () => {
     }
   };
 
-  // Sentence reconstruction with clickable words
-  const reconstructSentenceWithWords = (
-    sentence: Sentence,
-    fontSize = '16px'
-  ) => {
-    const { original_text: originalText, split_text: splitWords } = sentence;
-
-    if (!splitWords || splitWords.length === 0) {
-      return originalText;
-    }
-
-    const createWordBadge = (word: string, index: number) => {
-      const wordMark = getWordMark(word);
-      return (
-        <Badge
-          key={index}
-          variant="soft"
-          size="2"
-          style={{
-            transition: 'all 0.2s ease',
-            color: 'white',
-            margin: '0',
-            padding: '2px 0',
-            fontSize,
-            ...(wordMark !== undefined
-              ? getDifficultyStyles(wordMark)
-              : { border: '1px solid transparent' }),
-            cursor: 'pointer',
-          }}
-          onClick={() => handleWordClick(word)}
-        >
-          {word}
-        </Badge>
-      );
-    };
-
-    const elements: (string | JSX.Element)[] = [];
-    let currentIndex = 0;
-    let wordIndex = 0;
-
-    for (const word of splitWords) {
-      const wordStartIndex = originalText.indexOf(word, currentIndex);
-
-      if (wordStartIndex !== -1) {
-        if (wordStartIndex > currentIndex) {
-          const beforeWord = originalText.slice(currentIndex, wordStartIndex);
-          elements.push(beforeWord);
-        }
-        currentIndex = wordStartIndex + word.length;
-      }
-
-      elements.push(createWordBadge(word, wordIndex));
-      wordIndex++;
-    }
-
-    if (currentIndex < originalText.length) {
-      elements.push(originalText.slice(currentIndex));
-    }
-
-    return elements;
-  };
-
   const handleWordClick = (word: string) => {
     // Pause the video when a word is clicked
     if (videoRef.current && isPlaying) {
@@ -820,7 +758,12 @@ const LessonVideoViewPage: React.FC = () => {
               >
                 {activeSentence.split_text &&
                 activeSentence.split_text.length > 0 ? (
-                  reconstructSentenceWithWords(activeSentence, '20px')
+                  <SentenceReconstructor
+                    sentence={activeSentence}
+                    fontSize="20px"
+                    onWordClick={handleWordClick}
+                    fallbackToOriginalText={true}
+                  />
                 ) : (
                   <Text size="4" style={{ color: 'white' }}>
                     {activeSentence.original_text}
@@ -1181,7 +1124,12 @@ const LessonVideoViewPage: React.FC = () => {
                       >
                         {activeSentence.split_text &&
                         activeSentence.split_text.length > 0 ? (
-                          reconstructSentenceWithWords(activeSentence)
+                          <SentenceReconstructor
+                            sentence={activeSentence}
+                            fontSize="16px"
+                            onWordClick={handleWordClick}
+                            fallbackToOriginalText={true}
+                          />
                         ) : (
                           <Text size="3" style={{ lineHeight: '1.6' }}>
                             {activeSentence.original_text}
