@@ -423,17 +423,18 @@ const LessonVideoViewPage: React.FC = () => {
   // Find next few sentences to display
   const findNextSentences = useCallback(
     (currentSentence: Sentence | null, count: number = 3): Sentence[] => {
-      if (!currentSentence) return [];
+      if (!currentSentence || !currentSentence.start_time) return [];
 
-      const currentIndex = sentenceBuffer.sentences.findIndex(
-        s => s.id === currentSentence.id
+      // Filter for sentences that have start_time >= current sentence start_time
+      const filteredSentences = sentenceBuffer.sentences.filter(
+        sentence =>
+          sentence.start_time !== null &&
+          sentence.start_time >= currentSentence.start_time! &&
+          sentence.id !== currentSentence.id // Exclude the current sentence itself
       );
-      if (currentIndex === -1) return [];
 
-      return sentenceBuffer.sentences.slice(
-        currentIndex + 1,
-        currentIndex + 1 + count
-      );
+      // Take the first <count> sentences
+      return filteredSentences.slice(0, count);
     },
     [sentenceBuffer.sentences]
   );
@@ -682,22 +683,26 @@ const LessonVideoViewPage: React.FC = () => {
 
   // Check if current sentence is the last sentence in the lesson
   const isLastSentence = useMemo(() => {
-    if (!activeSentence || !lesson) return false;
+    if (!activeSentence || !lesson || !activeSentence.start_time) return false;
 
     // Check if we have loaded all sentences
-    const totalLoadedSentences = sentenceBuffer.sentences.length;
     const hasLoadedAllPages =
       sentenceBuffer.loadedPages.size === sentenceBuffer.totalPages;
 
     if (!hasLoadedAllPages) return false;
 
-    // Find the index of the current sentence in the buffer
-    const currentIndex = sentenceBuffer.sentences.findIndex(
-      s => s.id === activeSentence.id
+    // Filter for sentences that have start_time >= current sentence start_time
+    // and exclude the current sentence itself
+    const sentencesAfterCurrent = sentenceBuffer.sentences.filter(
+      sentence =>
+        sentence.start_time !== null &&
+        sentence.start_time >= activeSentence.start_time! &&
+        sentence.id !== activeSentence.id
     );
 
-    // Check if this is the last sentence in the buffer (and we've loaded all sentences)
-    return currentIndex === totalLoadedSentences - 1;
+    // If there are no sentences after the current one (with start_time >= current start_time),
+    // then this is the last sentence
+    return sentencesAfterCurrent.length === 0;
   }, [activeSentence, lesson, sentenceBuffer]);
 
   // Format time for display
