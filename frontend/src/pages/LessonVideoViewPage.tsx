@@ -1061,10 +1061,10 @@ const LessonVideoViewPage: React.FC = () => {
       <Box
         style={{
           position: 'fixed',
-          top: isSidebarOpen ? '50vh' : '0',
+          top: isSidebarOpen ? '60vh' : '0',
           right: '0',
           width: '350px',
-          height: isSidebarOpen ? '50vh' : '100vh',
+          height: isSidebarOpen ? '40vh' : '100vh',
           backgroundColor: 'var(--color-surface)',
           borderLeft: '1px solid var(--gray-6)',
           borderTop: isSidebarOpen ? '1px solid var(--gray-6)' : 'none',
