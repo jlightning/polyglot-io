@@ -231,15 +231,9 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
             {stems.length > 1 ? 'Word Stems' : 'Word Stem'}
           </Text>
           <Flex direction="column" gap="2">
-            {stems.map((stemObj, index) => (
-              <Box key={index}>
-                {stemObj.stems.map((stem, stemIndex) => (
-                  <Text key={stemIndex} size="4" color="purple" weight="medium">
-                    {stem}
-                  </Text>
-                ))}
-              </Box>
-            ))}
+            <Text size="4" color="purple" weight="medium">
+              {stems.flatMap(stemObj => stemObj.stems).join(', ')}
+            </Text>
           </Flex>
         </Box>
         <Separator size="4" />
