@@ -407,15 +407,21 @@ const LessonVideoViewPage: React.FC = () => {
   // Find previous sentences to display
   const findPreviousSentences = useCallback(
     (currentSentence: Sentence | null, count: number = 3): Sentence[] => {
-      if (!currentSentence) return [];
+      if (!currentSentence || !currentSentence.start_time) return [];
 
-      const currentIndex = sentenceBuffer.sentences.findIndex(
-        s => s.id === currentSentence.id
+      // Filter for sentences that have start_time < current sentence start_time
+      const filteredSentences = sentenceBuffer.sentences.filter(
+        sentence =>
+          sentence.start_time !== null &&
+          sentence.start_time < currentSentence.start_time! &&
+          sentence.id !== currentSentence.id // Exclude the current sentence itself
       );
-      if (currentIndex === -1 || currentIndex === 0) return [];
 
-      const startIndex = Math.max(0, currentIndex - count);
-      return sentenceBuffer.sentences.slice(startIndex, currentIndex);
+      // Sort by start_time descending to get the most recent previous sentences
+      filteredSentences.sort((a, b) => b.start_time! - a.start_time!);
+
+      // Take the first <count> sentences and reverse to maintain chronological order
+      return filteredSentences.slice(0, count).reverse();
     },
     [sentenceBuffer.sentences]
   );
