@@ -13,6 +13,7 @@ import importRoutes from './routes/importRoutes';
 import { S3Service } from './services/s3Service';
 import { authenticateToken } from './middleware/auth';
 import { prisma } from './services';
+import { CronService } from './services/cronService';
 
 // Load environment variables
 dotenv.config();
@@ -87,3 +88,5 @@ process.on('SIGINT', async () => {
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
 });
+
+new CronService().registerCron();

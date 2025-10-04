@@ -3,6 +3,7 @@ import { UserActionLogService } from './userActionLogService';
 import { OpenAIService } from './ai/openaiService';
 
 import { prisma } from './index';
+import { NUMBER_OF_TRANSLATION_TO_REDUCE } from './consts';
 
 interface CreateWordUserMarkData {
   word: string;
@@ -519,8 +520,8 @@ export class WordService {
         translation: t.translation,
       }));
 
-      // If there are more than 3 translations, simplify them using OpenAI
-      if (translationData.length >= 3) {
+      // If there are more than NUMBER_OF_TRANSLATION_TO_REDUCE translations, simplify them using OpenAI
+      if (translationData.length >= NUMBER_OF_TRANSLATION_TO_REDUCE) {
         try {
           const openaiService = new OpenAIService();
           const translationTexts = translationData.map(t => t.translation);

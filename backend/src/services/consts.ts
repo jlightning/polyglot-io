@@ -1,0 +1,1 @@
+export const NUMBER_OF_TRANSLATION_TO_REDUCE = 3;
