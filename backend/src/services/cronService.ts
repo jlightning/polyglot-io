@@ -10,9 +10,12 @@ export class CronService {
 
   registerWordTranslationCleaningCron(): void {
     let isRunning = false;
+
     cron.schedule('*/30 * * * *', async () => {
       if (isRunning) return;
       isRunning = true;
+
+      console.log('Running registerWordTranslationCleaningCron');
 
       try {
         const wordIdsToProcess = await prisma.wordTranslation.groupBy({
