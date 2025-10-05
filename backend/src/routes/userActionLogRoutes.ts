@@ -25,6 +25,13 @@ router.post('/log', async (req: Request, res: Response) => {
         });
       }
 
+      if (!actionData.sentence_id) {
+        return res.status(400).json({
+          success: false,
+          message: 'Sentence_id is required for read action',
+        });
+      }
+
       // Look up or create the word to get word_id
       const word = await prisma.word.findUnique({
         where: {
@@ -41,7 +48,7 @@ router.post('/log', async (req: Request, res: Response) => {
       result = await UserActionLogService.logReadAction(
         req.userId!,
         languageCode,
-        { word_id: word.id }
+        { word_id: word.id, sentence_id: actionData.sentence_id }
       );
     } else {
       return res.status(400).json({

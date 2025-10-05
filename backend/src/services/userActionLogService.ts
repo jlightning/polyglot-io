@@ -10,6 +10,7 @@ interface WordMarkActionData {
 
 interface ReadActionData {
   word_id: number;
+  sentence_id: number;
 }
 
 export class UserActionLogService {

@@ -8,6 +8,7 @@ import dayjs from 'dayjs';
 
 // Global tracking for word read deduplication (max once per second per word)
 const lastLoggedWords: Record<string, number> = {};
+const lastLoggedWordSentence: Record<string, number> = {};
 
 interface WordTranslation {
   word: string;
@@ -59,13 +60,11 @@ const SentenceReconstructor: React.FC<SentenceReconstructorProps> = ({
 
     const lastLogged = lastLoggedWords[word];
 
-    if (lastLogged && dayjs().unix() - lastLogged < 1) {
-      // Skip logging if less than 1 second has passed
-      return;
-    }
+    if (lastLogged && dayjs().unix() - lastLogged < 1) return;
+    if (sentence.id === lastLoggedWordSentence[word]) return;
 
-    // Update last logged time
     lastLoggedWords[word] = dayjs().unix();
+    lastLoggedWordSentence[word] = sentence.id;
 
     try {
       await axiosInstance.post('/api/user-action-log/log', {
@@ -73,6 +72,7 @@ const SentenceReconstructor: React.FC<SentenceReconstructorProps> = ({
         languageCode: selectedLanguage,
         actionData: {
           word,
+          sentence_id: sentence.id,
         },
       });
 
