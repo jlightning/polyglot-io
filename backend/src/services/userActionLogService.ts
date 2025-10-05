@@ -59,13 +59,22 @@ export class UserActionLogService {
     actionData: ReadActionData
   ) {
     try {
-      const userAction = await prisma.userActionLog.create({
-        data: {
+      const userAction = await prisma.userActionLog.upsert({
+        where: {
+          is_read_user_id_word_id_sentence_id: {
+            is_read: true,
+            user_id: userId,
+            sentence_id: actionData.sentence_id,
+            word_id: actionData.word_id,
+          },
+        },
+        create: {
           user_id: userId,
           language_code: languageCode,
           type: UserActionType.read,
           action: actionData as unknown as Prisma.JsonObject,
         },
+        update: {},
       });
 
       console.log(`Read action logged for user ${userId}:`, {

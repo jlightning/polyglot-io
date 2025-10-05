@@ -236,10 +236,14 @@ model UserActionLog {
   user_id       Int
   language_code String         @db.VarChar(10)
   type          UserActionType
+  is_read       Boolean?       @default(dbgenerated("IF(type = 'read', 1, NULL)"))
   action        Json
+  word_id       Int?           @default(dbgenerated("JSON_EXTRACT(action, '$.word_id')"))
+  sentence_id   Int?           @default(dbgenerated("JSON_EXTRACT(action, '$.sentence_id')"))
   created_at    DateTime       @default(now()) @db.Timestamp(0)
 
   user User @relation(fields: [user_id], references: [id])
 
+  @@unique([is_read, user_id, word_id, sentence_id])
   @@map("user_action_log")
 }
