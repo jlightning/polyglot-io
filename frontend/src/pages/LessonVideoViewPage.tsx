@@ -267,7 +267,9 @@ const LessonVideoViewPage: React.FC = () => {
 
             return {
               ...prev,
-              sentences: [...prev.sentences, ...uniqueNewSentences],
+              sentences: [...prev.sentences, ...uniqueNewSentences].sort(
+                (a, b) => a.id - b.id
+              ),
               loadedPages: new Set([...prev.loadedPages, page]),
               loadingPages: newLoadingPages,
               isLoading: newLoadingPages.size > 0,
