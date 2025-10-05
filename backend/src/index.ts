@@ -10,6 +10,7 @@ import s3Routes from './routes/s3Routes';
 import wordRoutes from './routes/wordRoutes';
 import userScoreRoutes from './routes/userScoreRoutes';
 import importRoutes from './routes/importRoutes';
+import userActionLogRoutes from './routes/userActionLogRoutes';
 import { S3Service } from './services/s3Service';
 import { authenticateToken } from './middleware/auth';
 import { prisma } from './services';
@@ -59,6 +60,7 @@ app.use('/api/s3', authenticateToken, s3Routes);
 app.use('/api/words', authenticateToken, wordRoutes);
 app.use('/api/user-score', authenticateToken, userScoreRoutes);
 app.use('/api/import', authenticateToken, importRoutes);
+app.use('/api/user-action-log', authenticateToken, userActionLogRoutes);
 
 // Error handling middleware
 app.use(

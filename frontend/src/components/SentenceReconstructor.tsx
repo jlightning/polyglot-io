@@ -1,7 +1,13 @@
 import React from 'react';
 import { Badge } from '@radix-ui/themes';
 import { useWordMark } from '../contexts/WordMarkContext';
+import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import { getDifficultyStyles } from '../constants/difficultyColors';
+import dayjs from 'dayjs';
+
+// Global tracking for word read deduplication (max once per second per word)
+const lastLoggedWords: Record<string, number> = {};
 
 interface WordTranslation {
   word: string;
@@ -40,14 +46,47 @@ const SentenceReconstructor: React.FC<SentenceReconstructorProps> = ({
   className,
 }) => {
   const { getWordMark } = useWordMark();
+  const { axiosInstance } = useAuth();
+  const { selectedLanguage } = useLanguage();
   const { original_text: originalText, split_text: splitWords } = sentence;
 
   if (!splitWords || splitWords.length === 0) {
     return fallbackToOriginalText ? originalText : null;
   }
 
+  const logReadAction = async (word: string) => {
+    if (!axiosInstance || !selectedLanguage) return;
+
+    const lastLogged = lastLoggedWords[word];
+
+    if (lastLogged && dayjs().unix() - lastLogged < 1) {
+      // Skip logging if less than 1 second has passed
+      return;
+    }
+
+    // Update last logged time
+    lastLoggedWords[word] = dayjs().unix();
+
+    try {
+      await axiosInstance.post('/api/user-action-log/log', {
+        type: 'read',
+        languageCode: selectedLanguage,
+        actionData: {
+          word,
+        },
+      });
+
+      // Update last logged time
+      lastLoggedWords[word] = dayjs().unix();
+    } catch (error) {
+      console.error('Error logging read action:', error);
+      // Don't show error to user, just log it
+    }
+  };
+
   const createWordBadge = (word: string, index: number) => {
     const wordMark = getWordMark(word);
+    logReadAction(word);
     return (
       <Badge
         key={index}
@@ -65,7 +104,9 @@ const SentenceReconstructor: React.FC<SentenceReconstructorProps> = ({
           cursor: 'pointer',
         }}
         className={className}
-        onClick={() => onWordClick(word)}
+        onClick={() => {
+          onWordClick(word);
+        }}
       >
         {word}
       </Badge>

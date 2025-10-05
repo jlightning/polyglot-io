@@ -228,6 +228,7 @@ model SentenceWord {
 
 enum UserActionType {
   word_mark
+  read
 }
 
 model UserActionLog {
