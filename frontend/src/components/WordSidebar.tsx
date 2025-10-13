@@ -188,6 +188,33 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
     );
   };
 
+  // Add keyboard shortcuts for number keys 1-5
+  useEffect(() => {
+    const handleKeyPress = (event: KeyboardEvent) => {
+      // Only handle keyboard shortcuts when sidebar is open and has a selected word
+      if (!isOpen || !selectedWord || !languageCode) return;
+
+      // Ignore keyboard shortcuts when user is typing in a text input/textarea
+      const target = event.target as HTMLElement;
+      if (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT') {
+        return;
+      }
+
+      // Check if pressed key is 1-5
+      const keyNumber = parseInt(event.key);
+      if (!isNaN(keyNumber) && keyNumber >= 1 && keyNumber <= 5) {
+        event.preventDefault();
+        handleMarkSave(keyNumber);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyPress);
+    };
+  }, [isOpen, selectedWord, languageCode, note, currentMark]);
+
   // Reusable pronunciation component
   const PronunciationSection: React.FC<{
     pronunciations: WordPronunciation[];
