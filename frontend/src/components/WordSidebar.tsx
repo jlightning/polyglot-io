@@ -188,7 +188,7 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
     );
   };
 
-  // Add keyboard shortcuts for number keys 1-5
+  // Add keyboard shortcuts for number keys 0-5
   useEffect(() => {
     const handleKeyPress = (event: KeyboardEvent) => {
       // Only handle keyboard shortcuts when sidebar is open and has a selected word
@@ -200,9 +200,9 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
         return;
       }
 
-      // Check if pressed key is 1-5
+      // Check if pressed key is 0-5
       const keyNumber = parseInt(event.key);
-      if (!isNaN(keyNumber) && keyNumber >= 1 && keyNumber <= 5) {
+      if (!isNaN(keyNumber) && keyNumber >= 0 && keyNumber <= 5) {
         event.preventDefault();
         handleMarkSave(keyNumber);
       }
