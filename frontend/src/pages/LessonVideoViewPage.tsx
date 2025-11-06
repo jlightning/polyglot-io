@@ -86,6 +86,8 @@ const LessonVideoViewPage: React.FC = () => {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  const [videoError, setVideoError] = useState<string | null>(null);
+  const [videoLoading, setVideoLoading] = useState(false);
 
   // Lesson progress state
   const [isFinishingLesson, setIsFinishingLesson] = useState(false);
@@ -478,6 +480,15 @@ const LessonVideoViewPage: React.FC = () => {
     return () => clearTimeout(timeoutId);
   }, [activeSentence, lessonId, isAuthenticated, axiosInstance, lesson]);
 
+  // Cleanup object URLs when component unmounts or video URL changes
+  useEffect(() => {
+    return () => {
+      if (videoUrl) {
+        URL.revokeObjectURL(videoUrl);
+      }
+    };
+  }, [videoUrl]);
+
   // Restore video progress based on user's lesson progress
   useEffect(() => {
     if (
@@ -504,13 +515,108 @@ const LessonVideoViewPage: React.FC = () => {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  // Helper function to check if file is a video (handles macOS MIME type issues)
+  const isVideoFile = (file: File): boolean => {
+    // Check MIME type first
+    if (file.type && file.type.startsWith('video/')) {
+      return true;
+    }
+
+    // Fallback: check file extension (macOS sometimes doesn't set MIME type correctly)
+    const fileName = file.name.toLowerCase();
+    const videoExtensions = [
+      '.mp4',
+      '.mkv',
+      '.webm',
+      '.mov',
+      '.avi',
+      '.m4v',
+      '.flv',
+      '.ogv',
+    ];
+    return videoExtensions.some(ext => fileName.endsWith(ext));
+  };
+
+  // Helper function to verify file is accessible by attempting to read it
+  const verifyFileAccess = async (file: File): Promise<boolean> => {
+    try {
+      // Try to read a small slice of the file to verify access
+      const slice = file.slice(0, 1);
+      const reader = new FileReader();
+
+      return new Promise(resolve => {
+        reader.onload = () => resolve(true);
+        reader.onerror = () => resolve(false);
+        reader.readAsArrayBuffer(slice);
+
+        // Timeout after 2 seconds
+        setTimeout(() => resolve(false), 2000);
+      });
+    } catch (error) {
+      console.error('Error verifying file access:', error);
+      return false;
+    }
+  };
+
+  const handleFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = event.target.files?.[0];
-    if (file && file.type.startsWith('video/')) {
+    if (!file) {
+      setVideoError('No file selected');
+      return;
+    }
+
+    // Validate file is accessible and has valid properties
+    if (!file.size || file.size === 0) {
+      setVideoError('Selected file is empty or cannot be accessed');
+      return;
+    }
+
+    // Check if it's a video file (with macOS-friendly detection)
+    if (!isVideoFile(file)) {
+      setVideoError(
+        'Please select a valid video file (MP4, MKV, WebM, MOV, AVI, etc.)'
+      );
+      return;
+    }
+
+    try {
+      // Verify file is accessible before proceeding
+      const isAccessible = await verifyFileAccess(file);
+      if (!isAccessible) {
+        setVideoError(
+          'Cannot access file. This may be a permissions issue on macOS. Try moving the file to Downloads or Desktop, or grant Chrome file access in System Preferences.'
+        );
+        setVideoLoading(false);
+        return;
+      }
+
+      // Clean up previous URL if exists
+      if (videoUrl) {
+        URL.revokeObjectURL(videoUrl);
+      }
+
       setVideoFile(file);
       const url = URL.createObjectURL(file);
       setVideoUrl(url);
       setHasRestoredVideoProgress(false);
+      setVideoError(null);
+      setVideoLoading(true);
+
+      // Verify file is actually accessible by checking if we can create a URL
+      if (!url) {
+        setVideoError(
+          'Cannot access file. Please check file permissions or try a different file.'
+        );
+        setVideoLoading(false);
+      }
+    } catch (error) {
+      console.error('Error creating video URL:', error);
+      setVideoError(
+        'Cannot access file. This may be a permissions issue on macOS. Try moving the file to a different location or granting browser file access permissions.'
+      );
+      setVideoLoading(false);
     }
   };
 
@@ -530,7 +636,7 @@ const LessonVideoViewPage: React.FC = () => {
     }
   };
 
-  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+  const handleDrop = async (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     event.stopPropagation();
     setIsDragging(false);
@@ -538,14 +644,61 @@ const LessonVideoViewPage: React.FC = () => {
     const files = event.dataTransfer.files;
     const file = files[0];
 
-    if (file && file.type.startsWith('video/')) {
+    if (!file) {
+      setVideoError('No file dropped');
+      return;
+    }
+
+    // Validate file is accessible and has valid properties
+    if (!file.size || file.size === 0) {
+      setVideoError('Dropped file is empty or cannot be accessed');
+      return;
+    }
+
+    // Check if it's a video file (with macOS-friendly detection)
+    if (!isVideoFile(file)) {
+      setVideoError(
+        'Please drop a valid video file (MP4, MKV, WebM, MOV, AVI, etc.)'
+      );
+      return;
+    }
+
+    try {
+      // Verify file is accessible before proceeding
+      const isAccessible = await verifyFileAccess(file);
+      if (!isAccessible) {
+        setVideoError(
+          'Cannot access dropped file. This may be a permissions issue on macOS. Try moving the file to Downloads or Desktop, or grant Chrome file access in System Preferences.'
+        );
+        setVideoLoading(false);
+        return;
+      }
+
+      // Clean up previous URL if exists
+      if (videoUrl) {
+        URL.revokeObjectURL(videoUrl);
+      }
+
       setVideoFile(file);
       const url = URL.createObjectURL(file);
       setVideoUrl(url);
       setHasRestoredVideoProgress(false);
-    } else {
-      // Could add error notification here if needed
-      console.warn('Only video files are supported');
+      setVideoError(null);
+      setVideoLoading(true);
+
+      // Verify file is actually accessible by checking if we can create a URL
+      if (!url) {
+        setVideoError(
+          'Cannot access file. Please check file permissions or try a different file.'
+        );
+        setVideoLoading(false);
+      }
+    } catch (error) {
+      console.error('Error creating video URL from dropped file:', error);
+      setVideoError(
+        'Cannot access dropped file. This may be a permissions issue on macOS. Try moving the file to a different location or granting browser file access permissions.'
+      );
+      setVideoLoading(false);
     }
   };
 
@@ -592,7 +745,55 @@ const LessonVideoViewPage: React.FC = () => {
   const handleLoadedMetadata = () => {
     if (videoRef.current) {
       setDuration(videoRef.current.duration);
+      setVideoLoading(false);
+      setVideoError(null);
     }
+  };
+
+  const handleVideoError = () => {
+    if (videoRef.current) {
+      const error = videoRef.current.error;
+      let errorMessage = 'Failed to load video. ';
+
+      if (error) {
+        switch (error.code) {
+          case error.MEDIA_ERR_ABORTED:
+            errorMessage +=
+              'Video loading was aborted. This may indicate a file access issue on macOS.';
+            break;
+          case error.MEDIA_ERR_NETWORK:
+            errorMessage += 'Network error occurred while loading video.';
+            break;
+          case error.MEDIA_ERR_DECODE:
+            errorMessage +=
+              'Video codec is not supported. MKV files with HEVC/H.265 codec may not work in Chrome. Try converting to MP4 with H.264 codec.';
+            break;
+          case error.MEDIA_ERR_SRC_NOT_SUPPORTED:
+            errorMessage +=
+              'Video format is not supported or file cannot be accessed. On macOS, this may be a permissions issue. Try: 1) Moving the file to Downloads or Desktop, 2) Granting Chrome file access in System Preferences > Security & Privacy > Files and Folders, or 3) Converting MKV to MP4 format.';
+            break;
+          default:
+            errorMessage +=
+              'Unknown error occurred. The video format or codec may not be supported, or there may be a file access issue on macOS.';
+        }
+      } else {
+        errorMessage +=
+          'The video format or codec may not be supported, or the file cannot be accessed. On macOS, check file permissions or try converting MKV files with HEVC/H.265 codec to MP4 with H.264 codec.';
+      }
+
+      setVideoError(errorMessage);
+      setVideoLoading(false);
+    }
+  };
+
+  const handleLoadStart = () => {
+    setVideoLoading(true);
+    setVideoError(null);
+  };
+
+  const handleCanPlay = () => {
+    setVideoLoading(false);
+    setVideoError(null);
   };
 
   const handleSeek = (time: number) => {
@@ -729,6 +930,8 @@ const LessonVideoViewPage: React.FC = () => {
         <video
           ref={videoRef}
           src={videoUrl}
+          preload="metadata"
+          playsInline
           style={{
             width: '100%',
             height: '100%',
@@ -738,6 +941,9 @@ const LessonVideoViewPage: React.FC = () => {
           }}
           onTimeUpdate={handleTimeUpdate}
           onLoadedMetadata={handleLoadedMetadata}
+          onLoadStart={handleLoadStart}
+          onCanPlay={handleCanPlay}
+          onError={handleVideoError}
           onPlay={() => setIsPlaying(true)}
           onPause={() => setIsPlaying(false)}
         />
@@ -952,7 +1158,88 @@ const LessonVideoViewPage: React.FC = () => {
               </Flex>
             ) : (
               <Flex direction="column" gap="3">
-                {videoElement}
+                {videoLoading && !videoError && (
+                  <Box
+                    style={{
+                      padding: '40px',
+                      textAlign: 'center',
+                      backgroundColor: 'var(--gray-2)',
+                      borderRadius: '8px',
+                      minHeight: '200px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Text size="3" color="gray">
+                      Loading video...
+                    </Text>
+                  </Box>
+                )}
+
+                {videoError && (
+                  <Box
+                    style={{
+                      padding: '24px',
+                      backgroundColor: 'var(--red-2)',
+                      borderRadius: '8px',
+                      border: '1px solid var(--red-6)',
+                    }}
+                  >
+                    <Flex direction="column" gap="3">
+                      <Text size="3" weight="bold" color="red">
+                        ⚠️ Video Loading Error
+                      </Text>
+                      <Text size="2" color="red">
+                        {videoError}
+                      </Text>
+                      <Box style={{ marginTop: '8px' }}>
+                        <Text size="1" color="gray" weight="bold" mb="1">
+                          Troubleshooting on macOS:
+                        </Text>
+                        <Flex
+                          direction="column"
+                          gap="1"
+                          style={{ marginLeft: '8px' }}
+                        >
+                          <Text size="1" color="gray">
+                            • Check file permissions: Move file to Downloads or
+                            Desktop folder
+                          </Text>
+                          <Text size="1" color="gray">
+                            • Grant Chrome file access: System Preferences →
+                            Security & Privacy → Files and Folders → Enable
+                            Chrome
+                          </Text>
+                          <Text size="1" color="gray">
+                            • Format compatibility: Use MP4 with H.264 codec
+                            (convert MKV using HandBrake or FFmpeg)
+                          </Text>
+                          <Text size="1" color="gray">
+                            • Try a different browser: Safari may have better
+                            file access on macOS
+                          </Text>
+                        </Flex>
+                      </Box>
+                      <MyButton
+                        variant="soft"
+                        color="red"
+                        size="2"
+                        onClick={() => {
+                          setVideoUrl(null);
+                          setVideoError(null);
+                          setVideoLoading(false);
+                          setHasRestoredVideoProgress(false);
+                        }}
+                        style={{ marginTop: '8px' }}
+                      >
+                        Try Different Video
+                      </MyButton>
+                    </Flex>
+                  </Box>
+                )}
+
+                {!videoError && videoElement}
 
                 {/* Custom Video Controls */}
                 <Box style={{ padding: '0 16px' }}>
@@ -1014,8 +1301,14 @@ const LessonVideoViewPage: React.FC = () => {
                       variant="soft"
                       size="2"
                       onClick={() => {
+                        // Clean up object URL before clearing state
+                        if (videoUrl) {
+                          URL.revokeObjectURL(videoUrl);
+                        }
                         setVideoUrl(null);
                         setHasRestoredVideoProgress(false);
+                        setVideoError(null);
+                        setVideoLoading(false);
                       }}
                     >
                       Change Video
