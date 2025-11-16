@@ -935,7 +935,7 @@ const LessonVideoViewPage: React.FC = () => {
           style={{
             width: '100%',
             height: '100%',
-            maxHeight: '950px',
+            maxHeight: '920px',
             borderRadius: '8px',
             objectFit: 'contain',
           }}
