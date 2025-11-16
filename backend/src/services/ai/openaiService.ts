@@ -286,6 +286,316 @@ export class OpenAIService {
   }
 
   /**
+   * Get pronunciation for a single word
+   * @param word - The word to get pronunciation for
+   * @param languageCode - The language code of the word
+   * @returns Promise<{ pronunciation: string; pronunciationType: PronunciationType } | null> - Pronunciation data or null if generation fails
+   */
+  async getWordPronunciation(
+    word: string,
+    languageCode: string
+  ): Promise<{
+    pronunciation: string;
+    pronunciationType: PronunciationType;
+  } | null> {
+    try {
+      if (!word || word.trim().length === 0) {
+        throw new Error('Word cannot be empty');
+      }
+
+      // Determine pronunciation instructions based on language code
+      const getPronunciationInstructions = (language: string) => {
+        const lowerLang = language.toLowerCase();
+
+        if (lowerLang.includes('japanese') || lowerLang === 'ja') {
+          return {
+            instruction: 'Provide pronunciation in hiragana',
+            type: 'hiragana' as PronunciationType,
+          };
+        } else if (lowerLang.includes('korean') || lowerLang === 'ko') {
+          return {
+            instruction:
+              'Provide pronunciation in romanized form (romanization)',
+            type: 'romanization' as PronunciationType,
+          };
+        } else if (lowerLang.includes('chinese') || lowerLang === 'zh') {
+          return {
+            instruction: 'Provide pronunciation in pinyin',
+            type: 'pinyin' as PronunciationType,
+          };
+        }
+
+        // Default case for other languages
+        return {
+          instruction:
+            'Provide pronunciation in IPA (International Phonetic Alphabet) or romanized form',
+          type: 'ipa' as PronunciationType,
+        };
+      };
+
+      const pronunciationInfo = getPronunciationInstructions(languageCode);
+
+      // JSON schema for structured output
+      const wordPronunciationSchema = {
+        type: 'object',
+        properties: {
+          word: {
+            type: 'string',
+            description: 'The original word',
+          },
+          pronunciation: {
+            type: 'string',
+            description: `Pronunciation of the word (${pronunciationInfo.instruction})`,
+          },
+          pronunciationType: {
+            type: 'string',
+            enum: ['hiragana', 'romanization', 'pinyin', 'ipa'],
+            description: 'Type of pronunciation provided',
+          },
+        },
+        required: ['word', 'pronunciation', 'pronunciationType'],
+        additionalProperties: false,
+      } as const;
+
+      const systemPrompt = [
+        'You are a language learning assistant that provides pronunciations for words.',
+        '',
+        `The word is in ${languageCode}.`,
+        '',
+        'Your task is to:',
+        `1. Provide the pronunciation for the word "${word}"`,
+        `2. Use the appropriate pronunciation format: ${pronunciationInfo.instruction}`,
+        '',
+        'Guidelines:',
+        '- Provide accurate pronunciation based on the language',
+        pronunciationInfo.instruction,
+        '- Return the pronunciation in the specified format',
+      ].join('\n');
+
+      const userPrompt = `Please provide the pronunciation for the word "${word}" in ${languageCode}.`;
+
+      const completion = await this.client.chat.completions.create({
+        model: OPENAI_MODEL.GPT_41_MINI,
+        messages: [
+          {
+            role: 'system',
+            content: systemPrompt,
+          },
+          {
+            role: 'user',
+            content: userPrompt,
+          },
+        ],
+        response_format: {
+          type: 'json_schema',
+          json_schema: {
+            name: 'word_pronunciation',
+            schema: wordPronunciationSchema,
+          },
+        },
+        temperature: 0.1, // Low temperature for consistent results
+      });
+
+      const responseContent = completion.choices[0]?.message?.content;
+
+      if (!responseContent) {
+        throw new Error('No response received from OpenAI');
+      }
+
+      let pronunciationData: {
+        word: string;
+        pronunciation: string;
+        pronunciationType: string;
+      };
+      try {
+        pronunciationData = JSON.parse(responseContent);
+      } catch (parseError) {
+        console.error('Failed to parse OpenAI response:', parseError);
+        throw new Error('Invalid response format from OpenAI');
+      }
+
+      // Validate the response structure
+      if (
+        !pronunciationData.pronunciation ||
+        !pronunciationData.pronunciationType
+      ) {
+        throw new Error('Invalid response structure from OpenAI');
+      }
+
+      return {
+        pronunciation: pronunciationData.pronunciation.trim(),
+        pronunciationType:
+          pronunciationData.pronunciationType as PronunciationType,
+      };
+    } catch (error) {
+      console.error('Error in getWordPronunciation:', error);
+
+      if (error instanceof Error) {
+        // Re-throw known errors
+        if (
+          error.message.includes('OPENAI_API_KEY') ||
+          error.message.includes('Word cannot be empty') ||
+          error.message.includes('Invalid response') ||
+          error.message.includes('No response received')
+        ) {
+          return null;
+        }
+      }
+
+      // Handle OpenAI API errors
+      if (error && typeof error === 'object' && 'error' in error) {
+        const openaiError = error as {
+          error: { message: string; type: string };
+        };
+        console.error(`OpenAI API error: ${openaiError.error.message}`);
+        return null;
+      }
+
+      // Generic error fallback
+      return null;
+    }
+  }
+
+  /**
+   * Get translations for a single word
+   * @param word - The word to get translations for
+   * @param sourceLanguage - The source language code of the word
+   * @param targetLanguage - The target language code (default: 'en')
+   * @returns Promise<string[]> - Array of translations or empty array if generation fails
+   */
+  async getWordTranslation(
+    word: string,
+    sourceLanguage: string,
+    targetLanguage: string = 'en'
+  ): Promise<string[]> {
+    try {
+      if (!word || word.trim().length === 0) {
+        throw new Error('Word cannot be empty');
+      }
+
+      // JSON schema for structured output
+      const wordTranslationSchema = {
+        type: 'object',
+        properties: {
+          word: {
+            type: 'string',
+            description: 'The original word',
+          },
+          translations: {
+            type: 'array',
+            description: `Array of ${targetLanguage} translations for the word`,
+            items: {
+              type: 'string',
+              description: 'A translation of the word',
+            },
+          },
+        },
+        required: ['word', 'translations'],
+        additionalProperties: false,
+      } as const;
+
+      const systemPrompt = [
+        'You are a language learning assistant that provides translations for words.',
+        '',
+        `The word "${word}" is in ${sourceLanguage}.`,
+        '',
+        'Your task is to:',
+        `1. Provide accurate ${targetLanguage} translations for the word "${word}"`,
+        '2. Include multiple translations if the word has different meanings or contexts',
+        '3. Provide the most common and useful translations',
+        '',
+        'Guidelines:',
+        '- Provide 1-4 translations depending on the word complexity',
+        '- Prioritize the most common and useful translations',
+        '- Include different meanings or contexts if applicable',
+        '- Return translations as an array of strings',
+      ].join('\n');
+
+      const userPrompt = `Please provide ${targetLanguage} translations for the word "${word}" in ${sourceLanguage}.`;
+
+      const completion = await this.client.chat.completions.create({
+        model: OPENAI_MODEL.GPT_41_MINI,
+        messages: [
+          {
+            role: 'system',
+            content: systemPrompt,
+          },
+          {
+            role: 'user',
+            content: userPrompt,
+          },
+        ],
+        response_format: {
+          type: 'json_schema',
+          json_schema: {
+            name: 'word_translation',
+            schema: wordTranslationSchema,
+          },
+        },
+        temperature: 0.1, // Low temperature for consistent results
+      });
+
+      const responseContent = completion.choices[0]?.message?.content;
+
+      if (!responseContent) {
+        throw new Error('No response received from OpenAI');
+      }
+
+      let translationData: {
+        word: string;
+        translations: string[];
+      };
+      try {
+        translationData = JSON.parse(responseContent);
+      } catch (parseError) {
+        console.error('Failed to parse OpenAI response:', parseError);
+        throw new Error('Invalid response format from OpenAI');
+      }
+
+      // Validate the response structure
+      if (
+        !translationData.translations ||
+        !Array.isArray(translationData.translations)
+      ) {
+        throw new Error('Invalid response structure from OpenAI');
+      }
+
+      // Clean and filter translations
+      const cleanedTranslations = translationData.translations
+        .map(t => t.trim())
+        .filter(t => t.length > 0);
+
+      return cleanedTranslations;
+    } catch (error) {
+      console.error('Error in getWordTranslation:', error);
+
+      if (error instanceof Error) {
+        // Return empty array for known errors
+        if (
+          error.message.includes('OPENAI_API_KEY') ||
+          error.message.includes('Word cannot be empty') ||
+          error.message.includes('Invalid response') ||
+          error.message.includes('No response received')
+        ) {
+          return [];
+        }
+      }
+
+      // Handle OpenAI API errors
+      if (error && typeof error === 'object' && 'error' in error) {
+        const openaiError = error as {
+          error: { message: string; type: string };
+        };
+        console.error(`OpenAI API error: ${openaiError.error.message}`);
+        return [];
+      }
+
+      // Generic error fallback
+      return [];
+    }
+  }
+
+  /**
    * Extract text from manga image using OpenAI Vision API
    * @param imageBase64 - Base64 encoded image data
    * @param sourceLanguage - The source language expected in the image

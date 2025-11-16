@@ -520,6 +520,75 @@ export class WordService {
         translation: t.translation,
       }));
 
+      // If no translations exist, try to generate them using AI
+      if (translationData.length === 0) {
+        try {
+          const openaiService = new OpenAIService();
+          const generatedTranslations = await openaiService.getWordTranslation(
+            word,
+            sourceLanguage,
+            targetLanguage
+          );
+
+          if (generatedTranslations.length > 0) {
+            // Ensure the word exists in the database
+            const wordRecord = await prisma.word.upsert({
+              where: {
+                word_language_code: {
+                  word: word,
+                  language_code: sourceLanguage,
+                },
+              },
+              update: {}, // No updates needed for existing words
+              create: {
+                word: word,
+                language_code: sourceLanguage,
+              },
+            });
+
+            // Store the translations
+            for (const translation of generatedTranslations) {
+              const trimmedTranslation = translation.trim();
+              if (trimmedTranslation) {
+                await prisma.wordTranslation.upsert({
+                  where: {
+                    word_id_language_code_translation: {
+                      word_id: wordRecord.id,
+                      language_code: targetLanguage,
+                      translation: trimmedTranslation,
+                    },
+                  },
+                  update: {},
+                  create: {
+                    word_id: wordRecord.id,
+                    language_code: targetLanguage,
+                    translation: trimmedTranslation,
+                  },
+                });
+              }
+            }
+
+            // Return the newly generated translations
+            return {
+              success: true,
+              data: generatedTranslations.map(translation => ({
+                word: word,
+                translation: translation,
+              })),
+              simplified: false,
+            };
+          }
+        } catch (aiError) {
+          console.error('Error generating translations with AI:', aiError);
+          // If AI generation fails, return empty array with success: true
+          return {
+            success: true,
+            data: [],
+            simplified: false,
+          };
+        }
+      }
+
       // If there are more than NUMBER_OF_TRANSLATION_TO_REDUCE translations, simplify them using OpenAI
       if (translationData.length >= NUMBER_OF_TRANSLATION_TO_REDUCE) {
         try {
@@ -599,6 +668,93 @@ export class WordService {
           word: true,
         },
       });
+
+      // If no pronunciations exist, try to generate one using AI
+      if (pronunciations.length === 0) {
+        try {
+          const openaiService = new OpenAIService();
+          const pronunciationData = await openaiService.getWordPronunciation(
+            word,
+            languageCode
+          );
+
+          if (pronunciationData) {
+            // Ensure the word exists in the database
+            const wordRecord = await prisma.word.upsert({
+              where: {
+                word_language_code: {
+                  word: word,
+                  language_code: languageCode,
+                },
+              },
+              update: {}, // No updates needed for existing words
+              create: {
+                word: word,
+                language_code: languageCode,
+              },
+            });
+
+            // Store the pronunciation
+            const trimmedPronunciation = pronunciationData.pronunciation.trim();
+            const trimmedPronunciationType =
+              pronunciationData.pronunciationType.trim();
+
+            if (trimmedPronunciation && trimmedPronunciationType) {
+              await prisma.wordPronunciation.upsert({
+                where: {
+                  word_id_pronunciation_pronunciation_type: {
+                    word_id: wordRecord.id,
+                    pronunciation: trimmedPronunciation,
+                    pronunciation_type: trimmedPronunciationType,
+                  },
+                },
+                update: {},
+                create: {
+                  word_id: wordRecord.id,
+                  pronunciation: trimmedPronunciation,
+                  pronunciation_type: trimmedPronunciationType,
+                },
+              });
+
+              // Fetch the newly created pronunciation to return
+              const newPronunciation =
+                await prisma.wordPronunciation.findUnique({
+                  where: {
+                    word_id_pronunciation_pronunciation_type: {
+                      word_id: wordRecord.id,
+                      pronunciation: trimmedPronunciation,
+                      pronunciation_type: trimmedPronunciationType,
+                    },
+                  },
+                  include: {
+                    word: true,
+                  },
+                });
+
+              if (newPronunciation) {
+                return {
+                  success: true,
+                  data: [
+                    {
+                      word: newPronunciation.word.word,
+                      pronunciation: newPronunciation.pronunciation,
+                      pronunciationType:
+                        newPronunciation.pronunciation_type || 'unknown',
+                    },
+                  ],
+                };
+              }
+            }
+          }
+        } catch (aiError) {
+          console.error('Error generating pronunciation with AI:', aiError);
+          // If AI generation fails, return empty array with success: true
+          return {
+            success: true,
+            data: [],
+          };
+        }
+      }
 
       return {
         success: true,
