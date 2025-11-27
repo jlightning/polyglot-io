@@ -9,6 +9,7 @@ import {
   getDifficultyLabel,
 } from '../constants/difficultyColors';
 import DebounceTextArea from './DebounceTextArea';
+import dayjs from 'dayjs';
 
 interface WordTranslation {
   word: string;
@@ -30,6 +31,7 @@ interface WordUserMark {
   id: number;
   note: string;
   mark: number;
+  updated_at: string;
   word: {
     id: number;
     word: string;
@@ -56,7 +58,7 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
   const { saveWordMark, isSaving } = useWordMark();
   const [note, setNote] = useState('');
   const [currentMark, setCurrentMark] = useState<number | null>(null);
-  const [, setUserMark] = useState<WordUserMark | null>(null);
+  const [userMark, setUserMark] = useState<WordUserMark | null>(null);
   const [loadingMark, setLoadingMark] = useState(false);
   const [wordTranslations, setWordTranslations] = useState<WordTranslation[]>(
     []
@@ -167,12 +169,30 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
     loadWordMark();
   }, [selectedWord, languageCode, axiosInstance]);
 
+  // Reload word mark to get updated timestamp
+  const reloadWordMark = async () => {
+    if (!selectedWord || !languageCode || !axiosInstance) return;
+
+    try {
+      const response = await axiosInstance.get(
+        `/api/words/mark/${encodeURIComponent(selectedWord)}/${languageCode}`
+      );
+      if (response.data.success && response.data.data) {
+        setUserMark(response.data.data as WordUserMark);
+      }
+    } catch (error) {
+      console.error('Error reloading word mark:', error);
+    }
+  };
+
   const handleMarkSave = async (mark: number) => {
     if (!selectedWord || !languageCode) return;
 
     const success = await saveWordMark(selectedWord, mark, note, languageCode);
     if (success) {
       setCurrentMark(mark);
+      // Reload word mark to get updated timestamp
+      await reloadWordMark();
     }
   };
 
@@ -185,7 +205,12 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
       currentMark === null ? 1 : currentMark,
       newNote,
       languageCode!
-    );
+    ).then(success => {
+      if (success) {
+        // Reload word mark to get updated timestamp
+        reloadWordMark();
+      }
+    });
   };
 
   // Add keyboard shortcuts for number keys 0-5
@@ -330,7 +355,15 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
     currentMark: number | null;
     onMarkSave: (mark: number) => void;
     loadingMark: boolean;
-  }> = ({ note, onNoteChange, currentMark, onMarkSave, loadingMark }) => (
+    updatedAt?: string | undefined;
+  }> = ({
+    note,
+    onNoteChange,
+    currentMark,
+    onMarkSave,
+    loadingMark,
+    updatedAt,
+  }) => (
     <>
       <Separator size="4" />
       <Box>
@@ -364,6 +397,14 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
           </Text>
         )}
       </Box>
+
+      {updatedAt && (
+        <Box>
+          <Text size="1" color="gray" mt="2">
+            Last updated: {dayjs(updatedAt).format('YYYY-MM-DD HH:mm:ss')}
+          </Text>
+        </Box>
+      )}
     </>
   );
 
@@ -422,6 +463,7 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
             currentMark={currentMark}
             onMarkSave={handleMarkSave}
             loadingMark={loadingMark}
+            updatedAt={userMark?.updated_at}
           />
         )}
       </Flex>
