@@ -1,5 +1,7 @@
 # Polyglot.io
 
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+
 A full-stack language learning platform that helps users learn languages through interactive lessons, video content with synchronized subtitles, and comprehensive vocabulary tracking.
 
 ## Features
