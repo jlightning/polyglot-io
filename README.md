@@ -4,6 +4,8 @@
 
 A full-stack language learning platform that helps users learn languages through interactive lessons, video content with synchronized subtitles, and comprehensive vocabulary tracking.
 
+> **Note**: This project is inspired by the [LingQ](https://www.lingq.com/) platform and [Steve Kaufman](https://www.thelinguist.com/), a polyglot who has shared valuable insights on language learning through extensive reading and vocabulary tracking.
+
 ## Features
 
 ### Lesson Management
