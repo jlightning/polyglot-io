@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Card,
@@ -35,11 +35,17 @@ interface Lesson {
 interface LessonListProps {
   selectedLanguage: string;
   refreshTrigger: number;
+  search?: string;
+  statusFilter?: 'reading' | 'finished';
+  typeFilter?: 'text' | 'subtitle' | 'manga';
 }
 
 const LessonList: React.FC<LessonListProps> = ({
   selectedLanguage,
   refreshTrigger,
+  search,
+  statusFilter,
+  typeFilter,
 }) => {
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,16 +54,35 @@ const LessonList: React.FC<LessonListProps> = ({
   const { axiosInstance, isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
-  const fetchLessons = async () => {
+  const fetchLessons = useCallback(async () => {
+    if (!selectedLanguage) {
+      setLoading(false);
+      setError('Please select a language to view lessons');
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
 
-      const endpoint = selectedLanguage
-        ? `/api/lessons/language/${selectedLanguage}`
-        : '/api/lessons';
+      const endpoint = `/api/lessons/language/${selectedLanguage}`;
 
-      const response = await axiosInstance.get(endpoint);
+      // Build query parameters
+      const params = new URLSearchParams();
+      if (search) {
+        params.append('search', search);
+      }
+      if (statusFilter) {
+        params.append('status', statusFilter);
+      }
+      if (typeFilter) {
+        params.append('type', typeFilter);
+      }
+
+      const queryString = params.toString();
+      const url = queryString ? `${endpoint}?${queryString}` : endpoint;
+
+      const response = await axiosInstance.get(url);
 
       if (response.data.success) {
         setLessons(response.data.lessons || []);
@@ -74,13 +99,13 @@ const LessonList: React.FC<LessonListProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedLanguage, search, statusFilter, typeFilter, axiosInstance]);
 
   useEffect(() => {
     if (isAuthenticated) {
       fetchLessons();
     }
-  }, [isAuthenticated, selectedLanguage, refreshTrigger]);
+  }, [isAuthenticated, refreshTrigger, fetchLessons]);
 
   // Auto-refresh for pending lessons
   useEffect(() => {
@@ -97,7 +122,7 @@ const LessonList: React.FC<LessonListProps> = ({
     }
 
     return undefined;
-  }, [lessons]);
+  }, [lessons, fetchLessons]);
 
   const handleDeleteLesson = async (lessonId: number) => {
     try {
@@ -149,9 +174,7 @@ const LessonList: React.FC<LessonListProps> = ({
             No lessons found
           </Text>
           <Text size="2" color="gray">
-            {selectedLanguage
-              ? `No lessons found for the selected language.`
-              : 'Upload your first lesson to get started!'}
+            No lessons found for the selected language.
           </Text>
         </Flex>
       </Card>

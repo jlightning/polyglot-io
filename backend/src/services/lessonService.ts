@@ -2,7 +2,7 @@ import {
   Prisma,
   LessonType,
   LessonProcessingStatus,
-  PrismaClient,
+  UserLessonProgressStatus,
 } from '@prisma/client';
 import { ConfigService } from './configService';
 import { S3Service } from './s3Service';
@@ -513,108 +513,6 @@ export class LessonService {
   }
 
   /**
-   * Get all lessons for a user
-   */
-  static async getUserLessons(userId: number): Promise<LessonResponse> {
-    try {
-      const lessons = await prisma.lesson.findMany({
-        where: {
-          created_by: userId,
-        },
-        include: {
-          lessonFiles: true,
-        },
-        orderBy: {
-          id: 'desc', // Most recent first
-        },
-      });
-
-      const lessonsWithUrls = await Promise.all(
-        lessons.map(async lesson => {
-          let imageUrl = lesson.image_s3_key;
-          let fileUrl = null;
-          let audioUrl = lesson.audio_s3_key;
-
-          // Generate signed URLs for S3 keys
-          if (lesson.image_s3_key) {
-            try {
-              imageUrl = await S3Service.getDownloadUrl(lesson.image_s3_key);
-            } catch (error) {
-              console.error('Error generating image download URL:', error);
-              imageUrl = null;
-            }
-          }
-
-          // Get file URL from the first lesson file if any
-          if (
-            lesson.lessonFiles &&
-            lesson.lessonFiles.length > 0 &&
-            lesson.lessonFiles[0]?.file_s3_key
-          ) {
-            try {
-              fileUrl = await S3Service.getDownloadUrl(
-                lesson.lessonFiles[0]?.file_s3_key
-              );
-            } catch (error) {
-              console.error('Error generating file download URL:', error);
-              fileUrl = null;
-            }
-          }
-
-          if (lesson.audio_s3_key) {
-            try {
-              audioUrl = await S3Service.getDownloadUrl(lesson.audio_s3_key);
-            } catch (error) {
-              console.error('Error generating audio download URL:', error);
-              audioUrl = null;
-            }
-          }
-
-          // Get user progress for this lesson
-          const progress = await prisma.userLessonProgress.findUnique({
-            where: {
-              user_id_lesson_id: {
-                user_id: userId,
-                lesson_id: lesson.id,
-              },
-            },
-          });
-
-          return {
-            id: lesson.id,
-            title: lesson.title,
-            languageCode: lesson.language_code,
-            lessonType: lesson.lesson_type,
-            processingStatus: lesson.processing_status,
-            ...(imageUrl && { imageUrl }),
-            ...(fileUrl && { fileUrl }),
-            ...(audioUrl && { audioUrl }),
-            createdAt: lesson.created_at,
-            ...(progress && {
-              userProgress: {
-                status: progress.status,
-                readTillSentenceId: progress.read_till_sentence_id,
-              },
-            }),
-          };
-        })
-      );
-
-      return {
-        success: true,
-        message: 'Lessons retrieved successfully',
-        lessons: lessonsWithUrls,
-      };
-    } catch (error) {
-      console.error('Get user lessons error:', error);
-      return {
-        success: false,
-        message: 'Failed to retrieve lessons',
-      };
-    }
-  }
-
-  /**
    * Get a specific lesson by ID
    */
   static async getLessonById(
@@ -749,7 +647,12 @@ export class LessonService {
    */
   static async getLessonsByLanguage(
     userId: number,
-    languageCode: string
+    languageCode: string,
+    filters?: {
+      search?: string;
+      status?: 'reading' | 'finished';
+      type?: 'text' | 'subtitle' | 'manga';
+    }
   ): Promise<LessonResponse> {
     try {
       // Validate language code
@@ -760,11 +663,36 @@ export class LessonService {
         };
       }
 
+      // Build where clause with filters
+      const whereClause: Prisma.LessonWhereInput = {
+        created_by: userId,
+        language_code: languageCode,
+      };
+
+      // Add title search filter
+      if (filters?.search) {
+        whereClause.title = {
+          contains: filters.search,
+        };
+      }
+
+      // Add lesson type filter
+      if (filters?.type) {
+        whereClause.lesson_type = filters.type as LessonType;
+      }
+
+      // Add user progress status filter
+      if (filters?.status) {
+        whereClause.userLessonProgresses = {
+          some: {
+            user_id: userId,
+            status: filters.status as UserLessonProgressStatus,
+          },
+        };
+      }
+
       const lessons = await prisma.lesson.findMany({
-        where: {
-          created_by: userId,
-          language_code: languageCode,
-        },
+        where: whereClause,
         include: {
           lessonFiles: true,
         },

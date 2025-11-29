@@ -92,25 +92,6 @@ router.post('/manga', async (req: Request, res: Response) => {
   }
 });
 
-// Get all lessons for the authenticated user
-router.get('/', async (req: Request, res: Response) => {
-  try {
-    const result = await LessonService.getUserLessons(req.userId!);
-
-    if (result.success) {
-      return res.json(result);
-    } else {
-      return res.status(400).json(result);
-    }
-  } catch (error) {
-    console.error('Get lessons route error:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-    });
-  }
-});
-
 // Get a specific lesson by ID
 router.get('/:lessonId', async (req: Request, res: Response) => {
   try {
@@ -190,9 +171,36 @@ router.get('/language/:languageCode', async (req: Request, res: Response) => {
       });
     }
 
+    const search = req.query['search'] as string | undefined;
+    const status = req.query['status'] as 'reading' | 'finished' | undefined;
+    const type = req.query['type'] as 'text' | 'subtitle' | 'manga' | undefined;
+
+    // Validate status enum
+    if (status && !['reading', 'finished'].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid status filter. Must be "reading" or "finished"',
+      });
+    }
+
+    // Validate type enum
+    if (type && !['text', 'subtitle', 'manga'].includes(type)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid type filter. Must be "text", "subtitle", or "manga"',
+      });
+    }
+
+    const filters = {
+      ...(search && { search }),
+      ...(status && { status }),
+      ...(type && { type }),
+    };
+
     const result = await LessonService.getLessonsByLanguage(
       req.userId!,
-      languageCode
+      languageCode,
+      filters
     );
 
     if (result.success) {
