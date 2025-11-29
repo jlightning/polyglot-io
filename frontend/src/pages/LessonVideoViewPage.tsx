@@ -433,7 +433,8 @@ const LessonVideoViewPage: React.FC = () => {
   // Find next few sentences to display
   const findNextSentences = useCallback(
     (currentSentence: Sentence | null, count: number = 3): Sentence[] => {
-      if (!currentSentence || !currentSentence.start_time) return [];
+      if (!currentSentence || !currentSentence.start_time)
+        return sentenceBuffer.sentences.slice(0, count);
 
       // Filter for sentences that have start_time >= current sentence start_time
       const filteredSentences = sentenceBuffer.sentences.filter(
