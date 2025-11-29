@@ -2,6 +2,7 @@
   "name": "polyglotio",
   "version": "1.0.0",
   "description": "Full-stack application with Express backend and React frontend",
+  "license": "MIT",
   "private": true,
   "workspaces": [
     "backend",
