@@ -816,4 +816,116 @@ export class SentenceService {
       };
     }
   }
+
+  /**
+   * Update sentence timing (start_time and end_time) with optional cascade to subsequent sentences
+   */
+  static async updateSentenceTiming(
+    sentenceId: number,
+    userId: number,
+    timeOffset: number,
+    moveSubsequent: boolean
+  ): Promise<{
+    success: boolean;
+    message?: string;
+    sentence?: {
+      id: number;
+      start_time: number | null;
+      end_time: number | null;
+    };
+  }> {
+    try {
+      // Get sentence and verify user has access via lesson ownership
+      const sentence = await prisma.sentence.findFirst({
+        where: {
+          id: sentenceId,
+          lesson: {
+            created_by: userId,
+          },
+        },
+      });
+
+      if (!sentence) {
+        return {
+          success: false,
+          message: 'Sentence not found or access denied',
+        };
+      }
+
+      // Validate that sentence has timing data
+      if (sentence.start_time === null || sentence.end_time === null) {
+        return {
+          success: false,
+          message: 'Sentence does not have timing data to adjust',
+        };
+      }
+
+      // Use transaction to ensure atomicity
+      const result = await prisma.$transaction(async tx => {
+        // Update sentences: if moveSubsequent is true, update all subsequent sentences;
+        // otherwise, update only the target sentence
+        await tx.sentence.updateMany({
+          where: {
+            ...(moveSubsequent
+              ? {
+                  lesson_id: sentence.lesson_id,
+                  ...(sentence.start_time
+                    ? {
+                        start_time: {
+                          gte: sentence.start_time,
+                        },
+                      }
+                    : {
+                        id: {
+                          gte: sentenceId,
+                        },
+                      }),
+                }
+              : {
+                  id: sentenceId,
+                }),
+          },
+          data: {
+            start_time: {
+              increment: timeOffset,
+            },
+            end_time: {
+              increment: timeOffset,
+            },
+          },
+        });
+
+        // Fetch the updated sentence
+        const updatedSentence = await tx.sentence.findUnique({
+          where: {
+            id: sentenceId,
+          },
+        });
+
+        return updatedSentence;
+      });
+
+      if (!result) {
+        return {
+          success: false,
+          message: 'Failed to update sentence timing',
+        };
+      }
+
+      return {
+        success: true,
+        sentence: {
+          id: result.id,
+          start_time: result.start_time ? Number(result.start_time) : null,
+          end_time: result.end_time ? Number(result.end_time) : null,
+        },
+      };
+    } catch (error) {
+      console.error('Error in updateSentenceTiming:', error);
+      return {
+        success: false,
+        message: 'Failed to update sentence timing',
+      };
+    }
+  }
 }

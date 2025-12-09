@@ -13,6 +13,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useWordMark } from '../contexts/WordMarkContext';
 import WordSidebar from '../components/WordSidebar';
 import SentenceReconstructor from '../components/SentenceReconstructor';
+import SentenceRetimeDialog from '../components/SentenceRetimeDialog';
 import axios from 'axios';
 
 interface WordTranslation {
@@ -127,6 +128,9 @@ const LessonVideoViewPage: React.FC = () => {
   // Video overlay state
   const [showSentenceOverlay, setShowSentenceOverlay] = useState(true);
 
+  // Retime dialog state
+  const [isRetimeDialogOpen, setIsRetimeDialogOpen] = useState(false);
+
   // Load basic lesson info and first page of sentences
   useEffect(() => {
     const fetchLessonInfo = async () => {
@@ -227,12 +231,12 @@ const LessonVideoViewPage: React.FC = () => {
 
   // Load sentences for a specific page
   const loadSentencePage = useCallback(
-    async (page: number) => {
+    async (page: number, forceReload: boolean = false) => {
       if (
         !lessonId ||
         !isAuthenticated ||
-        sentenceBuffer.loadedPages.has(page) ||
-        sentenceBuffer.loadingPages.has(page)
+        (!forceReload && sentenceBuffer.loadedPages.has(page)) ||
+        (!forceReload && sentenceBuffer.loadingPages.has(page))
       ) {
         return;
       }
@@ -327,6 +331,27 @@ const LessonVideoViewPage: React.FC = () => {
       lesson?.languageCode,
     ]
   );
+
+  // Reload all sentences after retime
+  const reloadAllSentences = useCallback(async () => {
+    if (!lessonId || !isAuthenticated) return;
+
+    // Get pages to reload before clearing
+    const pagesToReload = Array.from(sentenceBuffer.loadedPages);
+
+    // Clear the buffer
+    setSentenceBuffer(prev => ({
+      ...prev,
+      sentences: [],
+      loadedPages: new Set(),
+      loadingPages: new Set(),
+    }));
+
+    // Reload all previously loaded pages with forceReload=true to bypass loadedPages check
+    for (const page of pagesToReload) {
+      await loadSentencePage(page, true);
+    }
+  }, [lessonId, isAuthenticated, sentenceBuffer.loadedPages, loadSentencePage]);
 
   // Buffer management - load pages ahead based on current video time
   useEffect(() => {
@@ -1447,19 +1472,32 @@ const LessonVideoViewPage: React.FC = () => {
 
                     {/* Translation Section */}
                     <Box>
-                      <MyButton
-                        variant="soft"
-                        size="1"
-                        onClick={() => toggleTranslation(activeSentence.id)}
-                        disabled={loadingTranslations[activeSentence.id]}
-                        style={{}}
-                      >
-                        {loadingTranslations[activeSentence.id]
-                          ? 'Loading...'
-                          : translations[activeSentence.id]
-                            ? 'Hide translation'
-                            : 'Show translation'}
-                      </MyButton>
+                      <Flex gap="2" wrap="wrap">
+                        <MyButton
+                          variant="soft"
+                          size="1"
+                          onClick={() => toggleTranslation(activeSentence.id)}
+                          disabled={loadingTranslations[activeSentence.id]}
+                          style={{}}
+                        >
+                          {loadingTranslations[activeSentence.id]
+                            ? 'Loading...'
+                            : translations[activeSentence.id]
+                              ? 'Hide translation'
+                              : 'Show translation'}
+                        </MyButton>
+                        <MyButton
+                          variant="soft"
+                          size="1"
+                          onClick={() => setIsRetimeDialogOpen(true)}
+                          disabled={
+                            !activeSentence.start_time ||
+                            !activeSentence.end_time
+                          }
+                        >
+                          Retime
+                        </MyButton>
+                      </Flex>
 
                       {translations[activeSentence.id] && (
                         <Box
@@ -1581,6 +1619,14 @@ const LessonVideoViewPage: React.FC = () => {
         selectedWord={selectedWord}
         languageCode={lesson?.languageCode}
         targetLanguage="en"
+      />
+
+      {/* Retime Dialog */}
+      <SentenceRetimeDialog
+        sentence={activeSentence}
+        open={isRetimeDialogOpen}
+        onOpenChange={setIsRetimeDialogOpen}
+        onSuccess={reloadAllSentences}
       />
     </Flex>
   );

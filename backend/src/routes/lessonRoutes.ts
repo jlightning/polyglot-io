@@ -368,6 +368,57 @@ router.get(
   }
 );
 
+// Update sentence timing (start_time and end_time)
+router.put(
+  '/sentences/:sentenceId/timing',
+  async (req: Request, res: Response) => {
+    try {
+      const sentenceId = parseInt(req.params['sentenceId'] || '0');
+      const { timeOffset, moveSubsequent } = req.body;
+
+      if (isNaN(sentenceId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid sentence ID',
+        });
+      }
+
+      if (typeof timeOffset !== 'number' || isNaN(timeOffset)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Valid timeOffset (number) is required',
+        });
+      }
+
+      if (typeof moveSubsequent !== 'boolean') {
+        return res.status(400).json({
+          success: false,
+          message: 'moveSubsequent must be a boolean',
+        });
+      }
+
+      const result = await SentenceService.updateSentenceTiming(
+        sentenceId,
+        req.userId!,
+        timeOffset,
+        moveSubsequent
+      );
+
+      if (result.success) {
+        return res.json(result);
+      } else {
+        return res.status(400).json(result);
+      }
+    } catch (error) {
+      console.error('Update sentence timing route error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+      });
+    }
+  }
+);
+
 // Update user progress for a lesson (when page changes or lesson is finished)
 router.post('/:lessonId/progress', async (req: Request, res: Response) => {
   try {
