@@ -10,11 +10,17 @@ import {
   Box,
 } from '@radix-ui/themes';
 import MyButton from './MyButton';
-import { TrashIcon, EyeOpenIcon, VideoIcon } from '@radix-ui/react-icons';
+import {
+  TrashIcon,
+  EyeOpenIcon,
+  VideoIcon,
+  Pencil1Icon,
+} from '@radix-ui/react-icons';
 import axios from 'axios';
 import dayjs from 'dayjs';
 import { useAuth } from '../contexts/AuthContext';
 import AudioPlayer from './AudioPlayer';
+import LessonEditDialog from './LessonEditDialog';
 
 interface Lesson {
   id: number;
@@ -144,6 +150,23 @@ const LessonList: React.FC<LessonListProps> = ({
       }
     } finally {
       setDeletingLessonId(null);
+    }
+  };
+
+  const handleLessonUpdated = (
+    lessonId: number,
+    updatedLesson?: Partial<Lesson>
+  ) => {
+    if (updatedLesson) {
+      // Update the lesson in the local state
+      setLessons(prevLessons =>
+        prevLessons.map(lesson =>
+          lesson.id === lessonId ? { ...lesson, ...updatedLesson } : lesson
+        )
+      );
+    } else {
+      // If no updated data provided, refetch to ensure consistency
+      fetchLessons();
     }
   };
 
@@ -324,44 +347,58 @@ const LessonList: React.FC<LessonListProps> = ({
                 </Flex>
               </Flex>
 
-              <Dialog.Root>
-                <Dialog.Trigger>
-                  <IconButton
-                    variant="ghost"
-                    color="red"
-                    disabled={deletingLessonId === lesson.id}
-                  >
-                    <TrashIcon />
-                  </IconButton>
-                </Dialog.Trigger>
-                <Dialog.Content style={{ maxWidth: 450 }}>
-                  <Dialog.Title>Delete Lesson</Dialog.Title>
-                  <Dialog.Description size="2" mb="4">
-                    Are you sure you want to delete this lesson? This action
-                    cannot be undone.
-                  </Dialog.Description>
+              <Flex gap="2" align="start">
+                <LessonEditDialog
+                  lesson={lesson}
+                  onLessonUpdated={updatedLesson =>
+                    handleLessonUpdated(lesson.id, updatedLesson)
+                  }
+                  trigger={
+                    <IconButton variant="ghost" color="blue">
+                      <Pencil1Icon />
+                    </IconButton>
+                  }
+                />
 
-                  <Flex gap="3" mt="4" justify="end">
-                    <Dialog.Close>
-                      <MyButton variant="soft" color="gray">
-                        Cancel
-                      </MyButton>
-                    </Dialog.Close>
-                    <Dialog.Close>
-                      <MyButton
-                        variant="solid"
-                        color="red"
-                        onClick={() => handleDeleteLesson(lesson.id)}
-                        disabled={deletingLessonId === lesson.id}
-                      >
-                        {deletingLessonId === lesson.id
-                          ? 'Deleting...'
-                          : 'Delete'}
-                      </MyButton>
-                    </Dialog.Close>
-                  </Flex>
-                </Dialog.Content>
-              </Dialog.Root>
+                <Dialog.Root>
+                  <Dialog.Trigger>
+                    <IconButton
+                      variant="ghost"
+                      color="red"
+                      disabled={deletingLessonId === lesson.id}
+                    >
+                      <TrashIcon />
+                    </IconButton>
+                  </Dialog.Trigger>
+                  <Dialog.Content style={{ maxWidth: 450 }}>
+                    <Dialog.Title>Delete Lesson</Dialog.Title>
+                    <Dialog.Description size="2" mb="4">
+                      Are you sure you want to delete this lesson? This action
+                      cannot be undone.
+                    </Dialog.Description>
+
+                    <Flex gap="3" mt="4" justify="end">
+                      <Dialog.Close>
+                        <MyButton variant="soft" color="gray">
+                          Cancel
+                        </MyButton>
+                      </Dialog.Close>
+                      <Dialog.Close>
+                        <MyButton
+                          variant="solid"
+                          color="red"
+                          onClick={() => handleDeleteLesson(lesson.id)}
+                          disabled={deletingLessonId === lesson.id}
+                        >
+                          {deletingLessonId === lesson.id
+                            ? 'Deleting...'
+                            : 'Delete'}
+                        </MyButton>
+                      </Dialog.Close>
+                    </Flex>
+                  </Dialog.Content>
+                </Dialog.Root>
+              </Flex>
             </Flex>
           </Card>
         ))}
