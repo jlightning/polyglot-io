@@ -4,12 +4,9 @@
  * Implemented without external dependencies
  */
 
-export interface AssSubtitle {
-  type: 'caption';
-  text: string;
-  start: number; // in milliseconds
-  end: number; // in milliseconds
-}
+import { sortAndDeduplicateSubtitles, Subtitle } from './util';
+
+export interface AssSubtitle extends Subtitle {}
 
 /**
  * Strip ASS formatting tags from text
@@ -227,7 +224,7 @@ export function parseAss(assContent: string): AssSubtitle[] {
       );
     }
 
-    return subtitles;
+    return sortAndDeduplicateSubtitles(subtitles);
   } catch (error) {
     console.error('Error parsing ASS content:', error);
     const errorMessage = error instanceof Error ? error.message : String(error);

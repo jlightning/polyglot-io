@@ -3,12 +3,9 @@
  * Returns the same structure as subsrt-ts for compatibility
  */
 
-export interface SrtSubtitle {
-  type: 'caption';
-  text: string;
-  start: number; // in milliseconds
-  end: number; // in milliseconds
-}
+import { sortAndDeduplicateSubtitles, Subtitle } from './util';
+
+export interface SrtSubtitle extends Subtitle {}
 
 /**
  * Parse SRT file content and return an array of subtitle objects
@@ -82,5 +79,5 @@ export function parseSrt(srtContent: string): SrtSubtitle[] {
     });
   }
 
-  return subtitles;
+  return sortAndDeduplicateSubtitles(subtitles);
 }
