@@ -101,7 +101,9 @@ export class LessonService {
             fileName
           );
           lessonType =
-            detectedFileType === 'srt' ? LessonType.subtitle : LessonType.text;
+            detectedFileType === 'srt' || detectedFileType === 'ass'
+              ? LessonType.subtitle
+              : LessonType.text;
         } catch (error) {
           console.error(
             'Error detecting file type, defaulting to text:',
