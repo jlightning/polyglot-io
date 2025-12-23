@@ -48,6 +48,8 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
     const extensionMap: Record<string, string> = {
       '.txt': 'text/plain',
       '.srt': 'application/x-subrip',
+      '.ass': 'text/x-ass',
+      '.ssa': 'text/x-ass',
       '.jpg': 'image/jpeg',
       '.jpeg': 'image/jpeg',
       '.png': 'image/png',
@@ -109,11 +111,12 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
       const validFileTypes = [
         'text/plain', // .txt files
         'application/x-subrip', // .srt files
+        'text/x-ass', // .ass and .ssa files
       ];
 
       if (!validFileTypes.includes(fileType)) {
         setError(
-          'Please select a text file (.txt) or subtitle file (.srt) only'
+          'Please select a text file (.txt) or subtitle file (.srt, .ass, .ssa) only'
         );
         return;
       }
@@ -554,7 +557,7 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
                     <input
                       id="file-upload"
                       type="file"
-                      accept=".txt,.srt"
+                      accept=".txt,.srt,.ass,.ssa"
                       onChange={handleLessonFileChange}
                       style={{
                         width: '100%',

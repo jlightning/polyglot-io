@@ -77,6 +77,8 @@ const LessonEditDialog: React.FC<LessonEditDialogProps> = ({
     const extensionMap: Record<string, string> = {
       '.txt': 'text/plain',
       '.srt': 'application/x-subrip',
+      '.ass': 'text/x-ass',
+      '.ssa': 'text/x-ass',
       '.jpg': 'image/jpeg',
       '.jpeg': 'image/jpeg',
       '.png': 'image/png',

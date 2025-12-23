@@ -1,4 +1,5 @@
 import { parseSrt } from './parser/srtParser';
+import { parseAss } from './parser/assParser';
 
 export interface ProcessedSentence {
   text: string;
@@ -150,6 +151,58 @@ export class TextProcessingService {
   }
 
   /**
+   * Parse ASS file content and extract sentences with timing information
+   */
+  static parseAssContent(assContent: string): ProcessedSentence[] {
+    try {
+      // Parse the ASS content using our ASS parser
+      const subtitles = parseAss(assContent);
+
+      const sentences: ProcessedSentence[] = [];
+
+      for (const subtitle of subtitles) {
+        // Only process content captions, skip meta and style captions
+        if (subtitle.type !== 'caption') continue;
+
+        // Clean up the text (remove HTML tags, extra whitespace)
+        let cleanText = subtitle.text
+          .replace(/<[^>]*>/g, '') // Remove HTML tags
+          .replace(/\n/g, ' ') // Replace newlines with spaces
+          .trim();
+
+        // Normalize katakana (convert small to big)
+        cleanText = this.normalizeKatakana(cleanText);
+
+        if (!cleanText) continue; // Skip empty entries
+
+        // Our parser returns times in milliseconds already
+        const startTimeMs = subtitle.start;
+        const endTimeMs = subtitle.end;
+
+        // Keep the original subtitle text
+        sentences.push({
+          text: cleanText,
+          startTime: startTimeMs,
+          endTime: endTimeMs,
+        });
+      }
+
+      if (sentences.length === 0) {
+        throw new Error(
+          'No sentences extracted from ASS file. The file may contain no valid dialogue entries.'
+        );
+      }
+
+      return sentences;
+    } catch (error) {
+      console.error('Error parsing ASS content:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to parse ASS file: ${errorMessage}`);
+    }
+  }
+
+  /**
    * Parse plain text content and split into sentences (no timing information)
    */
   static parseTxtContent(txtContent: string): ProcessedSentence[] {
@@ -208,7 +261,24 @@ export class TextProcessingService {
   /**
    * Determine file type based on content or file extension
    */
-  static getFileType(content: string, fileName?: string): 'srt' | 'txt' {
+  static getFileType(
+    content: string,
+    fileName?: string
+  ): 'srt' | 'txt' | 'ass' {
+    // Check if content looks like ASS format (starts with [Script Info] or [V4+ Styles] or [Events])
+    const assPattern = /^\[Script Info\]|^\[V4\+? Styles\]|^\[Events\]/m;
+    if (assPattern.test(content)) {
+      return 'ass';
+    }
+
+    // Check file extension for ASS/SSA
+    if (fileName) {
+      const lowerFileName = fileName.toLowerCase();
+      if (lowerFileName.endsWith('.ass') || lowerFileName.endsWith('.ssa')) {
+        return 'ass';
+      }
+    }
+
     // Check if content looks like SRT format
     const srtPattern =
       /^\d+\s*\n\d{2}:\d{2}:\d{2},\d{3}\s*-->\s*\d{2}:\d{2}:\d{2},\d{3}/m;
@@ -227,7 +297,7 @@ export class TextProcessingService {
   }
 
   /**
-   * Main processing function that handles both SRT and TXT files
+   * Main processing function that handles SRT, ASS, and TXT files
    */
   static processLessonFile(
     content: string,
@@ -238,6 +308,8 @@ export class TextProcessingService {
     switch (fileType) {
       case 'srt':
         return this.parseSrtContent(content);
+      case 'ass':
+        return this.parseAssContent(content);
       case 'txt':
         return this.parseTxtContent(content);
       default:
