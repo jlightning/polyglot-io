@@ -109,7 +109,7 @@ const LessonVideoViewPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   // Active sentence tracking
-  const [activeSentence, setActiveSentence] = useState<Sentence | null>(null);
+  const [activeSentences, setActiveSentences] = useState<Sentence[]>([]);
   const [previousSentences, setPreviousSentences] = useState<Sentence[]>([]);
   const [nextSentences, setNextSentences] = useState<Sentence[]>([]);
 
@@ -130,6 +130,9 @@ const LessonVideoViewPage: React.FC = () => {
 
   // Retime dialog state
   const [isRetimeDialogOpen, setIsRetimeDialogOpen] = useState(false);
+  const [sentenceToRetime, setSentenceToRetime] = useState<Sentence | null>(
+    null
+  );
 
   // Load basic lesson info and first page of sentences
   useEffect(() => {
@@ -353,11 +356,52 @@ const LessonVideoViewPage: React.FC = () => {
     }
   }, [lessonId, isAuthenticated, sentenceBuffer.loadedPages, loadSentencePage]);
 
+  // Find current sentences based on video time (can return multiple overlapping sentences)
+  const findCurrentSentences = useCallback(
+    (time: number): Sentence[] => {
+      // Find ALL sentences where time is within sentence bounds (overlapping subtitles)
+      const exactMatches = sentenceBuffer.sentences.filter(
+        sentence =>
+          sentence.start_time !== null &&
+          sentence.end_time !== null &&
+          time >= sentence.start_time &&
+          time <= sentence.end_time
+      );
+
+      if (exactMatches.length > 0) {
+        // Sort by start_time (earliest first)
+        exactMatches.sort((a, b) => a.start_time! - b.start_time!);
+        return exactMatches;
+      }
+
+      // If no exact match, find the closest previous sentence
+      let closestPrevious: Sentence | null = null;
+      let closestDistance = Infinity;
+
+      for (const sentence of sentenceBuffer.sentences) {
+        if (sentence.end_time !== null && sentence.end_time <= time) {
+          const distance = time - sentence.end_time;
+          if (distance < closestDistance) {
+            closestDistance = distance;
+            closestPrevious = sentence;
+          }
+        }
+      }
+
+      return closestPrevious ? [closestPrevious] : [];
+    },
+    [sentenceBuffer.sentences]
+  );
+
   // Buffer management - load pages ahead based on current video time
   useEffect(() => {
     if (!lesson || sentenceBuffer.sentences.length === 0) return;
 
-    const currentSentence = findCurrentSentence(currentTime);
+    const currentSentences = findCurrentSentences(currentTime);
+    if (currentSentences.length === 0) return;
+
+    // Use the earliest sentence to determine which page to load
+    const currentSentence = currentSentences[0];
     if (!currentSentence) return;
 
     // Find which page this sentence belongs to
@@ -398,52 +442,27 @@ const LessonVideoViewPage: React.FC = () => {
     sentenceBuffer.totalPages,
     sentenceBuffer.loadedPages,
     loadSentencePage,
+    findCurrentSentences,
   ]);
-
-  // Find current sentence based on video time
-  const findCurrentSentence = useCallback(
-    (time: number): Sentence | null => {
-      // First, try to find an exact match (time is within sentence bounds)
-      const exactMatch = sentenceBuffer.sentences.find(
-        sentence =>
-          sentence.start_time !== null &&
-          sentence.end_time !== null &&
-          time >= sentence.start_time &&
-          time <= sentence.end_time
-      );
-
-      if (exactMatch) return exactMatch;
-
-      // If no exact match, find the closest previous sentence
-      let closestPrevious: Sentence | null = null;
-      let closestDistance = Infinity;
-
-      for (const sentence of sentenceBuffer.sentences) {
-        if (sentence.end_time !== null && sentence.end_time <= time) {
-          const distance = time - sentence.end_time;
-          if (distance < closestDistance) {
-            closestDistance = distance;
-            closestPrevious = sentence;
-          }
-        }
-      }
-
-      return closestPrevious;
-    },
-    [sentenceBuffer.sentences]
-  );
 
   // Find previous sentences to display
   const findPreviousSentences = useCallback(
-    (currentSentence: Sentence | null, count: number = 3): Sentence[] => {
-      if (!currentSentence || !currentSentence.start_time) return [];
+    (currentSentences: Sentence[] | null, count: number = 3): Sentence[] => {
+      if (!currentSentences || currentSentences.length === 0) return [];
 
-      // Filter for sentences that have start_time < current sentence start_time
+      // Use the earliest sentence to find previous sentences
+      const earliestSentence = currentSentences[0];
+      if (!earliestSentence || !earliestSentence.start_time) return [];
+
+      // Get all current sentence IDs to exclude
+      const currentSentenceIds = new Set(currentSentences.map(s => s.id));
+
+      // Filter for sentences that have start_time < earliest current sentence start_time
       const filteredSentences = sentenceBuffer.sentences.filter(
         sentence =>
           sentence.start_time !== null &&
-          sentence.start_time < currentSentence.start_time! &&
-          sentence.id !== currentSentence.id // Exclude the current sentence itself
+          sentence.start_time < earliestSentence.start_time! &&
+          !currentSentenceIds.has(sentence.id) // Exclude all current sentences
       );
 
       // Sort by start_time descending to get the most recent previous sentences
@@ -457,16 +476,24 @@ const LessonVideoViewPage: React.FC = () => {
 
   // Find next few sentences to display
   const findNextSentences = useCallback(
-    (currentSentence: Sentence | null, count: number = 3): Sentence[] => {
-      if (!currentSentence || !currentSentence.start_time)
+    (currentSentences: Sentence[] | null, count: number = 3): Sentence[] => {
+      if (!currentSentences || currentSentences.length === 0)
         return sentenceBuffer.sentences.slice(0, count * 2 - 1);
 
-      // Filter for sentences that have start_time >= current sentence start_time
+      // Use the latest sentence to find next sentences
+      const latestSentence = currentSentences[currentSentences.length - 1];
+      if (!latestSentence || !latestSentence.start_time)
+        return sentenceBuffer.sentences.slice(0, count * 2 - 1);
+
+      // Get all current sentence IDs to exclude
+      const currentSentenceIds = new Set(currentSentences.map(s => s.id));
+
+      // Filter for sentences that have start_time >= latest current sentence start_time
       const filteredSentences = sentenceBuffer.sentences.filter(
         sentence =>
           sentence.start_time !== null &&
-          sentence.start_time >= currentSentence.start_time! &&
-          sentence.id !== currentSentence.id // Exclude the current sentence itself
+          sentence.start_time >= latestSentence.start_time! &&
+          !currentSentenceIds.has(sentence.id) // Exclude all current sentences
       );
 
       // Take the first <count> sentences
@@ -475,28 +502,38 @@ const LessonVideoViewPage: React.FC = () => {
     [sentenceBuffer.sentences]
   );
 
-  // Update active sentence, previous and next sentences based on current time
+  // Update active sentences, previous and next sentences based on current time
   useEffect(() => {
-    const current = findCurrentSentence(currentTime);
-    setActiveSentence(current);
+    const current = findCurrentSentences(currentTime);
+    setActiveSentences(current);
     setPreviousSentences(findPreviousSentences(current));
     setNextSentences(findNextSentences(current));
   }, [
     currentTime,
-    findCurrentSentence,
+    findCurrentSentences,
     findPreviousSentences,
     findNextSentences,
   ]);
 
-  // Save lesson progress based on current active sentence
+  // Save lesson progress based on current active sentences (use earliest sentence)
   useEffect(() => {
-    if (!lessonId || !isAuthenticated || !activeSentence || !lesson) return;
+    if (
+      !lessonId ||
+      !isAuthenticated ||
+      activeSentences.length === 0 ||
+      !lesson
+    )
+      return;
+
+    // Use the earliest sentence (already sorted by start_time)
+    const earliestSentence = activeSentences[0];
+    if (!earliestSentence) return;
 
     // Debounce saving to avoid too frequent writes
     const timeoutId = setTimeout(async () => {
       try {
         await axiosInstance.post(`/api/lessons/${lessonId}/progress/sentence`, {
-          sentenceId: activeSentence.id,
+          sentenceId: earliestSentence.id,
         });
       } catch (error) {
         console.error('Error saving lesson progress to backend:', error);
@@ -504,7 +541,7 @@ const LessonVideoViewPage: React.FC = () => {
     }, 2000);
 
     return () => clearTimeout(timeoutId);
-  }, [activeSentence, lessonId, isAuthenticated, axiosInstance, lesson]);
+  }, [activeSentences, lessonId, isAuthenticated, axiosInstance, lesson]);
 
   // Cleanup object URLs when component unmounts or video URL changes
   useEffect(() => {
@@ -885,14 +922,23 @@ const LessonVideoViewPage: React.FC = () => {
   };
 
   const handleFinishLesson = async () => {
-    if (!lessonId || !isAuthenticated || isFinishingLesson || !activeSentence)
+    if (
+      !lessonId ||
+      !isAuthenticated ||
+      isFinishingLesson ||
+      activeSentences.length === 0
+    )
       return;
+
+    // Use the earliest sentence (already sorted by start_time)
+    const earliestSentence = activeSentences[0];
+    if (!earliestSentence) return;
 
     try {
       setIsFinishingLesson(true);
 
       await axiosInstance.post(`/api/lessons/${lessonId}/progress/sentence`, {
-        sentenceId: activeSentence.id,
+        sentenceId: earliestSentence.id,
         finishLesson: true,
       });
 
@@ -916,9 +962,13 @@ const LessonVideoViewPage: React.FC = () => {
     }
   };
 
-  // Check if current sentence is the last sentence in the lesson
+  // Check if current sentences contain the last sentence in the lesson
   const isLastSentence = useMemo(() => {
-    if (!activeSentence || !lesson || !activeSentence.start_time) return false;
+    if (activeSentences.length === 0 || !lesson) return false;
+
+    // Use the earliest sentence to check
+    const earliestSentence = activeSentences[0];
+    if (!earliestSentence || !earliestSentence.start_time) return false;
 
     // Check if we have loaded all sentences
     const hasLoadedAllPages =
@@ -926,19 +976,22 @@ const LessonVideoViewPage: React.FC = () => {
 
     if (!hasLoadedAllPages) return false;
 
-    // Filter for sentences that have start_time >= current sentence start_time
-    // and exclude the current sentence itself
+    // Get all current sentence IDs to exclude
+    const currentSentenceIds = new Set(activeSentences.map(s => s.id));
+
+    // Filter for sentences that have start_time >= earliest current sentence start_time
+    // and exclude all current sentences
     const sentencesAfterCurrent = sentenceBuffer.sentences.filter(
       sentence =>
         sentence.start_time !== null &&
-        sentence.start_time >= activeSentence.start_time! &&
-        sentence.id !== activeSentence.id
+        sentence.start_time >= earliestSentence.start_time! &&
+        !currentSentenceIds.has(sentence.id)
     );
 
-    // If there are no sentences after the current one (with start_time >= current start_time),
-    // then this is the last sentence
+    // If there are no sentences after the current ones (with start_time >= earliest start_time),
+    // then this contains the last sentence
     return sentencesAfterCurrent.length === 0;
-  }, [activeSentence, lesson, sentenceBuffer]);
+  }, [activeSentences, lesson, sentenceBuffer]);
 
   // Format time for display
   const formatTime = (time: number): string => {
@@ -975,7 +1028,7 @@ const LessonVideoViewPage: React.FC = () => {
         />
 
         {/* Sentence Overlay */}
-        {showSentenceOverlay && activeSentence && (
+        {showSentenceOverlay && activeSentences.length > 0 && (
           <Box
             style={{
               position: 'absolute',
@@ -984,7 +1037,7 @@ const LessonVideoViewPage: React.FC = () => {
               right: '30px',
               backgroundColor: 'rgba(0, 0, 0, 0.6)',
               color: 'white',
-              padding: '4px',
+              padding: '8px',
               borderRadius: '8px',
               backdropFilter: 'blur(4px)',
               zIndex: 10,
@@ -992,35 +1045,40 @@ const LessonVideoViewPage: React.FC = () => {
               textAlign: 'center', // Center align content
             }}
           >
-            <Flex direction="column" gap="2" align="center">
-              <Box
-                style={{
-                  lineHeight: '1.6',
-                  fontSize: '20px',
-                  fontWeight: '500',
-                  textAlign: 'center',
-                }}
-              >
-                {activeSentence.split_text &&
-                activeSentence.split_text.length > 0 ? (
-                  <SentenceReconstructor
-                    sentence={activeSentence}
-                    fontSize="20px"
-                    onWordClick={handleWordClick}
-                    fallbackToOriginalText={true}
-                  />
-                ) : (
-                  <Text size="4" style={{ color: 'white' }}>
-                    {activeSentence.original_text}
-                  </Text>
-                )}
-              </Box>
+            <Flex direction="column" gap="0" align="center">
+              {activeSentences.map((sentence, index) => (
+                <Box
+                  key={sentence.id}
+                  style={{
+                    lineHeight: '1.5',
+                    fontSize: '20px',
+                    fontWeight: '500',
+                    textAlign: 'center',
+                    width: '100%',
+                    marginBottom:
+                      index < activeSentences.length - 1 ? '6px' : '0',
+                  }}
+                >
+                  {sentence.split_text && sentence.split_text.length > 0 ? (
+                    <SentenceReconstructor
+                      sentence={sentence}
+                      fontSize="20px"
+                      onWordClick={handleWordClick}
+                      fallbackToOriginalText={true}
+                    />
+                  ) : (
+                    <Text size="4" style={{ color: 'white' }}>
+                      {sentence.original_text}
+                    </Text>
+                  )}
+                </Box>
+              ))}
             </Flex>
           </Box>
         )}
       </Box>
     );
-  }, [videoUrl, showSentenceOverlay, activeSentence, getWordMark]);
+  }, [videoUrl, showSentenceOverlay, activeSentences, getWordMark]);
 
   if (authLoading || loading) {
     return (
@@ -1435,96 +1493,103 @@ const LessonVideoViewPage: React.FC = () => {
               </Box>
             ))}
 
-            {/* Current Sentence */}
+            {/* Current Sentences */}
             <Box>
-              {activeSentence ? (
-                <Box
-                  style={{
-                    padding: '16px',
-                    backgroundColor: 'var(--accent-3)',
-                    borderRadius: '8px',
-                    border: '2px solid var(--accent-6)',
-                  }}
-                >
-                  <Flex direction="column" gap="3">
-                    <Box>
-                      <Box
-                        style={{
-                          lineHeight: '1.6',
-                          fontSize: 'var(--font-size-3)',
-                        }}
-                      >
-                        {activeSentence.split_text &&
-                        activeSentence.split_text.length > 0 ? (
-                          <SentenceReconstructor
-                            sentence={activeSentence}
-                            fontSize="16px"
-                            onWordClick={handleWordClick}
-                            fallbackToOriginalText={true}
-                          />
-                        ) : (
-                          <Text size="3" style={{ lineHeight: '1.6' }}>
-                            {activeSentence.original_text}
-                          </Text>
-                        )}
-                      </Box>
-                    </Box>
-
-                    {/* Translation Section */}
-                    <Box>
-                      <Flex gap="2" wrap="wrap">
-                        <MyButton
-                          variant="soft"
-                          size="1"
-                          onClick={() => toggleTranslation(activeSentence.id)}
-                          disabled={loadingTranslations[activeSentence.id]}
-                          style={{}}
-                        >
-                          {loadingTranslations[activeSentence.id]
-                            ? 'Loading...'
-                            : translations[activeSentence.id]
-                              ? 'Hide translation'
-                              : 'Show translation'}
-                        </MyButton>
-                        <MyButton
-                          variant="soft"
-                          size="1"
-                          onClick={() => setIsRetimeDialogOpen(true)}
-                          disabled={
-                            !activeSentence.start_time ||
-                            !activeSentence.end_time
-                          }
-                        >
-                          Retime
-                        </MyButton>
-                      </Flex>
-
-                      {translations[activeSentence.id] && (
-                        <Box
-                          mt="2"
-                          p="2"
-                          style={{
-                            backgroundColor: 'var(--gray-2)',
-                            borderRadius: '4px',
-                          }}
-                        >
-                          <Text size="1" color="gray" mb="1">
-                            Translation:
-                          </Text>
-                          <Text
-                            size="2"
+              {activeSentences.length > 0 ? (
+                <Flex direction="column" gap="3">
+                  {activeSentences.map(sentence => (
+                    <Box
+                      key={sentence.id}
+                      style={{
+                        padding: '16px',
+                        backgroundColor: 'var(--accent-3)',
+                        borderRadius: '8px',
+                        border: '2px solid var(--accent-6)',
+                      }}
+                    >
+                      <Flex direction="column" gap="3">
+                        <Box>
+                          <Box
                             style={{
-                              fontStyle: 'italic',
-                              whiteSpace: 'pre-line',
+                              lineHeight: '1.6',
+                              fontSize: 'var(--font-size-3)',
                             }}
                           >
-                            {translations[activeSentence.id]}
-                          </Text>
+                            {sentence.split_text &&
+                            sentence.split_text.length > 0 ? (
+                              <SentenceReconstructor
+                                sentence={sentence}
+                                fontSize="16px"
+                                onWordClick={handleWordClick}
+                                fallbackToOriginalText={true}
+                              />
+                            ) : (
+                              <Text size="3" style={{ lineHeight: '1.6' }}>
+                                {sentence.original_text}
+                              </Text>
+                            )}
+                          </Box>
                         </Box>
-                      )}
+
+                        {/* Translation Section */}
+                        <Box>
+                          <Flex gap="2" wrap="wrap">
+                            <MyButton
+                              variant="soft"
+                              size="1"
+                              onClick={() => toggleTranslation(sentence.id)}
+                              disabled={loadingTranslations[sentence.id]}
+                              style={{}}
+                            >
+                              {loadingTranslations[sentence.id]
+                                ? 'Loading...'
+                                : translations[sentence.id]
+                                  ? 'Hide translation'
+                                  : 'Show translation'}
+                            </MyButton>
+                            <MyButton
+                              variant="soft"
+                              size="1"
+                              onClick={() => {
+                                setSentenceToRetime(sentence);
+                                setIsRetimeDialogOpen(true);
+                              }}
+                              disabled={
+                                !sentence.start_time || !sentence.end_time
+                              }
+                            >
+                              Retime
+                            </MyButton>
+                          </Flex>
+
+                          {translations[sentence.id] && (
+                            <Box
+                              mt="2"
+                              p="2"
+                              style={{
+                                backgroundColor: 'var(--gray-2)',
+                                borderRadius: '4px',
+                              }}
+                            >
+                              <Text size="1" color="gray" mb="1">
+                                Translation:
+                              </Text>
+                              <Text
+                                size="2"
+                                style={{
+                                  fontStyle: 'italic',
+                                  whiteSpace: 'pre-line',
+                                }}
+                              >
+                                {translations[sentence.id]}
+                              </Text>
+                            </Box>
+                          )}
+                        </Box>
+                      </Flex>
                     </Box>
-                  </Flex>
-                </Box>
+                  ))}
+                </Flex>
               ) : (
                 <Box
                   style={{
@@ -1623,7 +1688,7 @@ const LessonVideoViewPage: React.FC = () => {
 
       {/* Retime Dialog */}
       <SentenceRetimeDialog
-        sentence={activeSentence}
+        sentence={sentenceToRetime}
         open={isRetimeDialogOpen}
         onOpenChange={setIsRetimeDialogOpen}
         onSuccess={reloadAllSentences}
