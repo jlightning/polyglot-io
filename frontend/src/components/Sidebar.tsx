@@ -157,7 +157,7 @@ const Sidebar: React.FC<SidebarProps> = () => {
                                 height: `${backfilledBarHeight}px`,
                                 backgroundColor: 'var(--orange-9)',
                                 borderRadius:
-                                  actualBarHeight > 0 ? '0 0 3px 3px' : '3px',
+                                  actualBarHeight > 0 ? '3px 3px 0 0' : '3px',
                                 transition: 'all 0.2s ease',
                               }}
                             />
@@ -171,7 +171,7 @@ const Sidebar: React.FC<SidebarProps> = () => {
                                 backgroundColor: actualColor,
                                 borderRadius:
                                   backfilledBarHeight > 0
-                                    ? '3px 3px 0 0'
+                                    ? '0 0 3px 3px'
                                     : '3px',
                                 transition: 'all 0.2s ease',
                               }}
