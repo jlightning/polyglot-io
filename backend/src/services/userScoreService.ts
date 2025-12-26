@@ -170,8 +170,6 @@ export class UserScoreService {
 
           if (delta <= 0) continue;
 
-          console.log(current.date, past.date, delta);
-
           current.score -= delta;
           past.score += delta;
           past.backfilledAmount += delta;
