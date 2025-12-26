@@ -6,6 +6,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import LanguageSwitcher from './LanguageSwitcher';
+import { DAILY_SCORE_TARGET } from '../constants/scoreConstants';
 
 interface SidebarProps {}
 
@@ -59,10 +60,10 @@ const Sidebar: React.FC<SidebarProps> = () => {
           </Text>
           <Text
             size="2"
-            color={userScore >= 200 ? 'green' : 'yellow'}
+            color={userScore >= DAILY_SCORE_TARGET ? 'green' : 'yellow'}
             weight="medium"
           >
-            Today's Score: {userScore} / 200
+            Today's Score: {userScore} / {DAILY_SCORE_TARGET}
           </Text>
         </Flex>
 
@@ -81,11 +82,38 @@ const Sidebar: React.FC<SidebarProps> = () => {
               {scoreHistory.map(day => {
                 const maxScore = Math.max(
                   ...scoreHistory.map(d => d.score),
-                  200
-                ); // Use 200 as minimum max for better scaling
-                const heightRatio = maxScore > 0 ? day.score / maxScore : 0;
-                const barHeight =
-                  day.score > 0 ? Math.max(heightRatio * 60, 6) : 3; // 60px max height, minimum 6px for scores, 3px for zero
+                  DAILY_SCORE_TARGET
+                ); // Use DAILY_SCORE_TARGET as minimum max for better scaling
+
+                // Calculate heights for stacked bars
+                const actualScore = day.actualScore || 0;
+                const backfilledAmount = day.backfilledAmount || 0;
+                const totalScore = day.score || 0;
+
+                const actualHeightRatio =
+                  maxScore > 0 ? actualScore / maxScore : 0;
+                const backfilledHeightRatio =
+                  maxScore > 0 ? backfilledAmount / maxScore : 0;
+
+                const actualBarHeight =
+                  actualScore > 0 ? Math.max(actualHeightRatio * 60, 6) : 0; // 60px max height, minimum 6px for scores
+                const backfilledBarHeight =
+                  backfilledAmount > 0
+                    ? Math.max(backfilledHeightRatio * 60, 6)
+                    : 0;
+
+                const totalBarHeight =
+                  totalScore > 0
+                    ? Math.max((totalScore / maxScore) * 60, 6)
+                    : 3; // 3px for zero scores
+
+                // Determine color for actual score portion
+                const actualColor =
+                  actualScore >= DAILY_SCORE_TARGET
+                    ? 'var(--green-9)'
+                    : actualScore > 0
+                      ? 'var(--yellow-9)'
+                      : 'var(--gray-6)';
 
                 return (
                   <Flex
@@ -96,24 +124,62 @@ const Sidebar: React.FC<SidebarProps> = () => {
                     style={{ flex: 1, minWidth: '28px' }}
                   >
                     <Text size="1" style={{ fontSize: '8px' }}>
-                      {day.score}
+                      {totalScore}
                     </Text>
                     <Box
                       style={{
                         width: '24px',
-                        height: `${barHeight}px`,
-                        backgroundColor:
-                          day.score >= 200
-                            ? 'var(--green-9)'
-                            : day.score > 0
-                              ? 'var(--yellow-9)'
-                              : 'var(--gray-6)',
-                        borderRadius: '3px',
-                        transition: 'all 0.2s ease',
-                        cursor: 'default',
+                        height: `${totalBarHeight}px`,
+                        position: 'relative',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'flex-end',
                       }}
-                      title={`${new Date(day.date).toLocaleDateString('en', { weekday: 'long', month: 'short', day: 'numeric' })}: ${day.score} pts`}
-                    />
+                      title={`${new Date(day.date).toLocaleDateString('en', { weekday: 'long', month: 'short', day: 'numeric' })}: ${totalScore} pts${backfilledAmount > 0 ? ` (${actualScore} actual + ${backfilledAmount} backfilled)` : ''}`}
+                    >
+                      {/* Zero score indicator */}
+                      {totalScore === 0 ? (
+                        <Box
+                          style={{
+                            width: '100%',
+                            height: '3px',
+                            backgroundColor: 'var(--gray-6)',
+                            borderRadius: '3px',
+                          }}
+                        />
+                      ) : (
+                        <>
+                          {/* Backfilled portion (top, orange) */}
+                          {backfilledBarHeight > 0 && (
+                            <Box
+                              style={{
+                                width: '100%',
+                                height: `${backfilledBarHeight}px`,
+                                backgroundColor: 'var(--orange-9)',
+                                borderRadius:
+                                  actualBarHeight > 0 ? '0 0 3px 3px' : '3px',
+                                transition: 'all 0.2s ease',
+                              }}
+                            />
+                          )}
+                          {/* Actual score portion (bottom) */}
+                          {actualBarHeight > 0 && (
+                            <Box
+                              style={{
+                                width: '100%',
+                                height: `${actualBarHeight}px`,
+                                backgroundColor: actualColor,
+                                borderRadius:
+                                  backfilledBarHeight > 0
+                                    ? '3px 3px 0 0'
+                                    : '3px',
+                                transition: 'all 0.2s ease',
+                              }}
+                            />
+                          )}
+                        </>
+                      )}
+                    </Box>
                     <Text size="1" color="gray" style={{ fontSize: '10px' }}>
                       {new Date(day.date)
                         .toLocaleDateString('en', { weekday: 'short' })

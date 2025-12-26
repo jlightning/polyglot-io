@@ -7,6 +7,9 @@ dayjs.extend(timezone);
 
 import { prisma } from './index';
 
+// Daily score target for backfill logic
+const DAILY_SCORE_TARGET = 200;
+
 export interface UserScoreResponse {
   success: boolean;
   message: string;
@@ -16,7 +19,9 @@ export interface UserScoreResponse {
 
 export interface DailyScore {
   date: string;
-  score: number;
+  score: number; // Total display score (actual + backfilled)
+  actualScore: number; // The actual score earned that day
+  backfilledAmount: number; // Amount backfilled (score - actualScore)
 }
 
 export interface ScoreHistoryResponse {
@@ -138,11 +143,38 @@ export class UserScoreService {
         scoreHistory.push({
           date: targetDate.format('YYYY-MM-DD'),
           score: Number(score),
+          actualScore: Number(score),
+          backfilledAmount: 0,
         });
       }
 
       // Reverse array so oldest date comes first
       scoreHistory.reverse();
+
+      for (let i = 1; i < scoreHistory.length; i++) {
+        const current = scoreHistory[i]!;
+        if (current?.score <= DAILY_SCORE_TARGET) continue;
+
+        for (let j = 0; j < i; j++) {
+          if (current.score <= DAILY_SCORE_TARGET) break;
+          const past = scoreHistory[j]!;
+
+          if (past.score >= DAILY_SCORE_TARGET) continue;
+
+          const delta = Math.min(
+            DAILY_SCORE_TARGET - past.score,
+            current.score - DAILY_SCORE_TARGET
+          );
+
+          if (delta <= 0) continue;
+
+          console.log(current.date, past.date, delta);
+
+          current.score -= delta;
+          past.score += delta;
+          past.backfilledAmount += delta;
+        }
+      }
 
       return {
         success: true,

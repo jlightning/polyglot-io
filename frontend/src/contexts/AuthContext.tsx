@@ -19,6 +19,8 @@ interface User {
 interface DailyScore {
   date: string;
   score: number;
+  actualScore: number;
+  backfilledAmount: number;
 }
 
 interface AuthContextType {
