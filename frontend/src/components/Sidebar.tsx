@@ -99,12 +99,12 @@ const Sidebar: React.FC<SidebarProps> = () => {
                   actualScore > 0 ? Math.max(actualHeightRatio * 60, 6) : 0; // 60px max height, minimum 6px for scores
                 const backfilledBarHeight =
                   backfilledAmount > 0
-                    ? Math.max(backfilledHeightRatio * 60, 6)
+                    ? Math.max(backfilledHeightRatio * 60, 2)
                     : 0;
 
                 const totalBarHeight =
                   totalScore > 0
-                    ? Math.max((totalScore / maxScore) * 60, 6)
+                    ? Math.max((totalScore / maxScore) * 60, 2)
                     : 3; // 3px for zero scores
 
                 // Determine color for actual score portion
@@ -144,7 +144,7 @@ const Sidebar: React.FC<SidebarProps> = () => {
                             width: '100%',
                             height: '3px',
                             backgroundColor: 'var(--gray-6)',
-                            borderRadius: '3px',
+                            borderRadius: '2px',
                           }}
                         />
                       ) : (
@@ -157,7 +157,7 @@ const Sidebar: React.FC<SidebarProps> = () => {
                                 height: `${backfilledBarHeight}px`,
                                 backgroundColor: 'var(--orange-9)',
                                 borderRadius:
-                                  actualBarHeight > 0 ? '3px 3px 0 0' : '3px',
+                                  actualBarHeight > 0 ? '2px 2px 0 0' : '2px',
                                 transition: 'all 0.2s ease',
                               }}
                             />
@@ -171,8 +171,8 @@ const Sidebar: React.FC<SidebarProps> = () => {
                                 backgroundColor: actualColor,
                                 borderRadius:
                                   backfilledBarHeight > 0
-                                    ? '0 0 3px 3px'
-                                    : '3px',
+                                    ? '0 0 2px 2px'
+                                    : '2px',
                                 transition: 'all 0.2s ease',
                               }}
                             />
