@@ -19,6 +19,7 @@ interface User {
 interface DailyScore {
   date: string;
   score: number;
+  originalScore: number;
   actualScore: number;
   backfilledAmount: number;
 }

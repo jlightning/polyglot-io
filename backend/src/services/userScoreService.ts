@@ -20,6 +20,7 @@ export interface UserScoreResponse {
 export interface DailyScore {
   date: string;
   score: number; // Total display score (actual + backfilled)
+  originalScore: number;
   actualScore: number; // The actual score earned that day
   backfilledAmount: number; // Amount backfilled (score - actualScore)
 }
@@ -115,7 +116,7 @@ export class UserScoreService {
       const scoreHistory: DailyScore[] = [];
 
       // Get scores for the last 7 days (including today)
-      for (let i = 0; i < 7; i++) {
+      for (let i = 0; i < 10; i++) {
         const targetDate = userTimezone
           ? dayjs().tz(userTimezone).subtract(i, 'days')
           : dayjs().subtract(i, 'days');
@@ -143,6 +144,7 @@ export class UserScoreService {
         scoreHistory.push({
           date: targetDate.format('YYYY-MM-DD'),
           score: Number(score),
+          originalScore: Number(score),
           actualScore: Number(score),
           backfilledAmount: 0,
         });
@@ -179,7 +181,7 @@ export class UserScoreService {
       return {
         success: true,
         message: 'Score history retrieved successfully',
-        scoreHistory,
+        scoreHistory: scoreHistory.slice(-7),
       };
     } catch (error) {
       console.error('Error retrieving score history:', error);

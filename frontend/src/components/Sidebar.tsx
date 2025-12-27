@@ -77,7 +77,7 @@ const Sidebar: React.FC<SidebarProps> = () => {
               direction="row"
               align="end"
               gap="2"
-              style={{ height: '90px', padding: '0 4px' }}
+              style={{ height: '100px', padding: '0 4px' }}
             >
               {scoreHistory.map(day => {
                 const maxScore = Math.max(
@@ -89,6 +89,7 @@ const Sidebar: React.FC<SidebarProps> = () => {
                 const actualScore = day.actualScore || 0;
                 const backfilledAmount = day.backfilledAmount || 0;
                 const totalScore = day.score || 0;
+                const originalScore = day.originalScore || 0;
 
                 const actualHeightRatio =
                   maxScore > 0 ? actualScore / maxScore : 0;
@@ -123,8 +124,18 @@ const Sidebar: React.FC<SidebarProps> = () => {
                     gap="1"
                     style={{ flex: 1, minWidth: '28px' }}
                   >
-                    <Text size="1" style={{ fontSize: '8px' }}>
+                    <Text size="1" style={{ fontSize: '8px', lineHeight: 1 }}>
                       {totalScore}
+                    </Text>
+                    <Text
+                      size="1"
+                      style={{
+                        fontSize: '8px',
+                        lineHeight: 1,
+                        color: actualColor,
+                      }}
+                    >
+                      / {originalScore}
                     </Text>
                     <Box
                       style={{
