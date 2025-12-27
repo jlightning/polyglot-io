@@ -124,9 +124,11 @@ const Sidebar: React.FC<SidebarProps> = () => {
                     gap="1"
                     style={{ flex: 1, minWidth: '28px' }}
                   >
-                    <Text size="1" style={{ fontSize: '8px', lineHeight: 1 }}>
-                      {totalScore}
-                    </Text>
+                    {originalScore !== totalScore && (
+                      <Text size="1" style={{ fontSize: '8px', lineHeight: 1 }}>
+                        {originalScore}
+                      </Text>
+                    )}
                     <Text
                       size="1"
                       style={{
@@ -135,7 +137,7 @@ const Sidebar: React.FC<SidebarProps> = () => {
                         color: actualColor,
                       }}
                     >
-                      / {originalScore}
+                      {totalScore}
                     </Text>
                     <Box
                       style={{
