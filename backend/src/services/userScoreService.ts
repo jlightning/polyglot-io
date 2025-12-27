@@ -115,11 +115,19 @@ export class UserScoreService {
     try {
       const scoreHistory: DailyScore[] = [];
 
+      const firstDayOfLastWeek = dayjs().tz(userTimezone).startOf('week');
+      const today = userTimezone ? dayjs().tz(userTimezone) : dayjs();
+      const daysSinceFirstDayOfWeek = today
+        .startOf('day')
+        .diff(firstDayOfLastWeek.startOf('day'), 'day');
+
       // Get scores for the last 7 days (including today)
-      for (let i = 0; i < 10; i++) {
-        const targetDate = userTimezone
-          ? dayjs().tz(userTimezone).subtract(i, 'days')
-          : dayjs().subtract(i, 'days');
+      for (
+        let i = daysSinceFirstDayOfWeek - 7;
+        i < daysSinceFirstDayOfWeek;
+        i++
+      ) {
+        const targetDate = dayjs().tz(userTimezone).subtract(i, 'days');
 
         // Get start and end of the target day in user's timezone, then convert to UTC
         const startOfDay = targetDate.startOf('day').utc().toDate();
