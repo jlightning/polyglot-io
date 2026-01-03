@@ -8,7 +8,7 @@ dayjs.extend(timezone);
 import { prisma } from './index';
 
 // Daily score target for backfill logic
-const DAILY_SCORE_TARGET = 250;
+const DAILY_SCORE_TARGET = 200;
 
 export interface UserScoreResponse {
   success: boolean;
