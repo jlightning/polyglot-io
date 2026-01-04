@@ -161,7 +161,7 @@ export class UserScoreService {
         });
       }
 
-      for (let i = 1; i < scoreHistory.length; i++) {
+      for (let i = 0; i < scoreHistory.length; i++) {
         const current = scoreHistory[i]!;
         if (current?.score <= dailyScoreTarget) continue;
 
