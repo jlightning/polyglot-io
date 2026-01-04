@@ -1,9 +1,11 @@
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
+import isoWeek from 'dayjs/plugin/isoWeek';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
+dayjs.extend(isoWeek);
 
 import { prisma } from './index';
 
@@ -115,15 +117,8 @@ export class UserScoreService {
     try {
       const scoreHistory: DailyScore[] = [];
 
-      const firstDayOfTheWeek = dayjs()
-        .tz(userTimezone)
-        .startOf('week')
-        .add(1, 'day');
-      const lastDayOfTheWeek = dayjs()
-        .tz(userTimezone)
-        .endOf('week')
-        .add(1, 'day');
-      // Get scores for the last 7 days (including today)
+      let firstDayOfTheWeek = dayjs().tz(userTimezone).startOf('isoWeek');
+      let lastDayOfTheWeek = dayjs().tz(userTimezone).endOf('isoWeek');
 
       for (
         let targetDate = firstDayOfTheWeek;
