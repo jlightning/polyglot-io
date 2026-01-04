@@ -25,6 +25,7 @@ model User {
   wordUserMarks        WordUserMark[]
   userLessonProgresses UserLessonProgress[]
   userActionLogs       UserActionLog[]
+  userSettings         UserSetting[]
 
   @@map("user")
 }
@@ -246,4 +247,18 @@ model UserActionLog {
 
   @@unique([is_read, user_id, word_id, sentence_id])
   @@map("user_action_log")
+}
+
+model UserSetting {
+  id           Int      @id @default(autoincrement())
+  user_id      Int
+  setting_key  String   @db.VarChar(100)
+  setting_value String  @db.VarChar(255)
+  created_at   DateTime @default(now()) @db.Timestamp(0)
+  updated_at   DateTime @default(now()) @updatedAt @db.Timestamp(0)
+
+  user User @relation(fields: [user_id], references: [id])
+
+  @@unique([user_id, setting_key])
+  @@map("user_setting")
 }

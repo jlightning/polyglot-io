@@ -8,6 +8,7 @@ import {
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { WordMarkProvider } from './contexts/WordMarkContext';
+import { UserSettingProvider } from './contexts/UserSettingContext';
 import {
   AuthPage,
   LessonPage,
@@ -15,6 +16,7 @@ import {
   LessonVideoViewPage,
   LessonMangaViewPage,
   WordsPage,
+  SettingsPage,
 } from './pages';
 import { Flex, Text } from '@radix-ui/themes';
 import Sidebar from './components/Sidebar';
@@ -42,27 +44,36 @@ const AppContent: React.FC = () => {
   return (
     <LanguageProvider>
       <WordMarkProvider>
-        <Router>
-          <Flex style={{ minHeight: '100vh' }}>
-            <Sidebar />
-            <Flex style={{ flex: 1 }}>
-              <Routes>
-                <Route path="/" element={<Navigate to="/lessons" replace />} />
-                <Route path="/lessons" element={<LessonPage />} />
-                <Route path="/lessons/:lessonId" element={<LessonViewPage />} />
-                <Route
-                  path="/lessons/:lessonId/video"
-                  element={<LessonVideoViewPage />}
-                />
-                <Route
-                  path="/lessons/:lessonId/manga"
-                  element={<LessonMangaViewPage />}
-                />
-                <Route path="/words" element={<WordsPage />} />
-              </Routes>
+        <UserSettingProvider>
+          <Router>
+            <Flex style={{ minHeight: '100vh' }}>
+              <Sidebar />
+              <Flex style={{ flex: 1 }}>
+                <Routes>
+                  <Route
+                    path="/"
+                    element={<Navigate to="/lessons" replace />}
+                  />
+                  <Route path="/lessons" element={<LessonPage />} />
+                  <Route
+                    path="/lessons/:lessonId"
+                    element={<LessonViewPage />}
+                  />
+                  <Route
+                    path="/lessons/:lessonId/video"
+                    element={<LessonVideoViewPage />}
+                  />
+                  <Route
+                    path="/lessons/:lessonId/manga"
+                    element={<LessonMangaViewPage />}
+                  />
+                  <Route path="/words" element={<WordsPage />} />
+                  <Route path="/settings" element={<SettingsPage />} />
+                </Routes>
+              </Flex>
             </Flex>
-          </Flex>
-        </Router>
+          </Router>
+        </UserSettingProvider>
       </WordMarkProvider>
     </LanguageProvider>
   );

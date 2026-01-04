@@ -1,12 +1,17 @@
 import React, { useEffect } from 'react';
 import { Box, Flex, Text, Separator } from '@radix-ui/themes';
 import MyButton from './MyButton';
-import { ReaderIcon, ExitIcon, BookmarkIcon } from '@radix-ui/react-icons';
+import {
+  ReaderIcon,
+  ExitIcon,
+  BookmarkIcon,
+  GearIcon,
+} from '@radix-ui/react-icons';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useUserSettings } from '../contexts/UserSettingContext';
 import LanguageSwitcher from './LanguageSwitcher';
-import { DAILY_SCORE_TARGET } from '../constants/scoreConstants';
 
 interface SidebarProps {}
 
@@ -20,6 +25,7 @@ const Sidebar: React.FC<SidebarProps> = () => {
     fetchUserStats,
     isAuthenticated,
   } = useAuth();
+  const { dailyScoreTarget } = useUserSettings();
   const { selectedLanguage } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
@@ -37,16 +43,20 @@ const Sidebar: React.FC<SidebarProps> = () => {
 
   const isLessonsActive = location.pathname.startsWith('/lessons');
   const isWordsActive = location.pathname === '/words';
+  const isSettingsActive = location.pathname === '/settings';
 
   return (
     <Box
       style={{
         width: '280px',
-        minHeight: '100vh',
+        height: '100vh',
         backgroundColor: 'var(--color-surface)',
         borderRight: '1px solid var(--gray-6)',
         display: 'flex',
         flexDirection: 'column',
+        overflowY: 'auto',
+        position: 'sticky',
+        top: 0,
       }}
     >
       {/* Header */}
@@ -60,10 +70,10 @@ const Sidebar: React.FC<SidebarProps> = () => {
           </Text>
           <Text
             size="2"
-            color={userScore >= DAILY_SCORE_TARGET ? 'green' : 'yellow'}
+            color={userScore >= dailyScoreTarget ? 'green' : 'yellow'}
             weight="medium"
           >
-            Today's Score: {userScore} / {DAILY_SCORE_TARGET}
+            Today's Score: {userScore} / {dailyScoreTarget}
           </Text>
         </Flex>
 
@@ -82,8 +92,8 @@ const Sidebar: React.FC<SidebarProps> = () => {
               {scoreHistory.map(day => {
                 const maxScore = Math.max(
                   ...scoreHistory.map(d => d.score),
-                  DAILY_SCORE_TARGET
-                ); // Use DAILY_SCORE_TARGET as minimum max for better scaling
+                  dailyScoreTarget
+                ); // Use dailyScoreTarget as minimum max for better scaling
 
                 // Calculate heights for stacked bars
                 const actualScore = day.actualScore || 0;
@@ -110,7 +120,7 @@ const Sidebar: React.FC<SidebarProps> = () => {
 
                 // Determine color for actual score portion
                 const actualColor =
-                  actualScore >= DAILY_SCORE_TARGET
+                  actualScore >= dailyScoreTarget
                     ? 'var(--green-9)'
                     : actualScore > 0
                       ? 'var(--yellow-9)'
@@ -252,15 +262,25 @@ const Sidebar: React.FC<SidebarProps> = () => {
 
       {/* Footer */}
       <Box p="4">
-        <MyButton
-          variant="ghost"
-          color="red"
-          onClick={handleLogout}
-          style={{ width: '100%', justifyContent: 'flex-start' }}
-        >
-          <ExitIcon />
-          Logout
-        </MyButton>
+        <Flex direction="column" gap="2">
+          <MyButton
+            variant={isSettingsActive ? 'solid' : 'soft'}
+            style={{ width: '100%', justifyContent: 'flex-start' }}
+            onClick={() => navigate('/settings')}
+          >
+            <GearIcon />
+            Settings
+          </MyButton>
+          <MyButton
+            variant="ghost"
+            color="red"
+            onClick={handleLogout}
+            style={{ width: '100%', justifyContent: 'flex-start' }}
+          >
+            <ExitIcon />
+            Logout
+          </MyButton>
+        </Flex>
       </Box>
     </Box>
   );

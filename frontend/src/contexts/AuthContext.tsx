@@ -213,6 +213,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setUser(result.user);
         localStorage.setItem('authToken', result.token);
         localStorage.setItem('user', JSON.stringify(result.user));
+        // Settings will be fetched by useEffect when token changes
         return { success: true, message: result.message };
       } else {
         return { success: false, message: result.message || 'Login failed' };
@@ -248,6 +249,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setUser(result.user);
         localStorage.setItem('authToken', result.token);
         localStorage.setItem('user', JSON.stringify(result.user));
+        // Settings will be fetched by useEffect when token changes
         return { success: true, message: result.message };
       } else {
         return {

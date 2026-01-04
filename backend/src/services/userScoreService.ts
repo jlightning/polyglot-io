@@ -8,9 +8,10 @@ dayjs.extend(timezone);
 dayjs.extend(isoWeek);
 
 import { prisma } from './index';
+import { UserSettingService } from './userSettingService';
 
-// Daily score target for backfill logic
-const DAILY_SCORE_TARGET = 200;
+// Daily score target for backfill logic (fallback default)
+const DEFAULT_DAILY_SCORE_TARGET = 200;
 
 export interface UserScoreResponse {
   success: boolean;
@@ -115,6 +116,12 @@ export class UserScoreService {
     userTimezone?: string
   ): Promise<ScoreHistoryResponse> {
     try {
+      // Get user's daily score target from settings
+      const userSettings = await UserSettingService.getUserSettings(userId);
+      const dailyScoreTarget =
+        parseInt(userSettings.DAILY_SCORE_TARGET, 10) ||
+        DEFAULT_DAILY_SCORE_TARGET;
+
       const scoreHistory: DailyScore[] = [];
 
       let firstDayOfTheWeek = dayjs().tz(userTimezone).startOf('isoWeek');
@@ -156,19 +163,19 @@ export class UserScoreService {
 
       for (let i = 1; i < scoreHistory.length; i++) {
         const current = scoreHistory[i]!;
-        if (current?.score <= DAILY_SCORE_TARGET) continue;
+        if (current?.score <= dailyScoreTarget) continue;
 
         for (let j = 0; j < scoreHistory.length; j++) {
-          if (current.score <= DAILY_SCORE_TARGET) break;
+          if (current.score <= dailyScoreTarget) break;
           if (i === j) continue;
 
           const past = scoreHistory[j]!;
 
-          if (past.score >= DAILY_SCORE_TARGET) continue;
+          if (past.score >= dailyScoreTarget) continue;
 
           const delta = Math.min(
-            DAILY_SCORE_TARGET - past.score,
-            current.score - DAILY_SCORE_TARGET
+            dailyScoreTarget - past.score,
+            current.score - dailyScoreTarget
           );
 
           if (delta <= 0) continue;
