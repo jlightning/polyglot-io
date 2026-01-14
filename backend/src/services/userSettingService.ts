@@ -6,7 +6,7 @@ const DEFAULT_SETTINGS = {
 };
 
 // Allowed values for DAILY_SCORE_TARGET
-const ALLOWED_DAILY_SCORE_TARGETS = ['50', '100', '200', '250', '300'];
+const ALLOWED_DAILY_SCORE_TARGETS = ['50', '100', '200', '250', '300', '400'];
 
 export interface UserSettings {
   DAILY_SCORE_TARGET: string;
