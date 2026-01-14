@@ -1400,7 +1400,13 @@ const LessonVideoViewPage: React.FC = () => {
                   </Flex>
 
                   {/* Seek Bar */}
-                  <Box style={{ width: '100%', marginTop: '12px' }}>
+                  <Box
+                    style={{
+                      width: '100%',
+                      marginTop: '12px',
+                      position: 'relative',
+                    }}
+                  >
                     <input
                       type="range"
                       min="0"
@@ -1414,8 +1420,51 @@ const LessonVideoViewPage: React.FC = () => {
                         borderRadius: '4px',
                         outline: 'none',
                         cursor: 'pointer',
+                        position: 'relative',
+                        zIndex: 2,
                       }}
                     />
+                    {/* Buffer Head Indicator - Yellow marker at latest loaded sentence end time */}
+                    {duration > 0 &&
+                      (() => {
+                        // Find the latest loaded sentence (the one with the maximum end_time)
+                        if (!sentenceBuffer.sentences?.length) return null;
+
+                        const latestLoadedSentence =
+                          sentenceBuffer.sentences[
+                            sentenceBuffer.sentences.length - 1
+                          ];
+
+                        const bufferHeadTime = latestLoadedSentence?.end_time;
+
+                        if (
+                          bufferHeadTime !== null &&
+                          bufferHeadTime !== undefined &&
+                          bufferHeadTime > 0
+                        ) {
+                          const bufferHeadPosition =
+                            (bufferHeadTime / duration) * 100;
+                          return (
+                            <Box
+                              style={{
+                                position: 'absolute',
+                                left: `${bufferHeadPosition + 0.4}%`,
+                                top: '0',
+                                width: '4px',
+                                height: '8px',
+                                backgroundColor: 'yellow',
+                                borderRadius: '2px',
+                                transform: 'translateX(-50%)',
+                                zIndex: 3,
+                                pointerEvents: 'none',
+                                boxShadow: '0 0 4px rgba(255, 255, 0, 0.6)',
+                              }}
+                            />
+                          );
+                        }
+
+                        return null;
+                      })()}
                   </Box>
 
                   {/* Progress Info */}
