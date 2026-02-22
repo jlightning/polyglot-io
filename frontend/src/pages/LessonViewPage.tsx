@@ -92,6 +92,12 @@ const LessonViewPage: React.FC = () => {
   const [progressLoaded, setProgressLoaded] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isFinishingLesson, setIsFinishingLesson] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  // Manual lesson: add sentence UI
+  const [newSentenceText, setNewSentenceText] = useState('');
+  const [addingSentence, setAddingSentence] = useState(false);
+  const [addSentenceError, setAddSentenceError] = useState<string | null>(null);
 
   // Redirect manga lessons to manga view page
   useEffect(() => {
@@ -187,7 +193,14 @@ const LessonViewPage: React.FC = () => {
     };
 
     fetchLesson();
-  }, [lessonId, currentPage, isAuthenticated, axiosInstance, progressLoaded]);
+  }, [
+    lessonId,
+    currentPage,
+    isAuthenticated,
+    axiosInstance,
+    progressLoaded,
+    refreshTrigger,
+  ]);
 
   // Track progress when page changes (but not on initial load)
   useEffect(() => {
@@ -249,6 +262,40 @@ const LessonViewPage: React.FC = () => {
       }));
     }
     setIsEditDialogOpen(false);
+  };
+
+  const handleAddSentence = async () => {
+    const text = newSentenceText?.trim();
+    if (!lessonId || !text || addingSentence) return;
+
+    setAddSentenceError(null);
+    setAddingSentence(true);
+    try {
+      const response = await axiosInstance.post(
+        `/api/lessons/${lessonId}/sentences`,
+        { text }
+      );
+      if (response.data.success) {
+        setNewSentenceText('');
+        const total = response.data.totalSentences as number | undefined;
+        if (total != null && total > 0) {
+          const lastPage = Math.ceil(total / SENTENCES_PER_PAGE);
+          setCurrentPage(lastPage);
+        }
+        setRefreshTrigger(t => t + 1);
+      } else {
+        setAddSentenceError(response.data.message || 'Failed to add sentence');
+      }
+    } catch (err) {
+      console.error('Add sentence error:', err);
+      if (axios.isAxiosError(err) && err.response?.data?.message) {
+        setAddSentenceError(err.response.data.message);
+      } else {
+        setAddSentenceError('Failed to add sentence');
+      }
+    } finally {
+      setAddingSentence(false);
+    }
   };
 
   const handleFinishLesson = async () => {
@@ -433,90 +480,139 @@ const LessonViewPage: React.FC = () => {
 
       <Separator size="4" mb="4" />
 
+      {/* Add sentence (manual lessons only) */}
+      {lesson.lessonType === 'manual' && (
+        <Card mb="6" style={{ padding: '16px' }}>
+          <Flex direction="column" gap="3">
+            <Text size="2" weight="medium">
+              Add sentence
+            </Text>
+            <textarea
+              value={newSentenceText}
+              onChange={e => {
+                setNewSentenceText(e.target.value);
+                setAddSentenceError(null);
+              }}
+              placeholder="Enter a sentence in the lesson language..."
+              disabled={addingSentence}
+              rows={8}
+              style={{
+                width: '100%',
+                padding: '8px',
+                border: '1px solid var(--gray-7)',
+                borderRadius: '4px',
+                fontSize: '14px',
+                resize: 'vertical',
+              }}
+            />
+            {addSentenceError && (
+              <Text size="2" color="red">
+                {addSentenceError}
+              </Text>
+            )}
+            <MyButton
+              onClick={handleAddSentence}
+              disabled={addingSentence || !newSentenceText.trim()}
+            >
+              {addingSentence ? 'Adding...' : 'Add sentence'}
+            </MyButton>
+          </Flex>
+        </Card>
+      )}
+
       {/* Sentences */}
       <Box mb="6">
         <Flex direction="column" gap="4">
-          {lesson.sentences.map((sentence, index) => (
-            <Card key={sentence.id} style={{ padding: '16px' }}>
-              <Flex direction="column" gap="3">
-                <Flex align="center" justify="between">
-                  <Text size="2" color="gray">
-                    Sentence{' '}
-                    {(currentPage - 1) * SENTENCES_PER_PAGE + index + 1}
-                  </Text>
-                  {sentence.start_time &&
-                    sentence.end_time &&
-                    lesson.audioUrl && (
-                      <SentenceAudioPlayer
-                        audioUrl={lesson.audioUrl}
-                        startTime={sentence.start_time}
-                        endTime={sentence.end_time}
-                      />
-                    )}
-                </Flex>
-
-                <Box
-                  style={{ lineHeight: '1.6', fontSize: 'var(--font-size-4)' }}
-                >
-                  {sentence.split_text && sentence.split_text.length > 0 ? (
-                    <SentenceReconstructor
-                      sentence={sentence}
-                      fontSize="18px"
-                      onWordClick={handleWordClick}
-                      fallbackToOriginalText={false}
-                      className="word-badge"
-                    />
-                  ) : (
-                    <Text size="4" style={{ lineHeight: '1.6' }}>
-                      {sentence.original_text}
+          {lesson.sentences.length === 0 && lesson.lessonType === 'manual' ? (
+            <Text size="2" color="gray">
+              No sentences yet. Add your first sentence above.
+            </Text>
+          ) : (
+            lesson.sentences.map((sentence, index) => (
+              <Card key={sentence.id} style={{ padding: '16px' }}>
+                <Flex direction="column" gap="3">
+                  <Flex align="center" justify="between">
+                    <Text size="2" color="gray">
+                      Sentence{' '}
+                      {(currentPage - 1) * SENTENCES_PER_PAGE + index + 1}
                     </Text>
-                  )}
-                </Box>
+                    {sentence.start_time &&
+                      sentence.end_time &&
+                      lesson.audioUrl && (
+                        <SentenceAudioPlayer
+                          audioUrl={lesson.audioUrl}
+                          startTime={sentence.start_time}
+                          endTime={sentence.end_time}
+                        />
+                      )}
+                  </Flex>
 
-                {/* Translation Section */}
-                <Box>
-                  <MyButton
-                    variant="soft"
-                    size="2"
-                    onClick={() => toggleTranslation(sentence.id)}
-                    disabled={loadingTranslations[sentence.id]}
-                    style={{}}
+                  <Box
+                    style={{
+                      lineHeight: '1.6',
+                      fontSize: 'var(--font-size-4)',
+                    }}
                   >
-                    {loadingTranslations[sentence.id]
-                      ? 'Loading translation...'
-                      : translations[sentence.id]
-                        ? 'Hide translation'
-                        : 'Show translation'}
-                  </MyButton>
-
-                  {translations[sentence.id] && (
-                    <Box
-                      mt="3"
-                      p="3"
-                      style={{
-                        backgroundColor: 'var(--gray-2)',
-                        borderRadius: '8px',
-                      }}
-                    >
-                      <Text size="2" color="gray" mb="1">
-                        Translation:
+                    {sentence.split_text && sentence.split_text.length > 0 ? (
+                      <SentenceReconstructor
+                        sentence={sentence}
+                        fontSize="18px"
+                        onWordClick={handleWordClick}
+                        fallbackToOriginalText={false}
+                        className="word-badge"
+                      />
+                    ) : (
+                      <Text size="4" style={{ lineHeight: '1.6' }}>
+                        {sentence.original_text}
                       </Text>
-                      <Text
-                        size="3"
+                    )}
+                  </Box>
+
+                  {/* Translation Section */}
+                  <Box>
+                    <MyButton
+                      variant="soft"
+                      size="2"
+                      onClick={() => toggleTranslation(sentence.id)}
+                      disabled={loadingTranslations[sentence.id]}
+                      style={{}}
+                    >
+                      {loadingTranslations[sentence.id]
+                        ? 'Loading translation...'
+                        : translations[sentence.id]
+                          ? 'Hide translation'
+                          : 'Show translation'}
+                    </MyButton>
+
+                    {translations[sentence.id] && (
+                      <Box
+                        mt="3"
+                        p="3"
                         style={{
-                          fontStyle: 'italic',
-                          marginLeft: 10,
-                          whiteSpace: 'pre-line',
+                          backgroundColor: 'var(--gray-2)',
+                          borderRadius: '8px',
                         }}
                       >
-                        {translations[sentence.id]}
-                      </Text>
-                    </Box>
-                  )}
-                </Box>
-              </Flex>
-            </Card>
-          ))}
+                        <Text size="2" color="gray" mb="1">
+                          Translation:
+                        </Text>
+                        <Text
+                          size="3"
+                          style={{
+                            fontStyle: 'italic',
+                            marginLeft: 10,
+                            whiteSpace: 'pre-line',
+                          }}
+                        >
+                          {translations[sentence.id]}
+                        </Text>
+                      </Box>
+                    )}
+                  </Box>
+                </Flex>
+              </Card>
+            ))
+          )}
         </Flex>
       </Box>
 

@@ -26,7 +26,7 @@ interface Lesson {
   id: number;
   title: string;
   languageCode: string;
-  lessonType?: 'text' | 'subtitle' | 'manga';
+  lessonType?: 'text' | 'subtitle' | 'manga' | 'manual';
   processingStatus: 'pending' | 'completed' | 'failed';
   imageUrl?: string;
   fileUrl?: string;
@@ -43,7 +43,7 @@ interface LessonListProps {
   refreshTrigger: number;
   search?: string;
   statusFilter?: 'reading' | 'finished';
-  typeFilter?: 'text' | 'subtitle' | 'manga';
+  typeFilter?: 'text' | 'subtitle' | 'manga' | 'manual';
 }
 
 const LessonList: React.FC<LessonListProps> = ({

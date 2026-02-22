@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { OpenAIService } from './ai/openaiService';
 import { UserLessonProgressService } from './userLessonProgressService';
 import { S3Service } from './s3Service';
@@ -58,17 +59,26 @@ export interface GetSentencesResponse {
   lesson?: LessonWithSentences;
 }
 
+export interface AddSentenceResponse {
+  success: boolean;
+  message?: string;
+  sentence?: SentenceWithSplitText;
+  totalSentences?: number;
+}
+
 export class SentenceService {
   private static openAIService = new OpenAIService();
 
   /**
    * Store words, their translations, and pronunciations in the database using upsert operations
+   * @param tx - Transaction client (required)
    * @param words - Array of word translation objects from OpenAI
    * @param sourceLanguage - The source language code
    * @param targetLanguage - The target language code (default: 'en')
    * @param sentenceId - Optional sentence ID to link words to the sentence via SentenceWord
    */
   private static async storeWordTranslations(
+    tx: Prisma.TransactionClient,
     words: Array<{
       word: string;
       translation: string;
@@ -93,7 +103,7 @@ export class SentenceService {
         }
 
         // Upsert the word in the source language
-        const word = await prisma.word.upsert({
+        const word = await tx.word.upsert({
           where: {
             word_language_code: {
               word: trimmedWord,
@@ -108,7 +118,7 @@ export class SentenceService {
         });
 
         // Upsert the translation
-        await prisma.wordTranslation.upsert({
+        await tx.wordTranslation.upsert({
           where: {
             word_id_language_code_translation: {
               word_id: word.id,
@@ -130,7 +140,7 @@ export class SentenceService {
           const trimmedPronunciationType = wordObj.pronunciationType.trim();
 
           if (trimmedPronunciation && trimmedPronunciationType) {
-            await prisma.wordPronunciation.upsert({
+            await tx.wordPronunciation.upsert({
               where: {
                 word_id_pronunciation_pronunciation_type: {
                   word_id: word.id,
@@ -158,7 +168,7 @@ export class SentenceService {
             const trimmedStem = stem.trim();
             // Skip storing if stem is the same as the original word
             if (trimmedStem && trimmedStem !== trimmedWord) {
-              await prisma.wordStem.upsert({
+              await tx.wordStem.upsert({
                 where: {
                   word_id_stem: {
                     word_id: word.id,
@@ -178,7 +188,7 @@ export class SentenceService {
         // Link word to sentence if sentenceId is provided
         if (sentenceId) {
           try {
-            await prisma.sentenceWord.upsert({
+            await tx.sentenceWord.upsert({
               where: {
                 word_id_sentence_id: {
                   word_id: word.id,
@@ -384,18 +394,19 @@ export class SentenceService {
                 stems: wordObj.stems!,
               }));
 
-            // Store words and translations in the database
-            await this.storeWordTranslations(
-              analysis.words,
-              languageCode,
-              'en', // Target language is English
-              sentence.id // Link words to this sentence
-            );
-
-            // Update the database with the split_text
-            await prisma.sentence.update({
-              where: { id: sentence.id },
-              data: { split_text: splitText },
+            // Store words and translations in the database (inside transaction)
+            await prisma.$transaction(async tx => {
+              await this.storeWordTranslations(
+                tx,
+                analysis.words,
+                languageCode,
+                'en',
+                sentence.id
+              );
+              await tx.sentence.update({
+                where: { id: sentence.id },
+                data: { split_text: splitText },
+              });
             });
 
             return {
@@ -627,6 +638,133 @@ export class SentenceService {
       return {
         success: false,
         message: 'Failed to retrieve lesson sentences',
+      };
+    }
+  }
+
+  /**
+   * Add a sentence to a manual lesson: split/translate via OpenAI, then persist in a transaction
+   */
+  static async addSentenceToLesson(
+    lessonId: number,
+    userId: number,
+    text: string
+  ): Promise<AddSentenceResponse> {
+    const trimmedText = text?.trim();
+    if (!trimmedText) {
+      return {
+        success: false,
+        message: 'Sentence text is required and cannot be empty',
+      };
+    }
+
+    try {
+      const lesson = await prisma.lesson.findFirst({
+        where: {
+          id: lessonId,
+          created_by: userId,
+        },
+        include: {
+          lessonFiles: true,
+        },
+      });
+
+      if (!lesson) {
+        return {
+          success: false,
+          message: 'Lesson not found or access denied',
+        };
+      }
+
+      if (lesson.lesson_type !== 'manual') {
+        return {
+          success: false,
+          message: 'Only manual lessons support adding sentences',
+        };
+      }
+
+      const lessonFile = lesson.lessonFiles[0];
+      if (!lessonFile) {
+        return {
+          success: false,
+          message: 'Lesson has no lesson file for sentences',
+        };
+      }
+
+      const analysis = await this.openAIService.splitSentenceAndTranslate(
+        trimmedText,
+        lesson.language_code
+      );
+      const splitText = analysis.words.map(w => w.word);
+
+      const result = await prisma.$transaction(async tx => {
+        const sentence = await tx.sentence.create({
+          data: {
+            lesson_id: lessonId,
+            lesson_file_id: lessonFile.id,
+            original_text: trimmedText,
+            split_text: splitText,
+            start_time: null,
+            end_time: null,
+          },
+        });
+
+        await this.storeWordTranslations(
+          tx,
+          analysis.words,
+          lesson.language_code,
+          'en',
+          sentence.id
+        );
+
+        const totalSentences = await tx.sentence.count({
+          where: { lesson_id: lessonId },
+        });
+
+        return { sentence, totalSentences };
+      });
+
+      return {
+        success: true,
+        sentence: {
+          id: result.sentence.id,
+          original_text: result.sentence.original_text,
+          split_text: result.sentence.split_text as string[] | null,
+          word_translations: analysis.words.map(w => ({
+            word: w.word,
+            translation: w.translation,
+          })),
+          word_pronunciations: analysis.words
+            .filter(
+              (
+                w
+              ): w is typeof w & {
+                pronunciation: string;
+                pronunciationType: string;
+              } => !!w.pronunciation && !!w.pronunciationType
+            )
+            .map(w => ({
+              word: w.word,
+              pronunciation: w.pronunciation,
+              pronunciationType: w.pronunciationType,
+            })),
+          word_stems: analysis.words
+            .filter(
+              (w): w is typeof w & { stems: string[] } =>
+                !!w.stems && Array.isArray(w.stems) && w.stems.length > 0
+            )
+            .map(w => ({ word: w.word, stems: w.stems })),
+          start_time: null,
+          end_time: null,
+        },
+        totalSentences: result.totalSentences,
+      };
+    } catch (error) {
+      console.error('Error in addSentenceToLesson:', error);
+      return {
+        success: false,
+        message:
+          error instanceof Error ? error.message : 'Failed to add sentence',
       };
     }
   }

@@ -115,6 +115,7 @@ const LessonPage: React.FC = () => {
             <Select.Item value="text">Text</Select.Item>
             <Select.Item value="subtitle">Subtitle</Select.Item>
             <Select.Item value="manga">Manga</Select.Item>
+            <Select.Item value="manual">Manual Lesson</Select.Item>
           </Select.Content>
         </Select.Root>
       </Flex>
@@ -143,7 +144,11 @@ const LessonPage: React.FC = () => {
               statusFilter: statusFilter as 'reading' | 'finished',
             })}
             {...(typeFilter !== 'all' && {
-              typeFilter: typeFilter as 'text' | 'subtitle' | 'manga',
+              typeFilter: typeFilter as
+                | 'text'
+                | 'subtitle'
+                | 'manga'
+                | 'manual',
             })}
           />
         )}

@@ -36,6 +36,13 @@ export interface CreateMangaLessonData {
   mangaPageKeys: string[];
 }
 
+export interface CreateManualLessonData {
+  title: string;
+  languageCode: string;
+  imageKey?: string;
+  audioKey?: string;
+}
+
 export interface LessonResponse {
   success: boolean;
   message: string;
@@ -149,6 +156,63 @@ export class LessonService {
       };
     } catch (error) {
       console.error('Create lesson error:', error);
+      return {
+        success: false,
+        message: 'Failed to create lesson',
+      };
+    }
+  }
+
+  /**
+   * Create a new manual lesson (no file; sentences are added one by one from the lesson view)
+   */
+  static async createManualLesson(
+    userId: number,
+    lessonData: CreateManualLessonData
+  ): Promise<LessonResponse> {
+    try {
+      if (!ConfigService.isLanguageEnabled(lessonData.languageCode)) {
+        return {
+          success: false,
+          message: 'Language not supported or not enabled',
+        };
+      }
+
+      const lesson = await prisma.$transaction(async tx => {
+        const lesson = await tx.lesson.create({
+          data: {
+            created_by: userId,
+            title: lessonData.title,
+            lesson_type: LessonType.manual,
+            language_code: lessonData.languageCode,
+            image_s3_key: lessonData.imageKey || null,
+            audio_s3_key: lessonData.audioKey || null,
+          },
+        });
+        await tx.lessonFile.create({
+          data: {
+            lesson_id: lesson.id,
+            file_s3_key: null,
+          },
+        });
+        return lesson;
+      });
+
+      return {
+        success: true,
+        message: 'Lesson created successfully',
+        lesson: {
+          id: lesson.id,
+          title: lesson.title,
+          languageCode: lesson.language_code,
+          processingStatus: lesson.processing_status,
+          ...(lesson.image_s3_key && { imageUrl: lesson.image_s3_key }),
+          ...(lesson.audio_s3_key && { audioUrl: lesson.audio_s3_key }),
+          createdAt: lesson.created_at,
+        },
+      };
+    } catch (error) {
+      console.error('Create manual lesson error:', error);
       return {
         success: false,
         message: 'Failed to create lesson',
@@ -653,7 +717,7 @@ export class LessonService {
     filters?: {
       search?: string;
       status?: 'reading' | 'finished';
-      type?: 'text' | 'subtitle' | 'manga';
+      type?: 'text' | 'subtitle' | 'manga' | 'manual';
     }
   ): Promise<LessonResponse> {
     try {

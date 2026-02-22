@@ -7,8 +7,8 @@ const router = Router();
 // Get action history for a word (query: word, languageCode)
 router.get('/word', async (req: Request, res: Response) => {
   try {
-    const word = req.query.word as string | undefined;
-    const languageCode = req.query.languageCode as string | undefined;
+    const word = req.query['word'] as string | undefined;
+    const languageCode = req.query['languageCode'] as string | undefined;
 
     if (!word || !languageCode) {
       return res.status(400).json({

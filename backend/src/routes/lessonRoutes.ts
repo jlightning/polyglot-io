@@ -92,6 +92,39 @@ router.post('/manga', async (req: Request, res: Response) => {
   }
 });
 
+// Create a new manual lesson (no file; add sentences from lesson view)
+router.post('/manual', async (req: Request, res: Response) => {
+  try {
+    const { title, languageCode, imageKey, audioKey } = req.body;
+
+    if (!title || !languageCode) {
+      return res.status(400).json({
+        success: false,
+        message: 'Title and language code are required',
+      });
+    }
+
+    const result = await LessonService.createManualLesson(req.userId!, {
+      title,
+      languageCode,
+      imageKey,
+      audioKey,
+    });
+
+    if (result.success) {
+      return res.status(201).json(result);
+    } else {
+      return res.status(400).json(result);
+    }
+  } catch (error) {
+    console.error('Create manual lesson route error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+});
+
 // Get a specific lesson by ID
 router.get('/:lessonId', async (req: Request, res: Response) => {
   try {
@@ -173,7 +206,12 @@ router.get('/language/:languageCode', async (req: Request, res: Response) => {
 
     const search = req.query['search'] as string | undefined;
     const status = req.query['status'] as 'reading' | 'finished' | undefined;
-    const type = req.query['type'] as 'text' | 'subtitle' | 'manga' | undefined;
+    const type = req.query['type'] as
+      | 'text'
+      | 'subtitle'
+      | 'manga'
+      | 'manual'
+      | undefined;
 
     // Validate status enum
     if (status && !['reading', 'finished'].includes(status)) {
@@ -184,10 +222,11 @@ router.get('/language/:languageCode', async (req: Request, res: Response) => {
     }
 
     // Validate type enum
-    if (type && !['text', 'subtitle', 'manga'].includes(type)) {
+    if (type && !['text', 'subtitle', 'manga', 'manual'].includes(type)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid type filter. Must be "text", "subtitle", or "manga"',
+        message:
+          'Invalid type filter. Must be "text", "subtitle", "manga", or "manual"',
       });
     }
 
@@ -296,6 +335,45 @@ router.get('/:lessonId/sentences', async (req: Request, res: Response) => {
     }
   } catch (error) {
     console.error('Get lesson sentences route error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+});
+
+// Add a sentence to a manual lesson
+router.post('/:lessonId/sentences', async (req: Request, res: Response) => {
+  try {
+    const lessonId = parseInt(req.params['lessonId'] || '0');
+    const { text } = req.body;
+
+    if (isNaN(lessonId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid lesson ID',
+      });
+    }
+
+    if (typeof text !== 'string') {
+      return res.status(400).json({
+        success: false,
+        message: 'Text is required',
+      });
+    }
+
+    const result = await SentenceService.addSentenceToLesson(
+      lessonId,
+      req.userId!,
+      text
+    );
+
+    if (result.success) {
+      return res.status(201).json(result);
+    }
+    return res.status(400).json(result);
+  } catch (error) {
+    console.error('Add sentence route error:', error);
     return res.status(500).json({
       success: false,
       message: 'Internal server error',

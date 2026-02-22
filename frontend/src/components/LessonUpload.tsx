@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, Text, Flex, Dialog, Box, Tabs } from '@radix-ui/themes';
 import MyButton from './MyButton';
 import { PlusIcon, UploadIcon, UpdateIcon } from '@radix-ui/react-icons';
@@ -11,6 +12,7 @@ interface LessonUploadProps {
 }
 
 const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
+  const navigate = useNavigate();
   const { selectedLanguage } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -26,6 +28,9 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [lessonFile, setLessonFile] = useState<File | null>(null);
   const [audioFile, setAudioFile] = useState<File | null>(null);
+
+  // Manual lesson (add sentence manually) states – title only, no files
+  const [manualTitle, setManualTitle] = useState('');
 
   // Manga upload states
   const [mangaTitle, setMangaTitle] = useState('');
@@ -356,6 +361,55 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
     }
   };
 
+  const handleManualUpload = async () => {
+    if (!manualTitle.trim()) {
+      setError('Please enter a lesson title');
+      return;
+    }
+
+    if (!selectedLanguage) {
+      setError('Please select a language');
+      return;
+    }
+
+    try {
+      setUploading(true);
+      setError(null);
+      setSuccess(null);
+
+      const response = await axiosInstance.post('/api/lessons/manual', {
+        title: manualTitle.trim(),
+        languageCode: selectedLanguage,
+      });
+
+      if (response.data.success && response.data.lesson) {
+        setSuccess('Lesson created. Add sentences from the lesson view.');
+        setManualTitle('');
+
+        onLessonUploaded();
+
+        setTimeout(() => {
+          setIsOpen(false);
+          setSuccess(null);
+          navigate(`/lessons/${response.data.lesson.id}`);
+        }, 1500);
+      } else {
+        setError(response.data.message || 'Failed to create lesson');
+      }
+    } catch (err) {
+      console.error('Manual lesson upload error:', err);
+      if (axios.isAxiosError(err) && err.response?.data?.message) {
+        setError(err.response.data.message);
+      } else if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Upload failed. Please try again.');
+      }
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleUpload = async () => {
     if (!title.trim()) {
       setError('Please enter a lesson title');
@@ -497,6 +551,7 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
           <Tabs.Root value={activeTab} onValueChange={setActiveTab}>
             <Tabs.List>
               <Tabs.Trigger value="text">Text / SRT Upload</Tabs.Trigger>
+              <Tabs.Trigger value="manual">Manual Lesson</Tabs.Trigger>
               <Tabs.Trigger value="manga">Manga Upload</Tabs.Trigger>
             </Tabs.List>
 
@@ -598,6 +653,34 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
                       </Text>
                     )}
                   </Box>
+                </Flex>
+              </Tabs.Content>
+
+              {/* Manual Lesson Tab */}
+              <Tabs.Content value="manual">
+                <Flex direction="column" gap="4">
+                  <Box>
+                    <Text size="2" weight="medium" mb="2" as="div">
+                      Lesson Title *
+                    </Text>
+                    <input
+                      type="text"
+                      value={manualTitle}
+                      onChange={e => setManualTitle(e.target.value)}
+                      placeholder="Enter lesson title..."
+                      style={{
+                        width: '100%',
+                        padding: '8px',
+                        border: '1px solid var(--gray-7)',
+                        borderRadius: '4px',
+                        fontSize: '14px',
+                      }}
+                    />
+                  </Box>
+                  <Text size="1" color="gray">
+                    Create an empty lesson and add sentences one by one from the
+                    lesson view.
+                  </Text>
                 </Flex>
               </Tabs.Content>
 
@@ -735,6 +818,23 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
                     <>
                       <UploadIcon />
                       Upload Lesson
+                    </>
+                  )}
+                </MyButton>
+              ) : activeTab === 'manual' ? (
+                <MyButton
+                  onClick={handleManualUpload}
+                  disabled={uploading || !manualTitle.trim()}
+                >
+                  {uploading ? (
+                    <>
+                      <UpdateIcon style={spinningIconStyle} />
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      <UploadIcon />
+                      Create Lesson
                     </>
                   )}
                 </MyButton>
