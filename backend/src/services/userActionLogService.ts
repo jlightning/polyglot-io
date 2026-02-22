@@ -94,4 +94,55 @@ export class UserActionLogService {
       };
     }
   }
+
+  /**
+   * Get action history for a word for the current user (word_mark and read entries)
+   */
+  static async getActionHistoryByWord(
+    userId: number,
+    word: string,
+    languageCode: string
+  ) {
+    try {
+      const wordRecord = await prisma.word.findUnique({
+        where: {
+          word_language_code: {
+            word,
+            language_code: languageCode,
+          },
+        },
+      });
+
+      if (!wordRecord) {
+        return { success: true, data: [] };
+      }
+
+      const logs = await prisma.userActionLog.findMany({
+        where: {
+          user_id: userId,
+          word_id: wordRecord.id,
+        },
+        orderBy: { created_at: 'desc' },
+        select: {
+          id: true,
+          type: true,
+          action: true,
+          created_at: true,
+          sentence_id: true,
+        },
+      });
+
+      return {
+        success: true,
+        data: logs,
+      };
+    } catch (error) {
+      console.error('Error getting action history by word:', error);
+      return {
+        success: false,
+        message: 'Failed to get action history',
+        data: [],
+      };
+    }
+  }
 }

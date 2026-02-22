@@ -4,6 +4,39 @@ import { prisma } from '../services';
 
 const router = Router();
 
+// Get action history for a word (query: word, languageCode)
+router.get('/word', async (req: Request, res: Response) => {
+  try {
+    const word = req.query.word as string | undefined;
+    const languageCode = req.query.languageCode as string | undefined;
+
+    if (!word || !languageCode) {
+      return res.status(400).json({
+        success: false,
+        message: 'Query params word and languageCode are required',
+      });
+    }
+
+    const result = await UserActionLogService.getActionHistoryByWord(
+      req.userId!,
+      word,
+      languageCode
+    );
+
+    if (!result.success) {
+      return res.status(400).json(result);
+    }
+
+    return res.status(200).json(result);
+  } catch (error) {
+    console.error('Get word action history route error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+});
+
 // Log user action (read)
 router.post('/log', async (req: Request, res: Response) => {
   try {

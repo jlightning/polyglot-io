@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Flex, Text, Card, Separator } from '@radix-ui/themes';
 import MyButton from './MyButton';
-import { Cross2Icon, TrashIcon } from '@radix-ui/react-icons';
+import { Cross2Icon, TrashIcon, ClockIcon } from '@radix-ui/react-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { useWordMark } from '../contexts/WordMarkContext';
+import WordActionHistoryDialog from './WordActionHistoryDialog';
 import {
   getDifficultyStyles,
   getDifficultyLabel,
@@ -70,6 +71,7 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
   const [loadingTranslations, setLoadingTranslations] = useState(false);
   const [loadingPronunciations, setLoadingPronunciations] = useState(false);
   const [loadingStems, setLoadingStems] = useState(false);
+  const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
 
   // Fetch translations and pronunciations when selectedWord changes
   useEffect(() => {
@@ -457,14 +459,29 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
 
         {/* User Mark Section */}
         {languageCode && (
-          <UserMarkSection
-            note={note}
-            onNoteChange={handleNoteChange}
-            currentMark={currentMark}
-            onMarkSave={handleMarkSave}
-            loadingMark={loadingMark}
-            updatedAt={userMark?.updated_at}
-          />
+          <>
+            <UserMarkSection
+              note={note}
+              onNoteChange={handleNoteChange}
+              currentMark={currentMark}
+              onMarkSave={handleMarkSave}
+              loadingMark={loadingMark}
+              updatedAt={userMark?.updated_at}
+            />
+            <Box>
+              <MyButton
+                variant="ghost"
+                size="1"
+                onClick={() => setHistoryDialogOpen(true)}
+                style={{ color: 'var(--gray-11)' }}
+              >
+                <ClockIcon
+                  style={{ marginRight: '6px', verticalAlign: 'middle' }}
+                />
+                View history
+              </MyButton>
+            </Box>
+          </>
         )}
       </Flex>
     </Card>
@@ -536,6 +553,13 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
           </Flex>
         )}
       </Box>
+
+      <WordActionHistoryDialog
+        open={historyDialogOpen}
+        onOpenChange={setHistoryDialogOpen}
+        word={selectedWord}
+        languageCode={languageCode}
+      />
     </Box>
   );
 };
