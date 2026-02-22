@@ -277,11 +277,7 @@ const LessonViewPage: React.FC = () => {
       );
       if (response.data.success) {
         setNewSentenceText('');
-        const total = response.data.totalSentences as number | undefined;
-        if (total != null && total > 0) {
-          const lastPage = Math.ceil(total / SENTENCES_PER_PAGE);
-          setCurrentPage(lastPage);
-        }
+        setCurrentPage(1);
         setRefreshTrigger(t => t + 1);
       } else {
         setAddSentenceError(response.data.message || 'Failed to add sentence');
@@ -422,7 +418,7 @@ const LessonViewPage: React.FC = () => {
   }
 
   return (
-    <Container size="4" p="4">
+    <Container size="4" p="4" align={isSidebarOpen ? 'left' : 'center'}>
       {/* Header */}
       <Flex direction="column" gap="4" mb="6">
         <MyButton variant="ghost" onClick={() => navigate('/lessons')}>

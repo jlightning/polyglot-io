@@ -217,6 +217,7 @@ export class SentenceService {
    * Process multiple sentences to ensure split_text is populated for all
    * @param sentences - Array of sentence data from database
    * @param languageCode - Language code for OpenAI processing
+   * @param orderById - Sort order for result by id ('asc' | 'desc'), default 'asc'
    * @returns Array of processed sentences with split_text
    */
   static async processSentenceSplitText(
@@ -227,7 +228,8 @@ export class SentenceService {
       start_time: any;
       end_time: any;
     }>,
-    languageCode: string
+    languageCode: string,
+    orderById: 'asc' | 'desc' = 'asc'
   ): Promise<SentenceWithSplitText[]> {
     // Separate sentences that need processing from those that don't
     const sentencesToProcess: Array<{
@@ -443,8 +445,10 @@ export class SentenceService {
       }
     }
 
-    // Sort results by original order (by id)
-    processedResults.sort((a, b) => a.id - b.id);
+    // Sort results by id in requested order
+    processedResults.sort((a, b) =>
+      orderById === 'desc' ? b.id - a.id : a.id - b.id
+    );
 
     // Deduplicate word_translations, word_pronunciations, and word_stems for each sentence
     processedResults.forEach(sentence => {
@@ -533,12 +537,15 @@ export class SentenceService {
       // Calculate offset for pagination
       const offset = (page - 1) * limit;
 
+      // Manual lessons: newest first (desc); others: ascending
+      const orderDirection = lesson.lesson_type === 'manual' ? 'desc' : 'asc';
+
       // Get sentences with pagination
       const sentences = await prisma.sentence.findMany({
         where: lessonFileId
           ? { lesson_id: lessonId, lesson_file_id: lessonFileId }
           : { lesson_id: lessonId },
-        orderBy: { id: 'asc' },
+        orderBy: { id: orderDirection },
         skip: offset,
         take: limit,
         select: {
@@ -550,10 +557,11 @@ export class SentenceService {
         },
       });
 
-      // Process all sentences in batch to ensure split_text is populated
+      // Process all sentences in batch to ensure split_text is populated (preserve order)
       const processedSentences = await this.processSentenceSplitText(
         sentences,
-        lesson.language_code
+        lesson.language_code,
+        orderDirection as 'asc' | 'desc'
       );
 
       // Get user progress for this lesson
