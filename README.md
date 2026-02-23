@@ -74,6 +74,7 @@ A comprehensive word information panel that appears when you click any word:
 - **Personal Notes**: View and edit your personal notes for the word
 - **Quick Actions**: Quickly mark the word with any difficulty level using color-coded buttons
 - **Word History**: See when you last marked the word and track your progress over time
+- **Listen to pronunciation**: Use the "Read word" button to hear the word spoken via AI-generated speech (OpenAI gpt-4o-mini-tts)
 
 ### Sentence Translations
 
@@ -83,6 +84,7 @@ Get instant translations for entire sentences:
 - **Toggle Display**: Show or hide translations with a single click
 - **Context Preservation**: Translations appear inline with the original sentence, maintaining reading flow
 - **AI-Powered**: Uses OpenAI API for high-quality, context-aware translations
+- **Listen to sentences**: When a lesson has no uploaded audio (or no segment timings), use the Listen button on each sentence to hear it spoken via AI-generated speech (OpenAI gpt-4o-mini-tts)
 
 ### User Progress Tracking
 
@@ -148,7 +150,8 @@ Interactive sentence display that makes vocabulary learning engaging:
 - **Database**: MySQL 8.0 with Prisma ORM
 - **Authentication**: JWT (JSON Web Tokens)
 - **File Storage**: AWS S3
-- **AI Integration**: OpenAI API for translations, lesson generation, and processing
+- **AI Integration**: OpenAI API for translations, lesson generation, text-to-speech (TTS), and other processing
+- **TTS Service**: `TtsService` with in-memory cache; static method `getCachedOrGenerateVoice(text, languageCode)` for sentence/word speech
 - **Image Processing**: Sharp
 - **Subtitle Processing**: subsrt-ts
 
@@ -234,7 +237,7 @@ AWS_ACCESS_KEY_ID=your-aws-access-key-id
 AWS_SECRET_ACCESS_KEY=your-aws-secret-access-key
 AWS_S3_BUCKET_NAME=your-s3-bucket-name
 
-# OpenAI Configuration
+# OpenAI Configuration (required for AI features: translations, lesson generation, text-to-speech)
 OPENAI_API_KEY=your-openai-api-key-here
 ```
 

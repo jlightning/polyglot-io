@@ -1226,4 +1226,27 @@ export class OpenAIService {
       throw new Error('Failed to crop image region');
     }
   }
+
+  /**
+   * Generate speech from text using OpenAI gpt-4o-mini-tts.
+   * @param text - The text to speak
+   * @param languageCode - Source language code (e.g. 'ja', 'ko') for pronunciation
+   * @returns Promise<Buffer> - MP3 audio buffer
+   */
+  async generateSpeech(text: string, languageCode: string): Promise<Buffer> {
+    const langConfig = ConfigService.getLanguageByCode(languageCode);
+    const languageName = langConfig?.name ?? languageCode;
+    const instructions = `Speak in ${languageName}.`;
+
+    const response = await this.client.audio.speech.create({
+      model: 'gpt-4o-mini-tts',
+      voice: 'marin',
+      input: text,
+      instructions,
+      response_format: 'mp3',
+    });
+
+    const arrayBuffer = await response.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  }
 }

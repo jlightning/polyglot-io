@@ -19,6 +19,7 @@ import Pagination from '../components/Pagination';
 import LessonEditDialog from '../components/LessonEditDialog';
 import SentenceAudioPlayer from '../components/SentenceAudioPlayer';
 import SentenceReconstructor from '../components/SentenceReconstructor';
+import TTSPlayButton from '../components/TTSPlayButton';
 import axios from 'axios';
 
 interface WordTranslation {
@@ -575,14 +576,21 @@ const LessonViewPage: React.FC = () => {
                     </Text>
                     <Flex align="center" gap="2">
                       {sentence.start_time &&
-                        sentence.end_time &&
-                        lesson.audioUrl && (
-                          <SentenceAudioPlayer
-                            audioUrl={lesson.audioUrl}
-                            startTime={sentence.start_time}
-                            endTime={sentence.end_time}
-                          />
-                        )}
+                      sentence.end_time &&
+                      lesson.audioUrl ? (
+                        <SentenceAudioPlayer
+                          audioUrl={lesson.audioUrl}
+                          startTime={sentence.start_time}
+                          endTime={sentence.end_time}
+                        />
+                      ) : (
+                        <TTSPlayButton
+                          text={sentence.original_text}
+                          languageCode={lesson.languageCode}
+                          axiosInstance={axiosInstance}
+                          title="Listen"
+                        />
+                      )}
                       {lesson.lessonType === 'manual' && (
                         <MyButton
                           variant="soft"

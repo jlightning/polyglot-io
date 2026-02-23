@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Flex, Text, Card, Separator } from '@radix-ui/themes';
 import MyButton from './MyButton';
+import TTSPlayButton from './TTSPlayButton';
 import { Cross2Icon, TrashIcon, ClockIcon } from '@radix-ui/react-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { useWordMark } from '../contexts/WordMarkContext';
@@ -417,16 +418,34 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
     pronunciations: WordPronunciation[];
     stems: WordStems[];
     languageCode?: string | undefined;
-  }> = ({ word, translations, pronunciations, stems, languageCode }) => (
+    axiosInstance: ReturnType<typeof useAuth>['axiosInstance'];
+  }> = ({
+    word,
+    translations,
+    pronunciations,
+    stems,
+    languageCode,
+    axiosInstance,
+  }) => (
     <Card style={{ padding: '16px' }}>
       <Flex direction="column" gap="3">
         <Box>
           <Text size="2" color="gray" mb="1" as="div">
             Word
           </Text>
-          <Text size="5" weight="bold">
-            {word}
-          </Text>
+          <Flex align="center" gap="2">
+            <Text size="5" weight="bold">
+              {word}
+            </Text>
+            {languageCode && axiosInstance && (
+              <TTSPlayButton
+                text={word}
+                languageCode={languageCode}
+                axiosInstance={axiosInstance}
+                title="Read word"
+              />
+            )}
+          </Flex>
         </Box>
 
         <Separator size="4" />
@@ -539,6 +558,7 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
             pronunciations={selectedPronunciations}
             stems={selectedStems}
             languageCode={languageCode}
+            axiosInstance={axiosInstance}
           />
         ) : (
           <Flex
