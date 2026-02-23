@@ -10,11 +10,13 @@ A full-stack language learning platform that helps users learn languages through
 
 ### Lesson Management
 
-Create and manage lessons in three different formats, each optimized for different learning styles:
+Create and manage lessons in five different formats, each optimized for different learning styles:
 
 - **Text Lessons**: Plain text lessons for reading practice. Upload `.txt` files that are automatically parsed into sentences. Perfect for articles, stories, or any written content.
 - **Subtitle Lessons**: Video-based lessons with synchronized subtitles. Upload `.srt` subtitle files that are automatically parsed with timestamps. Sentences are linked to specific time ranges in videos, enabling synchronized playback.
 - **Manga Lessons**: Image-based lessons with OCR (Optical Character Recognition) processing. Upload manga pages as images, and the system extracts text using OCR technology. Perfect for learning from visual content like comics or manga.
+- **Manual Lessons**: Create lessons by adding sentences manually with no file upload. Ideal for building custom lessons or pasting content from other sources.
+- **Generated Lessons**: AI-generated lessons from a prompt. Describe a topic, theme, or scenario and choose a difficulty level (Beginner through Native); the system generates lesson content in your target language using OpenAI.
 
 All lesson types support:
 
@@ -146,7 +148,7 @@ Interactive sentence display that makes vocabulary learning engaging:
 - **Database**: MySQL 8.0 with Prisma ORM
 - **Authentication**: JWT (JSON Web Tokens)
 - **File Storage**: AWS S3
-- **AI Integration**: OpenAI API for translations and processing
+- **AI Integration**: OpenAI API for translations, lesson generation, and processing
 - **Image Processing**: Sharp
 - **Subtitle Processing**: subsrt-ts
 
@@ -344,7 +346,7 @@ polyglot-io/
 │   │   ├── index.ts        # Application entry point
 │   │   ├── middleware/     # Express middleware (auth, etc.)
 │   │   ├── routes/         # API route handlers
-│   │   └── services/       # Business logic services
+│   │   └── services/       # Business logic (ai, auth, lessons, words, S3, etc.)
 │   ├── env.example         # Backend environment template
 │   └── package.json
 ├── frontend/               # React frontend
@@ -423,7 +425,9 @@ yarn workspace frontend type-check # Type check without building
 The application uses Prisma ORM with MySQL. Key models include:
 
 - **User**: User accounts and authentication
-- **Lesson**: Learning lessons (text, subtitle, manga types)
+- **UserSetting**: User preferences and settings
+- **Lesson**: Learning lessons (text, subtitle, manga, manual, generated types)
+- **LessonFile**: Files associated with lessons (one per lesson; used for text/subtitle/manga)
 - **Sentence**: Individual sentences within lessons
 - **Word**: Vocabulary words with translations and pronunciations
 - **WordUserMark**: User's vocabulary tracking (difficulty marks)
@@ -476,11 +480,21 @@ For more details, see [scripts/README.md](scripts/README.md).
 ### Lessons
 
 - `GET /api/lessons` - Get all lessons
-- `POST /api/lessons` - Create a new lesson
+- `GET /api/lessons/language/:languageCode` - Get lessons by language
+- `POST /api/lessons` - Create a new lesson (text/subtitle from file)
+- `POST /api/lessons/manual` - Create a manual lesson (sentences provided in body)
+- `POST /api/lessons/generate` - Generate an AI lesson from a prompt (title, languageCode, prompt, difficulty)
+- `POST /api/lessons/manga` - Create a manga lesson with OCR processing
 - `GET /api/lessons/:id` - Get lesson details
+- `PUT /api/lessons/:id` - Update lesson
+- `DELETE /api/lessons/:id` - Delete lesson
 - `GET /api/lessons/:id/sentences` - Get lesson sentences (paginated)
-- `POST /api/lessons/:id/progress/sentence` - Update lesson progress
+- `POST /api/lessons/:id/sentences` - Add sentences to lesson
+- `POST /api/lessons/:id/progress/sentence` - Update lesson progress by sentence
+- `POST /api/lessons/:id/progress` - Update lesson progress
 - `GET /api/lessons/:id/progress` - Get user progress for lesson
+- `DELETE /api/lessons/:id/progress` - Delete user progress for lesson
+- `GET /api/lessons/progress/overview` - Get progress overview
 
 ### Words
 
