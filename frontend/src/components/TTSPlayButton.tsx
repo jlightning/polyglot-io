@@ -30,6 +30,7 @@ const TTSPlayButton: React.FC<TTSPlayButtonProps> = ({
   const endedNormallyRef = useRef(false);
 
   const revokeAndClear = () => {
+    endedNormallyRef.current = true;
     if (objectUrlRef.current) {
       URL.revokeObjectURL(objectUrlRef.current);
       objectUrlRef.current = null;
@@ -79,10 +80,7 @@ const TTSPlayButton: React.FC<TTSPlayButtonProps> = ({
       const audio = new Audio(url);
       audioRef.current = audio;
 
-      audio.onended = () => {
-        endedNormallyRef.current = true;
-        revokeAndClear();
-      };
+      audio.onended = () => revokeAndClear();
       audio.onerror = () => {
         if (endedNormallyRef.current) return;
         setError('Could not play audio');
