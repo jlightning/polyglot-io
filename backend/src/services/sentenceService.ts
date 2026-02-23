@@ -537,7 +537,7 @@ export class SentenceService {
       // Calculate offset for pagination
       const offset = (page - 1) * limit;
 
-      // Manual lessons: newest first (desc); others: ascending
+      // Manual lessons: newest first (desc); others including generated: ascending
       const orderDirection = lesson.lesson_type === 'manual' ? 'desc' : 'asc';
 
       // Get sentences with pagination
@@ -773,6 +773,106 @@ export class SentenceService {
         success: false,
         message:
           error instanceof Error ? error.message : 'Failed to add sentence',
+      };
+    }
+  }
+
+  /**
+   * Add multiple sentences to a manual lesson: batch split/translate via OpenAI, then persist in a transaction
+   */
+  static async addSentencesToLesson(
+    lessonId: number,
+    userId: number,
+    texts: string[]
+  ): Promise<{ success: boolean; message?: string; totalSentences?: number }> {
+    const trimmed = (texts || [])
+      .map(t => (typeof t === 'string' ? t.trim() : ''))
+      .filter(t => t.length > 0);
+    if (trimmed.length === 0) {
+      return { success: false, message: 'At least one sentence is required' };
+    }
+
+    try {
+      const lesson = await prisma.lesson.findFirst({
+        where: {
+          id: lessonId,
+          created_by: userId,
+        },
+        include: { lessonFiles: true },
+      });
+
+      if (!lesson) {
+        return { success: false, message: 'Lesson not found or access denied' };
+      }
+      // Bulk add: allowed for manual (empty lesson) and generated (initial AI content)
+      if (
+        lesson.lesson_type !== 'manual' &&
+        lesson.lesson_type !== 'generated'
+      ) {
+        return {
+          success: false,
+          message:
+            'Only manual and generated lessons support bulk adding sentences',
+        };
+      }
+
+      const lessonFile = lesson.lessonFiles[0];
+      if (!lessonFile) {
+        return {
+          success: false,
+          message: 'Lesson has no lesson file for sentences',
+        };
+      }
+
+      const analyses =
+        await this.openAIService.splitMultipleSentencesAndTranslate(
+          trimmed,
+          lesson.language_code
+        );
+
+      await prisma.$transaction(async tx => {
+        for (let i = 0; i < trimmed.length; i++) {
+          const text = trimmed[i]!;
+          const analysis = analyses[i];
+          const splitText: string[] = analysis
+            ? analysis.words.map(w => w.word)
+            : [text];
+
+          const sentence = await tx.sentence.create({
+            data: {
+              lesson_id: lessonId,
+              lesson_file_id: lessonFile.id,
+              original_text: text,
+              split_text: splitText,
+              start_time: null,
+              end_time: null,
+            },
+          });
+
+          if (analysis) {
+            await this.storeWordTranslations(
+              tx,
+              analysis.words,
+              lesson.language_code,
+              'en',
+              sentence.id
+            );
+          }
+        }
+      });
+
+      const totalSentences = await prisma.sentence.count({
+        where: { lesson_id: lessonId },
+      });
+      return { success: true, totalSentences };
+    } catch (error) {
+      console.error('Error in addSentencesToLesson:', error);
+      return {
+        success: false,
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Failed to add sentences to lesson',
       };
     }
   }

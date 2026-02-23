@@ -116,6 +116,7 @@ const LessonPage: React.FC = () => {
             <Select.Item value="subtitle">Subtitle</Select.Item>
             <Select.Item value="manga">Manga</Select.Item>
             <Select.Item value="manual">Manual Lesson</Select.Item>
+            <Select.Item value="generated">Generated</Select.Item>
           </Select.Content>
         </Select.Root>
       </Flex>
@@ -148,7 +149,8 @@ const LessonPage: React.FC = () => {
                 | 'text'
                 | 'subtitle'
                 | 'manga'
-                | 'manual',
+                | 'manual'
+                | 'generated',
             })}
           />
         )}

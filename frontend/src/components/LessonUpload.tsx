@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Text, Flex, Dialog, Box, Tabs } from '@radix-ui/themes';
+import { Card, Text, Flex, Dialog, Box, Tabs, Select } from '@radix-ui/themes';
 import MyButton from './MyButton';
 import { PlusIcon, UploadIcon, UpdateIcon } from '@radix-ui/react-icons';
 import axios from 'axios';
@@ -31,6 +31,12 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
 
   // Manual lesson (add sentence manually) states – title only, no files
   const [manualTitle, setManualTitle] = useState('');
+
+  // Generate lesson with AI states
+  const [aiGenerateTitle, setAiGenerateTitle] = useState('');
+  const [aiGeneratePrompt, setAiGeneratePrompt] = useState('');
+  const [aiGenerateDifficulty, setAiGenerateDifficulty] =
+    useState<string>('Intermediate');
 
   // Manga upload states
   const [mangaTitle, setMangaTitle] = useState('');
@@ -410,6 +416,59 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
     }
   };
 
+  const handleAiGenerateLesson = async () => {
+    if (!aiGenerateTitle.trim()) {
+      setError('Please enter a lesson title');
+      return;
+    }
+    if (!aiGeneratePrompt.trim()) {
+      setError('Please enter a prompt for the AI');
+      return;
+    }
+    if (!selectedLanguage) {
+      setError('Please select a language');
+      return;
+    }
+
+    try {
+      setUploading(true);
+      setError(null);
+      setSuccess(null);
+
+      const response = await axiosInstance.post('/api/lessons/generate', {
+        title: aiGenerateTitle.trim(),
+        languageCode: selectedLanguage,
+        prompt: aiGeneratePrompt.trim(),
+        difficulty: aiGenerateDifficulty,
+      });
+
+      if (response.data.success && response.data.lesson) {
+        setSuccess('Lesson generated. Opening lesson view.');
+        setAiGenerateTitle('');
+        setAiGeneratePrompt('');
+        onLessonUploaded();
+        setTimeout(() => {
+          setIsOpen(false);
+          setSuccess(null);
+          navigate(`/lessons/${response.data.lesson.id}`);
+        }, 1500);
+      } else {
+        setError(response.data.message || 'Failed to generate lesson');
+      }
+    } catch (err) {
+      console.error('AI generate lesson error:', err);
+      if (axios.isAxiosError(err) && err.response?.data?.message) {
+        setError(err.response.data.message);
+      } else if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Failed to generate lesson. Please try again.');
+      }
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleUpload = async () => {
     if (!title.trim()) {
       setError('Please enter a lesson title');
@@ -538,10 +597,10 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
         <Dialog.Trigger>
           <MyButton>
             <PlusIcon />
-            Upload New Lesson
+            Create New Lesson
           </MyButton>
         </Dialog.Trigger>
-        <Dialog.Content style={{ maxWidth: 600 }}>
+        <Dialog.Content style={{ maxWidth: 720 }}>
           <Dialog.Title>Upload New Lesson</Dialog.Title>
           <Dialog.Description size="2" mb="4">
             Upload lesson files for language learning - text/subtitle files or
@@ -552,6 +611,9 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
             <Tabs.List>
               <Tabs.Trigger value="text">Text / SRT Upload</Tabs.Trigger>
               <Tabs.Trigger value="manual">Manual Lesson</Tabs.Trigger>
+              <Tabs.Trigger value="ai-generate">
+                Generate Lesson with AI
+              </Tabs.Trigger>
               <Tabs.Trigger value="manga">Manga Upload</Tabs.Trigger>
             </Tabs.List>
 
@@ -681,6 +743,76 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
                     Create an empty lesson and add sentences one by one from the
                     lesson view.
                   </Text>
+                </Flex>
+              </Tabs.Content>
+
+              {/* Generate Lesson with AI Tab */}
+              <Tabs.Content value="ai-generate">
+                <Flex direction="column" gap="4">
+                  <Box>
+                    <Text size="2" weight="medium" mb="2" as="div">
+                      Lesson Title *
+                    </Text>
+                    <input
+                      type="text"
+                      value={aiGenerateTitle}
+                      onChange={e => setAiGenerateTitle(e.target.value)}
+                      placeholder="Enter lesson title..."
+                      style={{
+                        width: '100%',
+                        padding: '8px',
+                        border: '1px solid var(--gray-7)',
+                        borderRadius: '4px',
+                        fontSize: '14px',
+                      }}
+                    />
+                  </Box>
+                  <Box>
+                    <Text size="2" weight="medium" mb="2" as="div">
+                      Difficulty
+                    </Text>
+                    <Select.Root
+                      value={aiGenerateDifficulty}
+                      onValueChange={setAiGenerateDifficulty}
+                    >
+                      <Select.Trigger
+                        style={{ width: '100%' }}
+                        placeholder="Select difficulty"
+                      />
+                      <Select.Content>
+                        <Select.Item value="Beginner">Beginner</Select.Item>
+                        <Select.Item value="Easy">Easy</Select.Item>
+                        <Select.Item value="Intermediate">
+                          Intermediate
+                        </Select.Item>
+                        <Select.Item value="Advanced">Advanced</Select.Item>
+                        <Select.Item value="Native">Native</Select.Item>
+                      </Select.Content>
+                    </Select.Root>
+                  </Box>
+                  <Box>
+                    <Text size="2" weight="medium" mb="2" as="div">
+                      Prompt *
+                    </Text>
+                    <textarea
+                      value={aiGeneratePrompt}
+                      onChange={e => setAiGeneratePrompt(e.target.value)}
+                      placeholder="e.g. 10 simple Japanese sentences about ordering coffee"
+                      rows={4}
+                      style={{
+                        width: '100%',
+                        padding: '8px',
+                        border: '1px solid var(--gray-7)',
+                        borderRadius: '4px',
+                        fontSize: '14px',
+                        resize: 'vertical',
+                      }}
+                    />
+                    <Text size="1" color="gray" mt="1">
+                      AI will generate a short lesson in your selected language,
+                      then split it into sentences.
+                    </Text>
+                  </Box>
                 </Flex>
               </Tabs.Content>
 
@@ -835,6 +967,27 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
                     <>
                       <UploadIcon />
                       Create Lesson
+                    </>
+                  )}
+                </MyButton>
+              ) : activeTab === 'ai-generate' ? (
+                <MyButton
+                  onClick={handleAiGenerateLesson}
+                  disabled={
+                    uploading ||
+                    !aiGenerateTitle.trim() ||
+                    !aiGeneratePrompt.trim()
+                  }
+                >
+                  {uploading ? (
+                    <>
+                      <UpdateIcon style={spinningIconStyle} />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <UploadIcon />
+                      Generate Lesson
                     </>
                   )}
                 </MyButton>

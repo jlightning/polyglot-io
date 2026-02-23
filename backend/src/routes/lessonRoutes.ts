@@ -1,9 +1,13 @@
 import { Router, Request, Response } from 'express';
+import { LessonType } from '@prisma/client';
 import { LessonService } from '../services/lessonService';
 import { SentenceService } from '../services/sentenceService';
 import { UserLessonProgressService } from '../services/userLessonProgressService';
+import { ConfigService } from '../services/configService';
+import { OpenAIService } from '../services/ai/openaiService';
 
 const router = Router();
+const openaiService = new OpenAIService();
 
 // Create a new lesson
 router.post('/', async (req: Request, res: Response) => {
@@ -125,6 +129,100 @@ router.post('/manual', async (req: Request, res: Response) => {
   }
 });
 
+// Generate a manual lesson with AI from a prompt
+router.post('/generate', async (req: Request, res: Response) => {
+  try {
+    const { title, languageCode, prompt, difficulty } = req.body;
+
+    const validDifficulties = [
+      'Beginner',
+      'Easy',
+      'Intermediate',
+      'Advanced',
+      'Native',
+    ];
+    const difficultyValue =
+      difficulty && validDifficulties.includes(difficulty)
+        ? difficulty
+        : 'Intermediate';
+
+    if (!title || typeof title !== 'string' || !title.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Title is required',
+      });
+    }
+    if (
+      !languageCode ||
+      typeof languageCode !== 'string' ||
+      !languageCode.trim()
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: 'Language code is required',
+      });
+    }
+    if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Prompt is required',
+      });
+    }
+
+    if (!ConfigService.isLanguageEnabled(languageCode.trim())) {
+      return res.status(400).json({
+        success: false,
+        message: 'Language not supported or not enabled',
+      });
+    }
+
+    const { text } = await openaiService.generateLessonFromPrompt(
+      prompt.trim(),
+      languageCode.trim(),
+      difficultyValue
+    );
+
+    if (!text || !text.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'AI did not generate any content; try a different prompt.',
+      });
+    }
+
+    // Split into sentences: by newlines and by sentence-ending punctuation
+    const sentences = text
+      .trim()
+      .split(/\n+|(?<=[.!?])\s+/)
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
+
+    if (sentences.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'AI did not generate any sentences; try a different prompt.',
+      });
+    }
+
+    const result = await LessonService.createManualLesson(req.userId!, {
+      title: title.trim(),
+      languageCode: languageCode.trim(),
+      sentences,
+      lessonType: LessonType.generated,
+    });
+
+    if (result.success) {
+      return res.status(201).json(result);
+    }
+    return res.status(400).json(result);
+  } catch (error) {
+    console.error('Generate lesson route error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+});
+
 // Get a specific lesson by ID
 router.get('/:lessonId', async (req: Request, res: Response) => {
   try {
@@ -222,11 +320,14 @@ router.get('/language/:languageCode', async (req: Request, res: Response) => {
     }
 
     // Validate type enum
-    if (type && !['text', 'subtitle', 'manga', 'manual'].includes(type)) {
+    if (
+      type &&
+      !['text', 'subtitle', 'manga', 'manual', 'generated'].includes(type)
+    ) {
       return res.status(400).json({
         success: false,
         message:
-          'Invalid type filter. Must be "text", "subtitle", "manga", or "manual"',
+          'Invalid type filter. Must be "text", "subtitle", "manga", "manual", or "generated"',
       });
     }
 

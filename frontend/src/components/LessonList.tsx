@@ -26,7 +26,7 @@ interface Lesson {
   id: number;
   title: string;
   languageCode: string;
-  lessonType?: 'text' | 'subtitle' | 'manga' | 'manual';
+  lessonType?: 'text' | 'subtitle' | 'manga' | 'manual' | 'generated';
   processingStatus: 'pending' | 'completed' | 'failed';
   imageUrl?: string;
   fileUrl?: string;
@@ -43,7 +43,7 @@ interface LessonListProps {
   refreshTrigger: number;
   search?: string;
   statusFilter?: 'reading' | 'finished';
-  typeFilter?: 'text' | 'subtitle' | 'manga' | 'manual';
+  typeFilter?: 'text' | 'subtitle' | 'manga' | 'manual' | 'generated';
 }
 
 const LessonList: React.FC<LessonListProps> = ({
@@ -246,6 +246,12 @@ const LessonList: React.FC<LessonListProps> = ({
                           : '📖 In Progress'}
                       </Badge>
                     )}
+                  {lesson.lessonType && (
+                    <Badge variant="outline" color="gray">
+                      {lesson.lessonType.charAt(0).toUpperCase() +
+                        lesson.lessonType.slice(1)}
+                    </Badge>
+                  )}
                   <Text size="2" color="gray">
                     Lesson #{lesson.id}
                   </Text>

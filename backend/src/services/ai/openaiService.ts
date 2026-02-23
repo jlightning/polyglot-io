@@ -1,6 +1,7 @@
 import OpenAI from 'openai';
 import dotenv from 'dotenv';
 import { OPENAI_MODEL } from './consts';
+import { ConfigService } from '../configService';
 
 dotenv.config();
 
@@ -770,6 +771,49 @@ export class OpenAIService {
     }
 
     return results;
+  }
+
+  /**
+   * Generate a short lesson in the target language from a user prompt; returns a single text (max 2048 chars).
+   * @param prompt - User prompt (topic, level, style, etc.)
+   * @param languageCode - Target language code (e.g. ja, es, fr)
+   * @param difficulty - Optional: Beginner, Easy, Intermediate, Advanced, Native
+   * @returns Promise<{ text: string }> - Lesson content in the target language
+   */
+  async generateLessonFromPrompt(
+    prompt: string,
+    languageCode: string,
+    difficulty: string = 'Intermediate'
+  ): Promise<{ text: string }> {
+    const code = languageCode.trim().toLowerCase();
+    const configured = ConfigService.getLanguageByCode(code);
+    const languageName = configured?.name ?? languageCode;
+
+    const systemPrompt = [
+      'You are a language learning content creator.',
+      `Generate a short lesson in ${languageName} (language code: ${languageCode}).`,
+      `Target difficulty level: ${difficulty}. Use vocabulary, grammar, and sentence structures appropriate for this level.`,
+      'Output only valid, natural sentences in the target language. No numbering, no bullet points, no explanations.',
+      'Maximum 2048 characters. You may use newlines between sentences if you like.',
+    ].join('\n');
+
+    const userPrompt = `Generate a lesson in ${languageName} at ${difficulty} level based on this request: ${prompt}`;
+
+    const completion = await this.client.chat.completions.create({
+      model: OPENAI_MODEL.GPT_41_MINI,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+    });
+
+    const responseContent = completion.choices[0]?.message?.content;
+    if (!responseContent) {
+      throw new Error('No response received from OpenAI');
+    }
+
+    const text = responseContent.trim();
+    return { text };
   }
 
   /**

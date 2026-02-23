@@ -41,6 +41,8 @@ export interface CreateManualLessonData {
   languageCode: string;
   imageKey?: string;
   audioKey?: string;
+  sentences?: string[];
+  lessonType?: 'manual' | 'generated';
 }
 
 export interface LessonResponse {
@@ -178,12 +180,14 @@ export class LessonService {
         };
       }
 
+      const lessonType = lessonData.lessonType ?? LessonType.manual;
+
       const lesson = await prisma.$transaction(async tx => {
         const lesson = await tx.lesson.create({
           data: {
             created_by: userId,
             title: lessonData.title,
-            lesson_type: LessonType.manual,
+            lesson_type: lessonType,
             language_code: lessonData.languageCode,
             image_s3_key: lessonData.imageKey || null,
             audio_s3_key: lessonData.audioKey || null,
@@ -197,6 +201,24 @@ export class LessonService {
         });
         return lesson;
       });
+
+      if (
+        lessonData.sentences &&
+        Array.isArray(lessonData.sentences) &&
+        lessonData.sentences.length > 0
+      ) {
+        const addResult = await SentenceService.addSentencesToLesson(
+          lesson.id,
+          userId,
+          lessonData.sentences
+        );
+        if (!addResult.success) {
+          return {
+            success: false,
+            message: addResult.message ?? 'Failed to add sentences to lesson',
+          };
+        }
+      }
 
       return {
         success: true,
@@ -717,7 +739,7 @@ export class LessonService {
     filters?: {
       search?: string;
       status?: 'reading' | 'finished';
-      type?: 'text' | 'subtitle' | 'manga' | 'manual';
+      type?: 'text' | 'subtitle' | 'manga' | 'manual' | 'generated';
     }
   ): Promise<LessonResponse> {
     try {
