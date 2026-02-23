@@ -15,7 +15,7 @@ Create and manage lessons in five different formats, each optimized for differen
 - **Text Lessons**: Plain text lessons for reading practice. Upload `.txt` files that are automatically parsed into sentences. Perfect for articles, stories, or any written content.
 - **Subtitle Lessons**: Video-based lessons with synchronized subtitles. Upload `.srt` subtitle files that are automatically parsed with timestamps. Sentences are linked to specific time ranges in videos, enabling synchronized playback.
 - **Manga Lessons**: Image-based lessons with OCR (Optical Character Recognition) processing. Upload manga pages as images, and the system extracts text using OCR technology. Perfect for learning from visual content like comics or manga.
-- **Manual Lessons**: Create lessons by adding sentences manually with no file upload. Ideal for building custom lessons or pasting content from other sources.
+- **Manual Lessons**: Create lessons by adding sentences manually with no file upload. Add or delete sentences from the lesson view. Ideal for building custom lessons or pasting content from other sources.
 - **Generated Lessons**: AI-generated lessons from a prompt. Describe a topic, theme, or scenario and choose a difficulty level (Beginner through Native); the system generates lesson content in your target language using OpenAI.
 
 All lesson types support:
@@ -489,7 +489,8 @@ For more details, see [scripts/README.md](scripts/README.md).
 - `PUT /api/lessons/:id` - Update lesson
 - `DELETE /api/lessons/:id` - Delete lesson
 - `GET /api/lessons/:id/sentences` - Get lesson sentences (paginated)
-- `POST /api/lessons/:id/sentences` - Add sentences to lesson
+- `POST /api/lessons/:id/sentences` - Add a sentence to a manual lesson
+- `DELETE /api/lessons/:id/sentences/:sentenceId` - Delete a sentence from a manual lesson
 - `POST /api/lessons/:id/progress/sentence` - Update lesson progress by sentence
 - `POST /api/lessons/:id/progress` - Update lesson progress
 - `GET /api/lessons/:id/progress` - Get user progress for lesson

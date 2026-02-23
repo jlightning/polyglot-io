@@ -482,6 +482,51 @@ router.post('/:lessonId/sentences', async (req: Request, res: Response) => {
   }
 });
 
+// Delete a sentence from a manual lesson
+router.delete(
+  '/:lessonId/sentences/:sentenceId',
+  async (req: Request, res: Response) => {
+    try {
+      const lessonId = parseInt(req.params['lessonId'] || '0');
+      const sentenceId = parseInt(req.params['sentenceId'] || '0');
+
+      if (isNaN(lessonId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid lesson ID',
+        });
+      }
+
+      if (isNaN(sentenceId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid sentence ID',
+        });
+      }
+
+      const result = await SentenceService.deleteSentenceFromLesson(
+        lessonId,
+        sentenceId,
+        req.userId!
+      );
+
+      if (result.success) {
+        return res.status(200).json(result);
+      }
+      if (result.message === 'Sentence not found') {
+        return res.status(404).json(result);
+      }
+      return res.status(400).json(result);
+    } catch (error) {
+      console.error('Delete sentence route error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+      });
+    }
+  }
+);
+
 // Get a specific sentence by ID
 router.get('/sentences/:sentenceId', async (req: Request, res: Response) => {
   try {

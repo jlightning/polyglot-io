@@ -99,6 +99,12 @@ const LessonViewPage: React.FC = () => {
   const [addingSentence, setAddingSentence] = useState(false);
   const [addSentenceError, setAddSentenceError] = useState<string | null>(null);
 
+  // Manual lesson: delete sentence
+  const [deletingSentenceId, setDeletingSentenceId] = useState<number | null>(
+    null
+  );
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   // Redirect manga lessons to manga view page
   useEffect(() => {
     if (lesson && lesson.lessonType === 'manga') {
@@ -291,6 +297,34 @@ const LessonViewPage: React.FC = () => {
       }
     } finally {
       setAddingSentence(false);
+    }
+  };
+
+  const handleDeleteSentence = async (sentenceId: number) => {
+    if (!lessonId || deletingSentenceId !== null) return;
+    if (!window.confirm('Delete this sentence?')) return;
+
+    setDeleteError(null);
+    setDeletingSentenceId(sentenceId);
+    try {
+      const response = await axiosInstance.delete(
+        `/api/lessons/${lessonId}/sentences/${sentenceId}`
+      );
+      if (response.data.success) {
+        setDeleteError(null);
+        setRefreshTrigger(t => t + 1);
+      } else {
+        setDeleteError(response.data.message || 'Failed to delete sentence');
+      }
+    } catch (err) {
+      console.error('Delete sentence error:', err);
+      if (axios.isAxiosError(err) && err.response?.data?.message) {
+        setDeleteError(err.response.data.message);
+      } else {
+        setDeleteError('Failed to delete sentence');
+      }
+    } finally {
+      setDeletingSentenceId(null);
     }
   };
 
@@ -516,6 +550,13 @@ const LessonViewPage: React.FC = () => {
         </Card>
       )}
 
+      {/* Delete sentence error (manual lessons) */}
+      {lesson.lessonType === 'manual' && deleteError && (
+        <Text size="2" color="red" mb="2">
+          {deleteError}
+        </Text>
+      )}
+
       {/* Sentences */}
       <Box mb="6">
         <Flex direction="column" gap="4">
@@ -532,15 +573,30 @@ const LessonViewPage: React.FC = () => {
                       Sentence{' '}
                       {(currentPage - 1) * SENTENCES_PER_PAGE + index + 1}
                     </Text>
-                    {sentence.start_time &&
-                      sentence.end_time &&
-                      lesson.audioUrl && (
-                        <SentenceAudioPlayer
-                          audioUrl={lesson.audioUrl}
-                          startTime={sentence.start_time}
-                          endTime={sentence.end_time}
-                        />
+                    <Flex align="center" gap="2">
+                      {sentence.start_time &&
+                        sentence.end_time &&
+                        lesson.audioUrl && (
+                          <SentenceAudioPlayer
+                            audioUrl={lesson.audioUrl}
+                            startTime={sentence.start_time}
+                            endTime={sentence.end_time}
+                          />
+                        )}
+                      {lesson.lessonType === 'manual' && (
+                        <MyButton
+                          variant="soft"
+                          size="1"
+                          color="red"
+                          onClick={() => handleDeleteSentence(sentence.id)}
+                          disabled={deletingSentenceId === sentence.id}
+                        >
+                          {deletingSentenceId === sentence.id
+                            ? 'Deleting...'
+                            : 'Delete'}
+                        </MyButton>
                       )}
+                    </Flex>
                   </Flex>
 
                   <Box

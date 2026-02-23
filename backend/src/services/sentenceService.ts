@@ -66,6 +66,11 @@ export interface AddSentenceResponse {
   totalSentences?: number;
 }
 
+export interface DeleteSentenceResponse {
+  success: boolean;
+  message?: string;
+}
+
 export class SentenceService {
   private static openAIService = new OpenAIService();
 
@@ -773,6 +778,119 @@ export class SentenceService {
         success: false,
         message:
           error instanceof Error ? error.message : 'Failed to add sentence',
+      };
+    }
+  }
+
+  /**
+   * Delete a sentence from a manual lesson. Updates or removes UserLessonProgress that point at this sentence,
+   * then deletes SentenceWord, SentenceTranslation, and the Sentence.
+   */
+  static async deleteSentenceFromLesson(
+    lessonId: number,
+    sentenceId: number,
+    userId: number
+  ): Promise<DeleteSentenceResponse> {
+    try {
+      const lesson = await prisma.lesson.findFirst({
+        where: {
+          id: lessonId,
+          created_by: userId,
+        },
+      });
+
+      if (!lesson) {
+        return {
+          success: false,
+          message: 'Lesson not found or access denied',
+        };
+      }
+
+      if (lesson.lesson_type !== 'manual') {
+        return {
+          success: false,
+          message: 'Only manual lessons support deleting sentences',
+        };
+      }
+
+      const sentence = await prisma.sentence.findFirst({
+        where: {
+          id: sentenceId,
+          lesson_id: lessonId,
+        },
+      });
+
+      if (!sentence) {
+        return {
+          success: false,
+          message: 'Sentence not found',
+        };
+      }
+
+      const orderedIds = await prisma.sentence.findMany({
+        where: { lesson_id: lessonId },
+        orderBy: { id: 'asc' },
+        select: { id: true },
+      });
+      const ids = orderedIds.map(s => s.id);
+      const onlyOneSentence = ids.length === 1;
+
+      await prisma.$transaction(async tx => {
+        const progressRows = await tx.userLessonProgress.findMany({
+          where: {
+            lesson_id: lessonId,
+            read_till_sentence_id: sentenceId,
+          },
+        });
+
+        for (const row of progressRows) {
+          if (onlyOneSentence) {
+            await tx.userLessonProgress.delete({
+              where: {
+                user_id_lesson_id: {
+                  user_id: row.user_id,
+                  lesson_id: lessonId,
+                },
+              },
+            });
+          } else {
+            const idx = ids.indexOf(sentenceId);
+            const prevId = idx > 0 ? ids[idx - 1] : ids[idx + 1];
+            if (prevId === undefined) {
+              throw new Error(
+                'Cannot determine previous/next sentence for progress'
+              );
+            }
+            await tx.userLessonProgress.update({
+              where: {
+                user_id_lesson_id: {
+                  user_id: row.user_id,
+                  lesson_id: lessonId,
+                },
+              },
+              data: { read_till_sentence_id: prevId },
+            });
+          }
+        }
+
+        await tx.sentenceWord.deleteMany({
+          where: { sentence_id: sentenceId },
+        });
+        await tx.sentenceTranslation.deleteMany({
+          where: { sentence_id: sentenceId },
+        });
+        await tx.sentence.delete({
+          where: { id: sentenceId },
+        });
+      });
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error in deleteSentenceFromLesson:', error);
+      return {
+        success: false,
+        message:
+          error instanceof Error ? error.message : 'Failed to delete sentence',
       };
     }
   }
