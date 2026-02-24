@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const { exec } = require('child_process');
+const { exec, spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const url = require('url');
@@ -106,24 +106,44 @@ function checkDockerContainer(containerName) {
 
 /**
  * Create database backup using mysqldump
+ * Streams output directly to file to avoid stdout buffer limits.
  */
 function createBackup(config, filename) {
   return new Promise((resolve, reject) => {
-    const { host, port, database, username, password, containerName } = config;
+    const { database, username, password, containerName } = config;
 
     // Use docker exec to run mysqldump inside the container
     const mysqldumpCmd = `mysqldump -h localhost -P 3306 -u ${username} -p${password} --single-transaction --routines --triggers ${database}`;
-    const dockerCmd = `docker exec ${containerName} ${mysqldumpCmd}`;
+    const child = spawn(
+      'docker',
+      ['exec', containerName, 'sh', '-c', mysqldumpCmd],
+      {
+        stdio: ['ignore', 'pipe', 'pipe'],
+      }
+    );
 
     console.log(`🔄 Creating backup: ${filename}`);
     console.log(`📊 Database: ${database}`);
 
-    exec(
-      dockerCmd,
-      { maxBuffer: 1024 * 1024 * 50 },
-      (error, stdout, stderr) => {
-        if (error) {
-          reject(new Error(`Backup failed: ${error.message}`));
+    const out = fs.createWriteStream(filename);
+    child.stdout.pipe(out);
+
+    let stderr = '';
+    child.stderr.on('data', data => {
+      stderr += data.toString();
+    });
+
+    child.on('error', err => {
+      out.destroy();
+      reject(new Error(`Backup failed: ${err.message}`));
+    });
+
+    child.on('close', code => {
+      out.end(() => {
+        if (code !== 0) {
+          reject(
+            new Error(`Backup failed: mysqldump exited with code ${code}`)
+          );
           return;
         }
 
@@ -131,23 +151,31 @@ function createBackup(config, filename) {
           stderr &&
           !stderr.includes('Using a password on the command line')
         ) {
-          console.warn(`⚠️  Warning: ${stderr}`);
+          console.warn(`⚠️  Warning: ${stderr.trim()}`);
         }
 
-        // Write backup to file
-        fs.writeFileSync(filename, stdout);
-
-        // Get file size
         const stats = fs.statSync(filename);
         const fileSizeInMB = (stats.size / (1024 * 1024)).toFixed(2);
 
-        resolve({
-          filename,
-          size: fileSizeInMB,
-          records: (stdout.match(/INSERT INTO/g) || []).length,
+        // Count INSERT statements by streaming (avoid loading full file into memory)
+        let records = 0;
+        const stream = fs.createReadStream(filename, { encoding: 'utf8' });
+        stream.on('data', chunk => {
+          const matches = chunk.match(/INSERT INTO/g);
+          if (matches) records += matches.length;
         });
-      }
-    );
+        stream.on('end', () => {
+          resolve({
+            filename,
+            size: fileSizeInMB,
+            records,
+          });
+        });
+        stream.on('error', err => {
+          resolve({ filename, size: fileSizeInMB, records: 0 });
+        });
+      });
+    });
   });
 }
 
