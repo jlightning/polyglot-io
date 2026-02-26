@@ -58,6 +58,13 @@ export class WordService {
 
       const oldMark = existingWordUserMark?.mark || 0;
 
+      if (oldMark === data.mark && existingWordUserMark?.note == data.note)
+        return {
+          success: true,
+          data: existingWordUserMark,
+          message: 'Word mark saved successfully',
+        };
+
       // Use proper upsert with the unique constraint on user_id + word_id
       const wordUserMark = await prisma.wordUserMark.upsert({
         where: {
