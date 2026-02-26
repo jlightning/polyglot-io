@@ -430,9 +430,34 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
     <Card style={{ padding: '16px' }}>
       <Flex direction="column" gap="3">
         <Box>
-          <Text size="2" color="gray" mb="1" as="div">
-            Word
-          </Text>
+          <Flex align="center" justify="between" mb="1">
+            <Text size="2" color="gray" as="div">
+              Word
+            </Text>
+            {languageCode && (
+              <MyButton
+                variant="ghost"
+                size="1"
+                onClick={() => setHistoryDialogOpen(true)}
+                style={{
+                  color: 'var(--gray-11)',
+                  fontSize: '11px',
+                  padding: '4px 6px',
+                  minHeight: 'unset',
+                }}
+              >
+                <ClockIcon
+                  style={{
+                    marginRight: '4px',
+                    verticalAlign: 'middle',
+                    width: 12,
+                    height: 12,
+                  }}
+                />
+                View history
+              </MyButton>
+            )}
+          </Flex>
           <Flex align="center" gap="2">
             <Text size="5" weight="bold">
               {word}
@@ -487,19 +512,6 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
               loadingMark={loadingMark}
               updatedAt={userMark?.updated_at}
             />
-            <Box>
-              <MyButton
-                variant="ghost"
-                size="1"
-                onClick={() => setHistoryDialogOpen(true)}
-                style={{ color: 'var(--gray-11)' }}
-              >
-                <ClockIcon
-                  style={{ marginRight: '6px', verticalAlign: 'middle' }}
-                />
-                View history
-              </MyButton>
-            </Box>
           </>
         )}
       </Flex>
