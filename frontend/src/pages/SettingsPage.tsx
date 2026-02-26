@@ -6,7 +6,7 @@ import { useUserSettings } from '../contexts/UserSettingContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 
-const ALLOWED_SCORE_TARGETS = [50, 100, 200, 250, 300, 400];
+const ALLOWED_SCORE_TARGETS = [50, 100, 200, 250, 300, 400, 600, 1000];
 
 const SettingsPage: React.FC = () => {
   const { dailyScoreTarget, updateUserSetting } = useUserSettings();
