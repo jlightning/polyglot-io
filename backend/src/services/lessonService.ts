@@ -60,6 +60,7 @@ export interface LessonResponse {
     audioUrl?: string;
     lessonFiles?: any[];
     userProgress?: any;
+    isPinned?: boolean;
     createdAt: Date;
   };
   lessons?: {
@@ -71,6 +72,7 @@ export interface LessonResponse {
     imageUrl?: string;
     fileUrl?: string;
     audioUrl?: string;
+    isPinned?: boolean;
     createdAt: Date;
     userProgress?: any;
   }[];
@@ -674,6 +676,12 @@ export class LessonService {
         },
       });
 
+      const pin = await prisma.lessonUserPin.findUnique({
+        where: {
+          user_id_lesson_id: { user_id: userId, lesson_id: lesson.id },
+        },
+      });
+
       // Generate download URLs for lesson files (for manga lessons)
       let lessonFiles: any[] = [];
       if (lesson.lessonFiles && lesson.lessonFiles.length > 0) {
@@ -719,6 +727,7 @@ export class LessonService {
               readTillSentenceId: progress.read_till_sentence_id,
             },
           }),
+          isPinned: !!pin,
         },
       };
     } catch (error) {
@@ -726,6 +735,79 @@ export class LessonService {
       return {
         success: false,
         message: 'Failed to retrieve lesson',
+      };
+    }
+  }
+
+  /**
+   * Pin a lesson for the user
+   */
+  static async pinLesson(
+    userId: number,
+    lessonId: number
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      const lesson = await prisma.lesson.findFirst({
+        where: {
+          id: lessonId,
+          created_by: userId,
+        },
+      });
+      if (!lesson) {
+        return {
+          success: false,
+          message: 'Lesson not found or access denied',
+        };
+      }
+      await prisma.lessonUserPin.upsert({
+        where: {
+          user_id_lesson_id: { user_id: userId, lesson_id: lessonId },
+        },
+        create: { user_id: userId, lesson_id: lessonId },
+        update: {},
+      });
+      return { success: true, message: 'Lesson pinned' };
+    } catch (error) {
+      console.error('Pin lesson error:', error);
+      return {
+        success: false,
+        message: 'Failed to pin lesson',
+      };
+    }
+  }
+
+  /**
+   * Unpin a lesson for the user
+   */
+  static async unpinLesson(
+    userId: number,
+    lessonId: number
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      const lesson = await prisma.lesson.findFirst({
+        where: {
+          id: lessonId,
+          created_by: userId,
+        },
+      });
+      if (!lesson) {
+        return {
+          success: false,
+          message: 'Lesson not found or access denied',
+        };
+      }
+      await prisma.lessonUserPin.deleteMany({
+        where: {
+          user_id: userId,
+          lesson_id: lessonId,
+        },
+      });
+      return { success: true, message: 'Lesson unpinned' };
+    } catch (error) {
+      console.error('Unpin lesson error:', error);
+      return {
+        success: false,
+        message: 'Failed to unpin lesson',
       };
     }
   }
@@ -779,15 +861,34 @@ export class LessonService {
         };
       }
 
-      const lessons = await prisma.lesson.findMany({
-        where: whereClause,
-        include: {
-          lessonFiles: true,
+      // Load pinned lesson IDs (same filters)
+      const pinnedPins = await prisma.lessonUserPin.findMany({
+        where: {
+          user_id: userId,
+          lesson: whereClause,
         },
-        orderBy: {
-          id: 'desc',
-        },
+        select: { lesson_id: true },
       });
+      const pinnedIds = pinnedPins.map(p => p.lesson_id);
+
+      // Load pinned lessons then unpinned, combine (pinned first)
+      const pinnedLessons = await prisma.lesson.findMany({
+        where: {
+          id: { in: pinnedIds },
+          ...whereClause,
+        },
+        include: { lessonFiles: true },
+        orderBy: { id: 'desc' },
+      });
+      const unpinnedLessons = await prisma.lesson.findMany({
+        where: {
+          id: { notIn: pinnedIds },
+          ...whereClause,
+        },
+        include: { lessonFiles: true },
+        orderBy: { id: 'desc' },
+      });
+      const lessons = [...pinnedLessons, ...unpinnedLessons];
 
       const lessonsWithUrls = await Promise.all(
         lessons.map(async lesson => {
@@ -849,6 +950,7 @@ export class LessonService {
             ...(fileUrl && { fileUrl }),
             ...(audioUrl && { audioUrl }),
             createdAt: lesson.created_at,
+            isPinned: pinnedIds.includes(lesson.id),
             ...(progress && {
               userProgress: {
                 status: progress.status,

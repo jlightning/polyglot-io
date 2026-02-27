@@ -15,6 +15,9 @@ import {
   EyeOpenIcon,
   VideoIcon,
   Pencil1Icon,
+  PinTopIcon,
+  DrawingPinIcon,
+  DrawingPinFilledIcon,
 } from '@radix-ui/react-icons';
 import axios from 'axios';
 import dayjs from 'dayjs';
@@ -32,6 +35,7 @@ interface Lesson {
   fileUrl?: string;
   audioUrl?: string;
   createdAt: string;
+  isPinned?: boolean;
   userProgress?: {
     status: 'reading' | 'finished';
     readTillSentenceId: number;
@@ -57,6 +61,7 @@ const LessonList: React.FC<LessonListProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deletingLessonId, setDeletingLessonId] = useState<number | null>(null);
+  const [pinningLessonId, setPinningLessonId] = useState<number | null>(null);
   const { axiosInstance, isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
@@ -167,6 +172,27 @@ const LessonList: React.FC<LessonListProps> = ({
     } else {
       // If no updated data provided, refetch to ensure consistency
       fetchLessons();
+    }
+  };
+
+  const handleTogglePin = async (lesson: Lesson) => {
+    try {
+      setPinningLessonId(lesson.id);
+      if (lesson.isPinned) {
+        await axiosInstance.delete(`/api/lessons/${lesson.id}/pin`);
+      } else {
+        await axiosInstance.post(`/api/lessons/${lesson.id}/pin`);
+      }
+      await fetchLessons();
+    } catch (err) {
+      console.error('Error toggling pin:', err);
+      if (axios.isAxiosError(err) && err.response?.data?.message) {
+        setError(err.response?.data?.message ?? 'Failed to update pin');
+      } else {
+        setError('Failed to update pin');
+      }
+    } finally {
+      setPinningLessonId(null);
     }
   };
 
@@ -354,6 +380,19 @@ const LessonList: React.FC<LessonListProps> = ({
               </Flex>
 
               <Flex gap="2" align="start">
+                <IconButton
+                  variant="ghost"
+                  color={lesson.isPinned ? 'blue' : 'gray'}
+                  disabled={pinningLessonId === lesson.id}
+                  onClick={() => handleTogglePin(lesson)}
+                  title={lesson.isPinned ? 'Unpin lesson' : 'Pin lesson'}
+                >
+                  {lesson.isPinned ? (
+                    <DrawingPinFilledIcon />
+                  ) : (
+                    <DrawingPinIcon />
+                  )}
+                </IconButton>
                 <LessonEditDialog
                   lesson={lesson}
                   onLessonUpdated={updatedLesson =>
