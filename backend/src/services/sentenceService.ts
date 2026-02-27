@@ -522,6 +522,7 @@ export class SentenceService {
           language_code: true,
           lesson_type: true,
           audio_s3_key: true,
+          created_with_prompt: true,
         },
       });
 
@@ -644,6 +645,9 @@ export class SentenceService {
           ...(audioUrl && { audioUrl }),
           ...(lessonFiles.length > 0 && { lessonFiles }),
           userProgress,
+          ...(lesson.created_with_prompt && {
+            createdWithPrompt: lesson.created_with_prompt,
+          }),
         },
       };
     } catch (error) {

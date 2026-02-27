@@ -51,6 +51,7 @@ interface Lesson {
   sentences: Sentence[];
   totalSentences: number;
   audioUrl?: string;
+  createdWithPrompt?: string;
   userProgress?: {
     status: string;
     readTillSentenceId: number;
@@ -490,6 +491,11 @@ const LessonViewPage: React.FC = () => {
           <Text size="3" color="gray">
             {lesson.totalSentences} sentences total
           </Text>
+          {lesson.createdWithPrompt && (
+            <Text size="2" color="gray">
+              Created with prompt: {lesson.createdWithPrompt}
+            </Text>
+          )}
           {lesson.userProgress && (
             <Text
               size="2"

@@ -208,6 +208,7 @@ router.post('/generate', async (req: Request, res: Response) => {
       languageCode: languageCode.trim(),
       sentences,
       lessonType: LessonType.generated,
+      createdWithPrompt: prompt.trim(),
     });
 
     if (result.success) {

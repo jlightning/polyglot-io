@@ -36,6 +36,7 @@ interface Lesson {
   audioUrl?: string;
   createdAt: string;
   isPinned?: boolean;
+  createdWithPrompt?: string;
   userProgress?: {
     status: 'reading' | 'finished';
     readTillSentenceId: number;
@@ -336,6 +337,12 @@ const LessonList: React.FC<LessonListProps> = ({
                 <Text size="1" color="gray">
                   Created: {dayjs(lesson.createdAt).format('MM/DD/YYYY')}
                 </Text>
+
+                {lesson.createdWithPrompt && (
+                  <Text size="2" color="gray" as="div">
+                    Prompt: {lesson.createdWithPrompt}
+                  </Text>
+                )}
 
                 {lesson.processingStatus === 'pending' && (
                   <Box mt="3">

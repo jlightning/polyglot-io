@@ -43,6 +43,7 @@ export interface CreateManualLessonData {
   audioKey?: string;
   sentences?: string[];
   lessonType?: 'manual' | 'generated';
+  createdWithPrompt?: string;
 }
 
 export interface LessonResponse {
@@ -62,6 +63,7 @@ export interface LessonResponse {
     userProgress?: any;
     isPinned?: boolean;
     createdAt: Date;
+    createdWithPrompt?: string;
   };
   lessons?: {
     id: number;
@@ -75,6 +77,7 @@ export interface LessonResponse {
     isPinned?: boolean;
     createdAt: Date;
     userProgress?: any;
+    createdWithPrompt?: string;
   }[];
 }
 
@@ -193,6 +196,7 @@ export class LessonService {
             language_code: lessonData.languageCode,
             image_s3_key: lessonData.imageKey || null,
             audio_s3_key: lessonData.audioKey || null,
+            created_with_prompt: lessonData.createdWithPrompt ?? null,
           },
         });
         await tx.lessonFile.create({
@@ -232,6 +236,9 @@ export class LessonService {
           processingStatus: lesson.processing_status,
           ...(lesson.image_s3_key && { imageUrl: lesson.image_s3_key }),
           ...(lesson.audio_s3_key && { audioUrl: lesson.audio_s3_key }),
+          ...(lesson.created_with_prompt && {
+            createdWithPrompt: lesson.created_with_prompt,
+          }),
           createdAt: lesson.created_at,
         },
       };
@@ -728,6 +735,9 @@ export class LessonService {
             },
           }),
           isPinned: !!pin,
+          ...(lesson.created_with_prompt && {
+            createdWithPrompt: lesson.created_with_prompt,
+          }),
         },
       };
     } catch (error) {
@@ -956,6 +966,9 @@ export class LessonService {
                 status: progress.status,
                 readTillSentenceId: progress.read_till_sentence_id,
               },
+            }),
+            ...(lesson.created_with_prompt && {
+              createdWithPrompt: lesson.created_with_prompt,
             }),
           };
         })
