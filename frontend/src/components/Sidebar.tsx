@@ -62,9 +62,28 @@ const Sidebar: React.FC<SidebarProps> = () => {
       {/* Header */}
       <Box p="4">
         <Flex direction="column" gap="2">
-          <Text size="4" weight="bold" color="blue">
-            PolyglotIO
-          </Text>
+          <Flex align="center" gap="2">
+            <Box
+              style={{
+                width: '28px',
+                height: '28px',
+                backgroundColor: 'var(--blue-9)',
+                color: 'white',
+                borderRadius: '6px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 'bold',
+                fontSize: '18px',
+                lineHeight: '1',
+              }}
+            >
+              P
+            </Box>
+            <Text size="4" weight="bold" color="blue">
+              PolyglotIO
+            </Text>
+          </Flex>
           <Text size="2" color="gray">
             Welcome, {user?.username}
           </Text>
