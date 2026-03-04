@@ -169,15 +169,14 @@ export class WordService {
         },
       });
 
-      // Create a map of word -> mark for efficient lookup
-      const marksMap: Record<string, number> = {};
-      wordUserMarks.forEach(mark => {
-        marksMap[mark.word.word] = mark.mark;
-      });
+      const data = wordUserMarks.map(m => ({
+        word: m.word.word,
+        mark: m.mark,
+      }));
 
       return {
         success: true,
-        data: marksMap,
+        data,
       };
     } catch (error) {
       console.error('Error getting bulk word user marks:', error);

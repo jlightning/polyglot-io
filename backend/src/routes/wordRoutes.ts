@@ -155,7 +155,7 @@ router.post('/marks/bulk', async (req: Request, res: Response) => {
     if (words.length === 0) {
       return res.json({
         success: true,
-        data: {},
+        data: [],
       });
     }
 

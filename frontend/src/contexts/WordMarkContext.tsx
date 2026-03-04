@@ -8,6 +8,18 @@ import React, {
 import { useAuth } from './AuthContext';
 import { useLanguage } from './LanguageContext';
 
+/** Full-width digit characters (U+FF10–U+FF19) for display */
+const FULL_WIDTH_DIGITS = '０１２３４５６７８９';
+
+/**
+ * Converts ASCII digits (0-9) in a word string to full-width Japanese numerals.
+ * Use when displaying words so that e.g. "1年" is shown as "１年".
+ */
+export function wordWithFullWidthDigits(word: string): string {
+  if (!word) return word;
+  return word.replace(/[0-9]/g, d => FULL_WIDTH_DIGITS[parseInt(d, 10)] ?? d);
+}
+
 interface WordMarkContextType {
   // Get word mark (returns undefined if not marked)
   getWordMark: (word: string) => number | undefined;
@@ -49,14 +61,16 @@ export const WordMarkProvider: React.FC<WordMarkProviderProps> = ({
 }) => {
   const { axiosInstance, fetchUserStats } = useAuth();
   const { selectedLanguage } = useLanguage();
-  const [wordMarks, setWordMarks] = useState<Record<string, number>>({});
+  const [wordMarks, setWordMarks] = useState<Map<string, number>>(new Map());
   const [fetchedWords, setFetchedWords] = useState<Set<string>>(new Set());
   const [isFetching, setIsFetching] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   const getWordMark = useCallback(
     (word: string): number | undefined => {
-      return wordMarks[word];
+      return (
+        wordMarks.get(word) ?? wordMarks.get(wordWithFullWidthDigits(word))
+      );
     },
     [wordMarks]
   );
@@ -81,10 +95,7 @@ export const WordMarkProvider: React.FC<WordMarkProviderProps> = ({
 
         if (response.data.success) {
           // Update local state
-          setWordMarks(prev => ({
-            ...prev,
-            [word]: mark,
-          }));
+          setWordMarks(prev => new Map(prev).set(word, mark));
           // Mark this word as fetched since we now have its data
           setFetchedWords(prev => new Set([...prev, word]));
           // Update user stats after successfully saving word mark
@@ -121,21 +132,19 @@ export const WordMarkProvider: React.FC<WordMarkProviderProps> = ({
         });
 
         if (response.data.success) {
-          const marksMap = response.data.data || {};
+          const marks = response.data.data ?? [];
 
-          // Update word marks state
-          const newMarks: Record<string, number> = {};
-          const newFetchedWords = new Set(fetchedWords);
-
-          wordsToFetch.forEach(word => {
-            newFetchedWords.add(word);
-            if (marksMap[word] !== undefined) {
-              newMarks[word] = marksMap[word];
-            }
-          });
-
-          // Update state
-          setWordMarks(prev => ({ ...prev, ...newMarks }));
+          const newFetchedWords = new Set([...fetchedWords, ...wordsToFetch]);
+          setWordMarks(
+            prev =>
+              new Map([
+                ...prev,
+                ...marks.map((m: { word: string; mark: number }) => [
+                  m.word,
+                  m.mark,
+                ]),
+              ])
+          );
           setFetchedWords(newFetchedWords);
         } else {
           console.error('Error fetching word marks:', response.data.message);
@@ -158,7 +167,7 @@ export const WordMarkProvider: React.FC<WordMarkProviderProps> = ({
   );
 
   const clearWordMarks = useCallback(() => {
-    setWordMarks({});
+    setWordMarks(new Map());
     setFetchedWords(new Set());
   }, []);
 
