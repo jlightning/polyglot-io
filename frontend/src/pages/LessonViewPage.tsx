@@ -690,8 +690,8 @@ const LessonViewPage: React.FC = () => {
         disabled={loading}
       />
 
-      {/* Finish Lesson Button - Show only on last page if lesson is not finished */}
-      {currentPage === totalPages &&
+      {/* Finish Lesson Button - On last page if not finished; always show for manual lessons */}
+      {(lesson?.lessonType === 'manual' || currentPage === totalPages) &&
         lesson?.userProgress?.status !== 'finished' && (
           <Flex justify="center" mt="6">
             <MyButton
