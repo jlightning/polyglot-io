@@ -849,11 +849,9 @@ export class LessonService {
         language_code: languageCode,
       };
 
-      // Add title search filter
+      // Add full-text search on title (case-insensitive, uses FULLTEXT index)
       if (filters?.search) {
-        whereClause.title = {
-          contains: filters.search,
-        };
+        whereClause.title = { search: filters.search };
       }
 
       // Add lesson type filter

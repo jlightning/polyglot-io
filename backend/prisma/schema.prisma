@@ -64,6 +64,7 @@ model Lesson {
   lessonFiles          LessonFile[]
   lessonUserPins       LessonUserPin[]
 
+  @@fulltext([title])
   @@map("lesson")
 }
 
