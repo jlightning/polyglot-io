@@ -15,6 +15,7 @@ const ALLOWED_DAILY_SCORE_TARGETS = [
   '400',
   '600',
   '1000',
+  '2000',
 ];
 
 export interface UserSettings {

@@ -5,8 +5,10 @@ import MyButton from '../components/MyButton';
 import { useUserSettings } from '../contexts/UserSettingContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
-
-const ALLOWED_SCORE_TARGETS = [50, 100, 200, 250, 300, 400, 600, 1000];
+import {
+  ALLOWED_SCORE_TARGETS,
+  getScoreTargetDifficulty,
+} from '../constants/scoreConstants';
 
 const SettingsPage: React.FC = () => {
   const { dailyScoreTarget, updateUserSetting } = useUserSettings();
@@ -142,7 +144,7 @@ const SettingsPage: React.FC = () => {
                   </RadioGroup.Indicator>
                 </RadioGroup.Item>
                 <Text size="3" as="label" htmlFor={`target-${target}`}>
-                  {target} points
+                  {target} points ({getScoreTargetDifficulty(target)})
                 </Text>
               </Flex>
             ))}
