@@ -100,7 +100,9 @@ const SentenceReconstructor: React.FC<SentenceReconstructorProps> = ({
           fontSize,
           ...(wordMark !== undefined
             ? getDifficultyStyles(wordMark)
-            : { border: '1px solid transparent' }),
+            : {
+                //  border: '1px solid transparent'
+              }),
           cursor: 'pointer',
         }}
         className={className}

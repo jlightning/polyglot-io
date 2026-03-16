@@ -32,7 +32,7 @@ export const getDifficultyStyles = (mark: number) => {
   const baseStyles = {
     backgroundColor: getDifficultyColor(mark),
     borderColor: getDifficultyColor(mark),
-    border: '1px solid transparent',
+    // border: '1px solid transparent',
   };
 
   // Special styling for level 4: dotted underline
@@ -41,7 +41,7 @@ export const getDifficultyStyles = (mark: number) => {
       ...baseStyles,
       backgroundColor: 'transparent',
       borderColor: 'transparent',
-      border: '1px dotted #FF9800',
+      textDecoration: 'underline dotted #FF9800',
     };
   }
 
