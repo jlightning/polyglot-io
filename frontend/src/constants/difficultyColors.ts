@@ -42,6 +42,8 @@ export const getDifficultyStyles = (mark: number) => {
       backgroundColor: 'transparent',
       borderColor: 'transparent',
       textDecoration: 'underline dotted #FF9800',
+      textUnderlineOffset: '5px',
+      textDecorationThickness: '2px',
     };
   }
 

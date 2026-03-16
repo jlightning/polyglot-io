@@ -226,7 +226,7 @@ export class TextProcessingService {
       const sentenceEndChars = /[。．.!！.]/;
       const sentenceSplitRe = new RegExp(`(?<=${sentenceEndChars.source})\\s*`);
 
-      const sentences: ProcessedSentence[] = cleanText
+      const rawSentences: ProcessedSentence[] = cleanText
         .split(/\n+/)
         .map(part => part.trim())
         .filter(Boolean)
@@ -241,6 +241,25 @@ export class TextProcessingService {
               endTime: undefined as number | undefined,
             }))
         );
+
+      // Deduplicate consecutive sentences that are only sentence-ending punctuation (e.g. "!", "!!", "。")
+      const punctuationOnly = /^[。．.!！.\s]+$/;
+      const quoteOnly = /^["”\s]+$/;
+      const sentences: ProcessedSentence[] = [];
+      for (const s of rawSentences) {
+        const isPunctuationOnly = punctuationOnly.test(s.text);
+        const prev = sentences[sentences.length - 1];
+        const prevPunctOnly = prev ? punctuationOnly.test(prev.text) : false;
+        if (isPunctuationOnly && prevPunctOnly) continue;
+
+        const isQuoteOnly = quoteOnly.test(s.text);
+        if (isQuoteOnly && sentences.length) {
+          sentences[sentences.length - 1]!.text += s!.text;
+          continue;
+        }
+
+        sentences.push(s);
+      }
 
       return sentences.length > 0
         ? sentences
