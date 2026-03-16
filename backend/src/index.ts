@@ -15,6 +15,7 @@ import userSettingRoutes from './routes/userSettingRoutes';
 import ttsRoutes from './routes/ttsRoutes';
 import { ctx } from './routes';
 import { authenticateToken } from './middleware/auth';
+import { PrismaClient } from '@prisma/client';
 
 // Load environment variables
 dotenv.config();
@@ -93,4 +94,4 @@ app.listen(port, () => {
   console.log(`Server running on port ${port}`);
 });
 
-ctx.cronService.registerCron(ctx);
+ctx.cronService.registerCron({ ...ctx, prisma: new PrismaClient() });

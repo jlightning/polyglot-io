@@ -16,8 +16,11 @@ import { OpenAIService } from '../services/ai/openaiService';
 import { TextProcessingService } from '../services/textProcessingService';
 import { LingQService } from '../services/import/lingqService';
 
+const prisma = new PrismaClient();
+// {log: ['query', 'info', 'warn', 'error']}
+
 export const ctx: Context = {
-  prisma: new PrismaClient(),
+  prisma,
   authService: new UserService(),
   configService: new ConfigService(),
   lessonService: new LessonService(),

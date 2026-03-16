@@ -27,6 +27,7 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
   const [title, setTitle] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [lessonFile, setLessonFile] = useState<File | null>(null);
+  const [lessonPastedText, setLessonPastedText] = useState('');
   const [audioFile, setAudioFile] = useState<File | null>(null);
 
   // Manual lesson (add sentence manually) states – title only, no files
@@ -480,8 +481,9 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
       return;
     }
 
-    if (!lessonFile) {
-      setError('Please select a lesson file (required)');
+    const hasPastedText = lessonPastedText.trim().length > 0;
+    if (!lessonFile && !hasPastedText) {
+      setError('Please select a lesson file or paste text (required)');
       return;
     }
 
@@ -505,10 +507,17 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
         }
       }
 
-      // Upload lesson file to S3 (required)
-      if (lessonFile) {
+      // Upload lesson file to S3 (required): use file if selected, else create from pasted text
+      const fileToUpload =
+        lessonFile ||
+        (hasPastedText
+          ? new File([lessonPastedText.trim()], 'pasted-lesson.txt', {
+              type: 'text/plain',
+            })
+          : null);
+      if (fileToUpload) {
         try {
-          fileKey = await uploadFileToS3(lessonFile);
+          fileKey = await uploadFileToS3(fileToUpload);
         } catch (error) {
           throw new Error(
             `Failed to upload lesson file: ${error instanceof Error ? error.message : 'Unknown error'}`
@@ -541,6 +550,7 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
         setTitle('');
         setImageFile(null);
         setLessonFile(null);
+        setLessonPastedText('');
         setAudioFile(null);
 
         // Reset file inputs
@@ -689,6 +699,28 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
                         Selected: {lessonFile.name}
                       </Text>
                     )}
+                  </Box>
+
+                  {/* Paste text alternative */}
+                  <Box>
+                    <Text size="2" weight="medium" mb="2" as="div">
+                      Or paste lesson text below
+                    </Text>
+                    <textarea
+                      value={lessonPastedText}
+                      onChange={e => setLessonPastedText(e.target.value)}
+                      placeholder="Paste your lesson text here (plain text or subtitle content)..."
+                      rows={6}
+                      style={{
+                        width: '100%',
+                        padding: '8px',
+                        border: '1px solid var(--gray-7)',
+                        borderRadius: '4px',
+                        fontSize: '14px',
+                        resize: 'vertical',
+                        fontFamily: 'inherit',
+                      }}
+                    />
                   </Box>
 
                   {/* Audio File Upload */}
@@ -939,7 +971,9 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
               {activeTab === 'text' ? (
                 <MyButton
                   onClick={handleUpload}
-                  disabled={uploading || !lessonFile}
+                  disabled={
+                    uploading || (!lessonFile && !lessonPastedText.trim())
+                  }
                 >
                   {uploading ? (
                     <>

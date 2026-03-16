@@ -37,8 +37,8 @@ export class ConfigService {
       name: 'Chinese',
       localName: '中文',
       tag: 'zh-CN',
-      enabled: false,
-    }, // Example disabled language
+      enabled: true,
+    },
   ];
 
   /**

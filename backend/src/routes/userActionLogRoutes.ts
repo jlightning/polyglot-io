@@ -65,24 +65,12 @@ router.post('/log', async (req: Request, res: Response) => {
         });
       }
 
-      // Look up or create the word to get word_id
-      const word = await ctx.prisma.word.findUnique({
-        where: {
-          word_language_code: {
-            word: actionData.word,
-            language_code: languageCode,
-          },
-        },
-      });
-
-      if (!word) return res.status(200);
-
       // Log the action with word_id
       result = await ctx.userActionLogService.logReadAction(
         ctx,
         req.userId!,
         languageCode,
-        { word_id: word.id, sentence_id: actionData.sentence_id }
+        { word: actionData.word, sentence_id: actionData.sentence_id }
       );
     } else {
       return res.status(400).json({

@@ -73,7 +73,7 @@ const wordTranslationSchema = {
           pronunciation: {
             type: 'string',
             description:
-              'Pronunciation of the word (hiragana for Japanese, romanji for Korean)',
+              'Pronunciation of the word (hiragana for Japanese, romanization for Korean, pinyin with tone marks for Chinese: e.g. nǐ hǎo)',
           },
           pronunciationType: {
             type: 'string',
@@ -149,9 +149,10 @@ export class OpenAIService {
           };
         } else if (lowerLang.includes('chinese') || lowerLang === 'zh') {
           return {
-            instruction: '   - For Chinese: provide pronunciation in pinyin',
+            instruction:
+              '   - For Chinese: provide pronunciation in pinyin with tone marks (e.g. nǐ hǎo, zhōng guó). Use ā, á, ǎ, à for the four tones; use no accent for neutral tone (轻声).',
             guideline:
-              '- For Chinese words, always provide pinyin pronunciation',
+              '- For Chinese words, always provide pinyin with tone marks. Recognize both Simplified (简体) and Traditional (繁体) characters.',
             type: 'pinyin',
           };
         }
@@ -167,6 +168,10 @@ export class OpenAIService {
 
       const pronunciationInfo = getPronunciationInstructions(sourceLanguage);
 
+      const isChinese =
+        sourceLanguage.toLowerCase().includes('chinese') ||
+        sourceLanguage.toLowerCase() === 'zh';
+
       const systemPrompt = [
         'You are a language learning assistant that helps break down sentences into individual words and provides English translations and pronunciations.',
         '',
@@ -177,11 +182,15 @@ export class OpenAIService {
         '2. Provide accurate English translations for each word',
         '3. Provide pronunciations for each word based on the language:',
         pronunciationInfo.instruction,
-        '4. Provide word stems or root forms for each word (e.g., for English: "running" -> ["run"], for Spanish: "corriendo" -> ["correr"])',
+        isChinese
+          ? "4. For Chinese: provide word stems as the character's 繁体 form if the input is 简体, or 简体 form if the input is 繁体; if the character is the same in both, use the same character."
+          : '4. Provide word stems or root forms for each word (e.g., for English: "running" -> ["run"], for Spanish: "corriendo" -> ["correr"])',
         '',
         'Guidelines:',
         '- Split compound words appropriately for the language',
-        '- For languages with no spaces (like Chinese/Japanese), segment into meaningful units',
+        isChinese
+          ? '- For Chinese: segment by 词 (word/word compound), not by single 字 (character). One 词 can be one or more characters (e.g. 你好 = one word, 中国 = one word). Do not split meaningful compounds like 喜欢, 因为, 什么 into single characters.'
+          : '- For languages with no spaces (like Chinese/Japanese), segment into meaningful units',
         '- Provide English translation for the word in the context of the sentence',
         '- Be consistent with word segmentation',
         '- Exclude punctuation marks from the word list',
@@ -323,7 +332,8 @@ export class OpenAIService {
           };
         } else if (lowerLang.includes('chinese') || lowerLang === 'zh') {
           return {
-            instruction: 'Provide pronunciation in pinyin',
+            instruction:
+              'Provide pronunciation in pinyin with tone marks (e.g. nǐ hǎo, zhōng guó). Use ā, á, ǎ, à for the four tones; no accent for neutral tone (轻声).',
             type: 'pinyin' as PronunciationType,
           };
         }
@@ -616,15 +626,22 @@ export class OpenAIService {
       }
 
       const lowerLang = sourceLanguage.toLowerCase();
+      const isJapanese = lowerLang.includes('japanese') || lowerLang === 'ja';
+      const isChinese = lowerLang.includes('chinese') || lowerLang === 'zh';
 
       const systemPrompt = [
         'You are an OCR specialist that extracts text from manga/comic images.',
         '',
         `The image contains text in ${sourceLanguage}.`,
         '',
-        ...(lowerLang.includes('japanese') || lowerLang === 'ja'
-          ? 'Text is read top to bottom and from right to left'
-          : ''),
+        ...(isJapanese
+          ? ['Text is read top to bottom and from right to left.']
+          : []),
+        ...(isChinese
+          ? [
+              'For Chinese: text may be horizontal (left-to-right) or vertical (top-to-bottom). Recognize both Simplified (简体) and Traditional (繁体) characters.',
+            ]
+          : []),
         'Your task is to:',
         '1. Extract ALL visible text from the image in reading order',
         '2. Include speech bubbles, thought bubbles, sound effects, and any other text',
@@ -939,15 +956,22 @@ export class OpenAIService {
       );
 
       const lowerLang = sourceLanguage.toLowerCase();
+      const isJapanese = lowerLang.includes('japanese') || lowerLang === 'ja';
+      const isChinese = lowerLang.includes('chinese') || lowerLang === 'zh';
 
       const systemPrompt = [
         'You are an OCR specialist that extracts text from manga/comic images.',
         '',
         `The image contains text in ${sourceLanguage}.`,
         '',
-        ...(lowerLang.includes('japanese') || lowerLang === 'ja'
-          ? 'Text is read top to bottom and from right to left'
-          : ''),
+        ...(isJapanese
+          ? ['Text is read top to bottom and from right to left.']
+          : []),
+        ...(isChinese
+          ? [
+              'For Chinese: text may be horizontal (left-to-right) or vertical (top-to-bottom). Recognize both Simplified (简体) and Traditional (繁体) characters.',
+            ]
+          : []),
         'Your task is to:',
         '1. Extract ALL visible text from this cropped image region in reading order',
         '2. Include speech bubbles, thought bubbles, sound effects, and any other text',

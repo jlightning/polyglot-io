@@ -204,7 +204,8 @@ export class TextProcessingService {
   }
 
   /**
-   * Parse plain text content and split into sentences (no timing information)
+   * Parse plain text content and split into sentences (no timing information).
+   * Splits on newlines and on sentence-ending punctuation: dots (., 。, ．) and exclamation (!, ！).
    */
   parseTxtContent(ctx: Context, txtContent: string): ProcessedSentence[] {
     try {
@@ -221,14 +222,35 @@ export class TextProcessingService {
         throw new Error('Text file is empty or contains no readable content.');
       }
 
-      // Keep the original text
-      return [
-        {
-          text: cleanText,
-          startTime: undefined as number | undefined,
-          endTime: undefined as number | undefined,
-        },
-      ];
+      // Sentence-ending: dots (., 。, ．) and exclamation (!, ！) for English, Japanese, Chinese
+      const sentenceEndChars = /[。．.!！.]/;
+      const sentenceSplitRe = new RegExp(`(?<=${sentenceEndChars.source})\\s*`);
+
+      const sentences: ProcessedSentence[] = cleanText
+        .split(/\n+/)
+        .map(part => part.trim())
+        .filter(Boolean)
+        .flatMap(trimmed =>
+          trimmed
+            .split(sentenceSplitRe)
+            .map(seg => seg.trim())
+            .filter(Boolean)
+            .map(text => ({
+              text,
+              startTime: undefined as number | undefined,
+              endTime: undefined as number | undefined,
+            }))
+        );
+
+      return sentences.length > 0
+        ? sentences
+        : [
+            {
+              text: cleanText,
+              startTime: undefined as number | undefined,
+              endTime: undefined as number | undefined,
+            },
+          ];
     } catch (error) {
       console.error('Error parsing TXT content:', error);
       throw new Error(

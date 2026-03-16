@@ -9,7 +9,7 @@ interface WordMarkActionData {
 }
 
 interface ReadActionData {
-  word_id: number;
+  word: string;
   sentence_id: number;
 }
 
@@ -61,13 +61,25 @@ export class UserActionLogService {
     actionData: ReadActionData
   ) {
     try {
+      // Look up or create the word to get word_id
+      const word = await ctx.prisma.word.findUnique({
+        where: {
+          word_language_code: {
+            word: actionData.word,
+            language_code: languageCode,
+          },
+        },
+      });
+
+      if (!word) return { success: true, data: null };
+
       const userAction = await ctx.prisma.userActionLog.upsert({
         where: {
           is_read_user_id_word_id_sentence_id: {
             is_read: true,
             user_id: userId,
             sentence_id: actionData.sentence_id,
-            word_id: actionData.word_id,
+            word_id: word.id,
           },
         },
         create: {
