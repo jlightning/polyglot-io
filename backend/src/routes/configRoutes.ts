@@ -1,12 +1,12 @@
-import { Router } from 'express';
-import { ConfigService } from '../services/configService';
+import { Router, Request } from 'express';
+import { ctx } from './index';
 
 const router = Router();
 
 // Get enabled languages
-router.get('/languages', (_req, res) => {
+router.get('/languages', (req: Request, res) => {
   try {
-    const enabledLanguages = ConfigService.getEnabledLanguages();
+    const enabledLanguages = ctx.configService.getEnabledLanguages(ctx);
     res.json({
       success: true,
       languages: enabledLanguages,
@@ -21,9 +21,9 @@ router.get('/languages', (_req, res) => {
 });
 
 // Get all languages (enabled and disabled) - for admin use
-router.get('/languages/all', (_req, res) => {
+router.get('/languages/all', (req: Request, res) => {
   try {
-    const allLanguages = ConfigService.getAllLanguages();
+    const allLanguages = ctx.configService.getAllLanguages(ctx);
     res.json({
       success: true,
       languages: allLanguages,
@@ -38,20 +38,27 @@ router.get('/languages/all', (_req, res) => {
 });
 
 // Validate a language code
-router.get('/languages/validate/:code', (req, res) => {
+router.get('/languages/validate/:code', (req: Request, res) => {
   try {
-    const { code } = req.params;
-    const isValid = ConfigService.isValidLanguageCode(code);
-    const languageInfo = isValid ? ConfigService.getLanguageInfo(code) : null;
+    const code = req.params['code'];
+    if (!code) {
+      return res
+        .status(400)
+        .json({ success: false, message: 'Code is required' });
+    }
+    const isValid = ctx.configService.isValidLanguageCode(ctx, code);
+    const languageInfo = isValid
+      ? ctx.configService.getLanguageInfo(ctx, code)
+      : null;
 
-    res.json({
+    return res.json({
       success: true,
       valid: isValid,
       languageInfo,
     });
   } catch (error) {
     console.error('Validate language code error:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Failed to validate language code',
     });

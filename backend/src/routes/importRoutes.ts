@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { LingQService } from '../services/import/lingqService';
+import { ctx } from './index';
 
 const router = Router();
 
@@ -22,7 +22,8 @@ router.post('/lingq', async (req: Request, res: Response) => {
       });
     }
 
-    const result = await LingQService.fetchAndImportFromLingQ(
+    const result = await ctx.lingqService.fetchAndImportFromLingQ(
+      ctx,
       req.userId!,
       apiKey,
       languageCode
@@ -54,7 +55,7 @@ router.post('/lingq/validate', async (req: Request, res: Response) => {
       });
     }
 
-    const result = await LingQService.validateApiKey(apiKey);
+    const result = await ctx.lingqService.validateApiKey(ctx, apiKey);
 
     return res.status(result.success ? 200 : 400).json(result);
   } catch (error) {
@@ -78,7 +79,7 @@ router.get('/lingq/languages', async (req: Request, res: Response) => {
       });
     }
 
-    const result = await LingQService.getAvailableLanguages(apiKey);
+    const result = await ctx.lingqService.getAvailableLanguages(ctx, apiKey);
 
     if (result.success) {
       return res.status(200).json(result);

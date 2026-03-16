@@ -1,9 +1,5 @@
-import { Prisma } from '@prisma/client';
-import { OpenAIService } from './ai/openaiService';
-import { UserLessonProgressService } from './userLessonProgressService';
-import { S3Service } from './s3Service';
-
-import { prisma } from './index';
+import type { Context } from './index';
+import { wrapInTransaction } from './db';
 
 export interface WordWithTranslation {
   word: string;
@@ -72,18 +68,16 @@ export interface DeleteSentenceResponse {
 }
 
 export class SentenceService {
-  private static openAIService = new OpenAIService();
-
   /**
    * Store words, their translations, and pronunciations in the database using upsert operations
-   * @param tx - Transaction client (required)
+   * @param ctx - Context (use transaction ctx inside wrapInTransaction)
    * @param words - Array of word translation objects from OpenAI
    * @param sourceLanguage - The source language code
    * @param targetLanguage - The target language code (default: 'en')
    * @param sentenceId - Optional sentence ID to link words to the sentence via SentenceWord
    */
-  private static async storeWordTranslations(
-    tx: Prisma.TransactionClient,
+  private async storeWordTranslations(
+    ctx: Context,
     words: Array<{
       word: string;
       translation: string;
@@ -108,7 +102,7 @@ export class SentenceService {
         }
 
         // Upsert the word in the source language
-        const word = await tx.word.upsert({
+        const word = await ctx.prisma.word.upsert({
           where: {
             word_language_code: {
               word: trimmedWord,
@@ -123,7 +117,7 @@ export class SentenceService {
         });
 
         // Upsert the translation
-        await tx.wordTranslation.upsert({
+        await ctx.prisma.wordTranslation.upsert({
           where: {
             word_id_language_code_translation: {
               word_id: word.id,
@@ -145,7 +139,7 @@ export class SentenceService {
           const trimmedPronunciationType = wordObj.pronunciationType.trim();
 
           if (trimmedPronunciation && trimmedPronunciationType) {
-            await tx.wordPronunciation.upsert({
+            await ctx.prisma.wordPronunciation.upsert({
               where: {
                 word_id_pronunciation_pronunciation_type: {
                   word_id: word.id,
@@ -173,7 +167,7 @@ export class SentenceService {
             const trimmedStem = stem.trim();
             // Skip storing if stem is the same as the original word
             if (trimmedStem && trimmedStem !== trimmedWord) {
-              await tx.wordStem.upsert({
+              await ctx.prisma.wordStem.upsert({
                 where: {
                   word_id_stem: {
                     word_id: word.id,
@@ -193,7 +187,7 @@ export class SentenceService {
         // Link word to sentence if sentenceId is provided
         if (sentenceId) {
           try {
-            await tx.sentenceWord.upsert({
+            await ctx.prisma.sentenceWord.upsert({
               where: {
                 word_id_sentence_id: {
                   word_id: word.id,
@@ -225,7 +219,8 @@ export class SentenceService {
    * @param orderById - Sort order for result by id ('asc' | 'desc'), default 'asc'
    * @returns Array of processed sentences with split_text
    */
-  static async processSentenceSplitText(
+  async processSentenceSplitText(
+    ctx: Context,
     sentences: Array<{
       id: number;
       original_text: string;
@@ -268,7 +263,7 @@ export class SentenceService {
           if (!trimmedWord) continue;
 
           // Find the word translation in the database
-          const wordRecord = await prisma.word.findFirst({
+          const wordRecord = await ctx.prisma.word.findFirst({
             where: {
               word: trimmedWord,
               language_code: languageCode,
@@ -343,7 +338,8 @@ export class SentenceService {
 
         // Use batch processing for better performance
         const analyses =
-          await this.openAIService.splitMultipleSentencesAndTranslate(
+          await ctx.openaiService.splitMultipleSentencesAndTranslate(
+            ctx,
             textsToProcess,
             languageCode
           );
@@ -402,15 +398,15 @@ export class SentenceService {
               }));
 
             // Store words and translations in the database (inside transaction)
-            await prisma.$transaction(async tx => {
+            await wrapInTransaction(ctx, async ctx => {
               await this.storeWordTranslations(
-                tx,
+                ctx,
                 analysis.words,
                 languageCode,
                 'en',
                 sentence.id
               );
-              await tx.sentence.update({
+              await ctx.prisma.sentence.update({
                 where: { id: sentence.id },
                 data: { split_text: splitText },
               });
@@ -502,7 +498,8 @@ export class SentenceService {
   /**
    * Get sentences for a lesson with pagination, ensuring split_text is populated
    */
-  static async getLessonSentences(
+  async getLessonSentences(
+    ctx: Context,
     lessonId: number,
     userId: number,
     page: number = 1,
@@ -511,7 +508,7 @@ export class SentenceService {
   ): Promise<GetSentencesResponse> {
     try {
       // First, verify the lesson exists and belongs to the user
-      const lesson = await prisma.lesson.findFirst({
+      const lesson = await ctx.prisma.lesson.findFirst({
         where: {
           id: lessonId,
           created_by: userId,
@@ -534,7 +531,7 @@ export class SentenceService {
       }
 
       // Get total count of sentences for pagination
-      const totalSentences = await prisma.sentence.count({
+      const totalSentences = await ctx.prisma.sentence.count({
         where: lessonFileId
           ? { lesson_id: lessonId, lesson_file_id: lessonFileId }
           : { lesson_id: lessonId },
@@ -547,7 +544,7 @@ export class SentenceService {
       const orderDirection = lesson.lesson_type === 'manual' ? 'desc' : 'asc';
 
       // Get sentences with pagination
-      const sentences = await prisma.sentence.findMany({
+      const sentences = await ctx.prisma.sentence.findMany({
         where: lessonFileId
           ? { lesson_id: lessonId, lesson_file_id: lessonFileId }
           : { lesson_id: lessonId },
@@ -565,13 +562,15 @@ export class SentenceService {
 
       // Process all sentences in batch to ensure split_text is populated (preserve order)
       const processedSentences = await this.processSentenceSplitText(
+        ctx,
         sentences,
         lesson.language_code,
         orderDirection as 'asc' | 'desc'
       );
 
       // Get user progress for this lesson
-      const progressResult = await UserLessonProgressService.getProgress(
+      const progressResult = await ctx.userLessonProgressService.getProgress(
+        ctx,
         userId,
         lessonId,
         limit
@@ -590,7 +589,10 @@ export class SentenceService {
       let audioUrl: string | undefined;
       if (lesson.audio_s3_key) {
         try {
-          audioUrl = await S3Service.getDownloadUrl(lesson.audio_s3_key);
+          audioUrl = await ctx.s3Service.getDownloadUrl(
+            ctx,
+            lesson.audio_s3_key
+          );
         } catch (error) {
           console.error('Error generating audio download URL:', error);
           audioUrl = undefined;
@@ -601,7 +603,7 @@ export class SentenceService {
       let lessonFiles: any[] = [];
       if (lesson.lesson_type === 'manga') {
         try {
-          const files = await prisma.lessonFile.findMany({
+          const files = await ctx.prisma.lessonFile.findMany({
             where: { lesson_id: lessonId },
             select: {
               id: true,
@@ -616,7 +618,10 @@ export class SentenceService {
               let imageUrl: string | undefined;
               if (file.file_s3_key) {
                 try {
-                  imageUrl = await S3Service.getDownloadUrl(file.file_s3_key);
+                  imageUrl = await ctx.s3Service.getDownloadUrl(
+                    ctx,
+                    file.file_s3_key
+                  );
                 } catch (error) {
                   console.error('Error generating image download URL:', error);
                 }
@@ -662,7 +667,8 @@ export class SentenceService {
   /**
    * Add a sentence to a manual lesson: split/translate via OpenAI, then persist in a transaction
    */
-  static async addSentenceToLesson(
+  async addSentenceToLesson(
+    ctx: Context,
     lessonId: number,
     userId: number,
     text: string
@@ -676,7 +682,7 @@ export class SentenceService {
     }
 
     try {
-      const lesson = await prisma.lesson.findFirst({
+      const lesson = await ctx.prisma.lesson.findFirst({
         where: {
           id: lessonId,
           created_by: userId,
@@ -708,14 +714,15 @@ export class SentenceService {
         };
       }
 
-      const analysis = await this.openAIService.splitSentenceAndTranslate(
+      const analysis = await ctx.openaiService.splitSentenceAndTranslate(
+        ctx,
         trimmedText,
         lesson.language_code
       );
       const splitText = analysis.words.map(w => w.word);
 
-      const result = await prisma.$transaction(async tx => {
-        const sentence = await tx.sentence.create({
+      const result = await wrapInTransaction(ctx, async ctx => {
+        const sentence = await ctx.prisma.sentence.create({
           data: {
             lesson_id: lessonId,
             lesson_file_id: lessonFile.id,
@@ -727,14 +734,14 @@ export class SentenceService {
         });
 
         await this.storeWordTranslations(
-          tx,
+          ctx,
           analysis.words,
           lesson.language_code,
           'en',
           sentence.id
         );
 
-        const totalSentences = await tx.sentence.count({
+        const totalSentences = await ctx.prisma.sentence.count({
           where: { lesson_id: lessonId },
         });
 
@@ -790,13 +797,14 @@ export class SentenceService {
    * Delete a sentence from a manual lesson. Updates or removes UserLessonProgress that point at this sentence,
    * then deletes SentenceWord, SentenceTranslation, and the Sentence.
    */
-  static async deleteSentenceFromLesson(
+  async deleteSentenceFromLesson(
+    ctx: Context,
     lessonId: number,
     sentenceId: number,
     userId: number
   ): Promise<DeleteSentenceResponse> {
     try {
-      const lesson = await prisma.lesson.findFirst({
+      const lesson = await ctx.prisma.lesson.findFirst({
         where: {
           id: lessonId,
           created_by: userId,
@@ -817,7 +825,7 @@ export class SentenceService {
         };
       }
 
-      const sentence = await prisma.sentence.findFirst({
+      const sentence = await ctx.prisma.sentence.findFirst({
         where: {
           id: sentenceId,
           lesson_id: lessonId,
@@ -831,7 +839,7 @@ export class SentenceService {
         };
       }
 
-      const orderedIds = await prisma.sentence.findMany({
+      const orderedIds = await ctx.prisma.sentence.findMany({
         where: { lesson_id: lessonId },
         orderBy: { id: 'asc' },
         select: { id: true },
@@ -839,8 +847,8 @@ export class SentenceService {
       const ids = orderedIds.map(s => s.id);
       const onlyOneSentence = ids.length === 1;
 
-      await prisma.$transaction(async tx => {
-        const progressRows = await tx.userLessonProgress.findMany({
+      await wrapInTransaction(ctx, async ctx => {
+        const progressRows = await ctx.prisma.userLessonProgress.findMany({
           where: {
             lesson_id: lessonId,
             read_till_sentence_id: sentenceId,
@@ -849,7 +857,7 @@ export class SentenceService {
 
         for (const row of progressRows) {
           if (onlyOneSentence) {
-            await tx.userLessonProgress.delete({
+            await ctx.prisma.userLessonProgress.delete({
               where: {
                 user_id_lesson_id: {
                   user_id: row.user_id,
@@ -865,7 +873,7 @@ export class SentenceService {
                 'Cannot determine previous/next sentence for progress'
               );
             }
-            await tx.userLessonProgress.update({
+            await ctx.prisma.userLessonProgress.update({
               where: {
                 user_id_lesson_id: {
                   user_id: row.user_id,
@@ -877,13 +885,13 @@ export class SentenceService {
           }
         }
 
-        await tx.sentenceWord.deleteMany({
+        await ctx.prisma.sentenceWord.deleteMany({
           where: { sentence_id: sentenceId },
         });
-        await tx.sentenceTranslation.deleteMany({
+        await ctx.prisma.sentenceTranslation.deleteMany({
           where: { sentence_id: sentenceId },
         });
-        await tx.sentence.delete({
+        await ctx.prisma.sentence.delete({
           where: { id: sentenceId },
         });
       });
@@ -902,7 +910,8 @@ export class SentenceService {
   /**
    * Add multiple sentences to a manual lesson: batch split/translate via OpenAI, then persist in a transaction
    */
-  static async addSentencesToLesson(
+  async addSentencesToLesson(
+    ctx: Context,
     lessonId: number,
     userId: number,
     texts: string[]
@@ -915,7 +924,7 @@ export class SentenceService {
     }
 
     try {
-      const lesson = await prisma.lesson.findFirst({
+      const lesson = await ctx.prisma.lesson.findFirst({
         where: {
           id: lessonId,
           created_by: userId,
@@ -947,12 +956,13 @@ export class SentenceService {
       }
 
       const analyses =
-        await this.openAIService.splitMultipleSentencesAndTranslate(
+        await ctx.openaiService.splitMultipleSentencesAndTranslate(
+          ctx,
           trimmed,
           lesson.language_code
         );
 
-      await prisma.$transaction(async tx => {
+      await wrapInTransaction(ctx, async ctx => {
         for (let i = 0; i < trimmed.length; i++) {
           const text = trimmed[i]!;
           const analysis = analyses[i];
@@ -960,7 +970,7 @@ export class SentenceService {
             ? analysis.words.map(w => w.word)
             : [text];
 
-          const sentence = await tx.sentence.create({
+          const sentence = await ctx.prisma.sentence.create({
             data: {
               lesson_id: lessonId,
               lesson_file_id: lessonFile.id,
@@ -973,7 +983,7 @@ export class SentenceService {
 
           if (analysis) {
             await this.storeWordTranslations(
-              tx,
+              ctx,
               analysis.words,
               lesson.language_code,
               'en',
@@ -983,7 +993,7 @@ export class SentenceService {
         }
       });
 
-      const totalSentences = await prisma.sentence.count({
+      const totalSentences = await ctx.prisma.sentence.count({
         where: { lesson_id: lessonId },
       });
       return { success: true, totalSentences };
@@ -1002,7 +1012,8 @@ export class SentenceService {
   /**
    * Get a single sentence by ID with split_text populated
    */
-  static async getSentenceById(
+  async getSentenceById(
+    ctx: Context,
     sentenceId: number,
     userId: number
   ): Promise<{
@@ -1012,7 +1023,7 @@ export class SentenceService {
   }> {
     try {
       // Get sentence and verify user has access via lesson ownership
-      const sentence = await prisma.sentence.findFirst({
+      const sentence = await ctx.prisma.sentence.findFirst({
         where: {
           id: sentenceId,
           lesson: {
@@ -1042,8 +1053,10 @@ export class SentenceService {
 
       // Process the sentence to ensure split_text is populated (wrap in array for batch processing)
       const processedSentences = await this.processSentenceSplitText(
+        ctx,
         [sentence],
-        sentence.lesson.language_code
+        sentence.lesson.language_code,
+        'asc'
       );
       const processedSentence = processedSentences[0];
 
@@ -1070,7 +1083,8 @@ export class SentenceService {
   /**
    * Get translation for a sentence with context from surrounding sentences
    */
-  static async getSentenceTranslation(
+  async getSentenceTranslation(
+    ctx: Context,
     sentenceId: number,
     userId: number
   ): Promise<{
@@ -1080,7 +1094,7 @@ export class SentenceService {
   }> {
     try {
       // Get sentence and verify user has access via lesson ownership
-      const sentence = await prisma.sentence.findFirst({
+      const sentence = await ctx.prisma.sentence.findFirst({
         where: {
           id: sentenceId,
           lesson: {
@@ -1107,12 +1121,13 @@ export class SentenceService {
       }
 
       // Check if translation already exists
-      const existingTranslation = await prisma.sentenceTranslation.findFirst({
-        where: {
-          sentence_id: sentenceId,
-          language_code: 'en', // English translation
-        },
-      });
+      const existingTranslation =
+        await ctx.prisma.sentenceTranslation.findFirst({
+          where: {
+            sentence_id: sentenceId,
+            language_code: 'en', // English translation
+          },
+        });
 
       if (existingTranslation) {
         return {
@@ -1122,7 +1137,7 @@ export class SentenceService {
       }
 
       // Get all sentences from the lesson ordered by ID to get context
-      const allSentences = await prisma.sentence.findMany({
+      const allSentences = await ctx.prisma.sentence.findMany({
         where: { lesson_id: sentence.lesson_id },
         orderBy: { id: 'asc' },
         select: {
@@ -1148,14 +1163,15 @@ export class SentenceService {
         .map(s => s.original_text);
 
       // Generate translation using OpenAI with context
-      const translation = await this.openAIService.translateSentenceWithContext(
+      const translation = await ctx.openaiService.translateSentenceWithContext(
+        ctx,
         sentence.original_text,
         contextSentences,
         sentence.lesson.language_code
       );
 
       // Store the translation in the database using upsert
-      await prisma.sentenceTranslation.upsert({
+      await ctx.prisma.sentenceTranslation.upsert({
         where: {
           sentence_id_language_code: {
             sentence_id: sentenceId,
@@ -1188,7 +1204,8 @@ export class SentenceService {
   /**
    * Update sentence timing (start_time and end_time) with optional cascade to subsequent sentences
    */
-  static async updateSentenceTiming(
+  async updateSentenceTiming(
+    ctx: Context,
     sentenceId: number,
     userId: number,
     timeOffset: number,
@@ -1204,7 +1221,7 @@ export class SentenceService {
   }> {
     try {
       // Get sentence and verify user has access via lesson ownership
-      const sentence = await prisma.sentence.findFirst({
+      const sentence = await ctx.prisma.sentence.findFirst({
         where: {
           id: sentenceId,
           lesson: {
@@ -1229,10 +1246,10 @@ export class SentenceService {
       }
 
       // Use transaction to ensure atomicity
-      const result = await prisma.$transaction(async tx => {
+      const result = await wrapInTransaction(ctx, async ctx => {
         // Update sentences: if moveSubsequent is true, update all subsequent sentences;
         // otherwise, update only the target sentence
-        await tx.sentence.updateMany({
+        await ctx.prisma.sentence.updateMany({
           where: {
             ...(moveSubsequent
               ? {
@@ -1264,7 +1281,7 @@ export class SentenceService {
         });
 
         // Fetch the updated sentence
-        const updatedSentence = await tx.sentence.findUnique({
+        const updatedSentence = await ctx.prisma.sentence.findUnique({
           where: {
             id: sentenceId,
           },

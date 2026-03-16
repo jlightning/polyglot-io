@@ -1,13 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { LessonType } from '@prisma/client';
-import { LessonService } from '../services/lessonService';
-import { SentenceService } from '../services/sentenceService';
-import { UserLessonProgressService } from '../services/userLessonProgressService';
-import { ConfigService } from '../services/configService';
-import { OpenAIService } from '../services/ai/openaiService';
+import { ctx } from './index';
 
 const router = Router();
-const openaiService = new OpenAIService();
 
 // Create a new lesson
 router.post('/', async (req: Request, res: Response) => {
@@ -29,7 +24,7 @@ router.post('/', async (req: Request, res: Response) => {
       });
     }
 
-    const result = await LessonService.createLesson(req.userId!, {
+    const result = await ctx.lessonService.createLesson(ctx, req.userId!, {
       title,
       languageCode,
       imageKey,
@@ -75,7 +70,7 @@ router.post('/manga', async (req: Request, res: Response) => {
       });
     }
 
-    const result = await LessonService.createMangaLesson(req.userId!, {
+    const result = await ctx.lessonService.createMangaLesson(ctx, req.userId!, {
       title,
       languageCode,
       imageKey,
@@ -108,12 +103,16 @@ router.post('/manual', async (req: Request, res: Response) => {
       });
     }
 
-    const result = await LessonService.createManualLesson(req.userId!, {
-      title,
-      languageCode,
-      imageKey,
-      audioKey,
-    });
+    const result = await ctx.lessonService.createManualLesson(
+      ctx,
+      req.userId!,
+      {
+        title,
+        languageCode,
+        imageKey,
+        audioKey,
+      }
+    );
 
     if (result.success) {
       return res.status(201).json(result);
@@ -169,14 +168,15 @@ router.post('/generate', async (req: Request, res: Response) => {
       });
     }
 
-    if (!ConfigService.isLanguageEnabled(languageCode.trim())) {
+    if (!ctx.configService.isLanguageEnabled(ctx, languageCode.trim())) {
       return res.status(400).json({
         success: false,
         message: 'Language not supported or not enabled',
       });
     }
 
-    const { text } = await openaiService.generateLessonFromPrompt(
+    const { text } = await ctx.openaiService.generateLessonFromPrompt(
+      ctx,
       prompt.trim(),
       languageCode.trim(),
       difficultyValue
@@ -203,13 +203,17 @@ router.post('/generate', async (req: Request, res: Response) => {
       });
     }
 
-    const result = await LessonService.createManualLesson(req.userId!, {
-      title: title.trim(),
-      languageCode: languageCode.trim(),
-      sentences,
-      lessonType: LessonType.generated,
-      createdWithPrompt: prompt.trim(),
-    });
+    const result = await ctx.lessonService.createManualLesson(
+      ctx,
+      req.userId!,
+      {
+        title: title.trim(),
+        languageCode: languageCode.trim(),
+        sentences,
+        lessonType: LessonType.generated,
+        createdWithPrompt: prompt.trim(),
+      }
+    );
 
     if (result.success) {
       return res.status(201).json(result);
@@ -236,7 +240,11 @@ router.get('/:lessonId', async (req: Request, res: Response) => {
       });
     }
 
-    const result = await LessonService.getLessonById(req.userId!, lessonId);
+    const result = await ctx.lessonService.getLessonById(
+      ctx,
+      req.userId!,
+      lessonId
+    );
 
     if (result.success) {
       return res.json(result);
@@ -272,11 +280,16 @@ router.put('/:lessonId', async (req: Request, res: Response) => {
       });
     }
 
-    const result = await LessonService.updateLesson(req.userId!, lessonId, {
-      title: title.trim(),
-      imageKey,
-      audioKey,
-    });
+    const result = await ctx.lessonService.updateLesson(
+      ctx,
+      req.userId!,
+      lessonId,
+      {
+        title: title.trim(),
+        imageKey,
+        audioKey,
+      }
+    );
 
     if (result.success) {
       return res.json(result);
@@ -338,7 +351,8 @@ router.get('/language/:languageCode', async (req: Request, res: Response) => {
       ...(type && { type }),
     };
 
-    const result = await LessonService.getLessonsByLanguage(
+    const result = await ctx.lessonService.getLessonsByLanguage(
+      ctx,
       req.userId!,
       languageCode,
       filters
@@ -370,7 +384,11 @@ router.delete('/:lessonId', async (req: Request, res: Response) => {
       });
     }
 
-    const result = await LessonService.deleteLesson(req.userId!, lessonId);
+    const result = await ctx.lessonService.deleteLesson(
+      ctx,
+      req.userId!,
+      lessonId
+    );
 
     if (result.success) {
       return res.json(result);
@@ -396,7 +414,11 @@ router.post('/:lessonId/pin', async (req: Request, res: Response) => {
         message: 'Invalid lesson ID',
       });
     }
-    const result = await LessonService.pinLesson(req.userId!, lessonId);
+    const result = await ctx.lessonService.pinLesson(
+      ctx,
+      req.userId!,
+      lessonId
+    );
     if (result.success) {
       return res.status(201).json(result);
     }
@@ -420,7 +442,11 @@ router.delete('/:lessonId/pin', async (req: Request, res: Response) => {
         message: 'Invalid lesson ID',
       });
     }
-    const result = await LessonService.unpinLesson(req.userId!, lessonId);
+    const result = await ctx.lessonService.unpinLesson(
+      ctx,
+      req.userId!,
+      lessonId
+    );
     if (result.success) {
       return res.json(result);
     }
@@ -470,7 +496,8 @@ router.get('/:lessonId/sentences', async (req: Request, res: Response) => {
       });
     }
 
-    const result = await SentenceService.getLessonSentences(
+    const result = await ctx.sentenceService.getLessonSentences(
+      ctx,
       lessonId,
       req.userId!,
       page,
@@ -512,7 +539,8 @@ router.post('/:lessonId/sentences', async (req: Request, res: Response) => {
       });
     }
 
-    const result = await SentenceService.addSentenceToLesson(
+    const result = await ctx.sentenceService.addSentenceToLesson(
+      ctx,
       lessonId,
       req.userId!,
       text
@@ -553,7 +581,8 @@ router.delete(
         });
       }
 
-      const result = await SentenceService.deleteSentenceFromLesson(
+      const result = await ctx.sentenceService.deleteSentenceFromLesson(
+        ctx,
         lessonId,
         sentenceId,
         req.userId!
@@ -588,7 +617,8 @@ router.get('/sentences/:sentenceId', async (req: Request, res: Response) => {
       });
     }
 
-    const result = await SentenceService.getSentenceById(
+    const result = await ctx.sentenceService.getSentenceById(
+      ctx,
       sentenceId,
       req.userId!
     );
@@ -621,7 +651,8 @@ router.get(
         });
       }
 
-      const result = await SentenceService.getSentenceTranslation(
+      const result = await ctx.sentenceService.getSentenceTranslation(
+        ctx,
         sentenceId,
         req.userId!
       );
@@ -670,7 +701,8 @@ router.put(
         });
       }
 
-      const result = await SentenceService.updateSentenceTiming(
+      const result = await ctx.sentenceService.updateSentenceTiming(
+        ctx,
         sentenceId,
         req.userId!,
         timeOffset,
@@ -712,7 +744,8 @@ router.post('/:lessonId/progress', async (req: Request, res: Response) => {
       });
     }
 
-    const result = await UserLessonProgressService.updateProgress(
+    const result = await ctx.userLessonProgressService.updateProgress(
+      ctx,
       req.userId!,
       lessonId,
       currentPage,
@@ -748,7 +781,8 @@ router.get('/:lessonId/progress', async (req: Request, res: Response) => {
       });
     }
 
-    const result = await UserLessonProgressService.getProgress(
+    const result = await ctx.userLessonProgressService.getProgress(
+      ctx,
       req.userId!,
       lessonId,
       sentencesPerPage
@@ -780,7 +814,8 @@ router.delete('/:lessonId/progress', async (req: Request, res: Response) => {
       });
     }
 
-    const result = await UserLessonProgressService.resetProgress(
+    const result = await ctx.userLessonProgressService.resetProgress(
+      ctx,
       req.userId!,
       lessonId
     );
@@ -821,12 +856,14 @@ router.post(
         });
       }
 
-      const result = await UserLessonProgressService.updateProgressBySentence(
-        req.userId!,
-        lessonId,
-        parseInt(sentenceId),
-        finishLesson || false
-      );
+      const result =
+        await ctx.userLessonProgressService.updateProgressBySentence(
+          ctx,
+          req.userId!,
+          lessonId,
+          parseInt(sentenceId),
+          finishLesson || false
+        );
 
       if (result.success) {
         return res.json(result);
@@ -846,7 +883,8 @@ router.post(
 // Get user progress overview for all lessons
 router.get('/progress/overview', async (req: Request, res: Response) => {
   try {
-    const result = await UserLessonProgressService.getUserProgressOverview(
+    const result = await ctx.userLessonProgressService.getUserProgressOverview(
+      ctx,
       req.userId!
     );
 
@@ -909,7 +947,8 @@ router.post('/:lessonId/ocr-region', async (req: Request, res: Response) => {
       });
     }
 
-    const result = await LessonService.processOCROnSelectedRegion(
+    const result = await ctx.lessonService.processOCROnSelectedRegion(
+      ctx,
       lessonId,
       parseInt(lessonFileId),
       { x, y, width, height }

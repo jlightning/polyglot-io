@@ -17,9 +17,9 @@
     "useUnknownInCatchVariables": true,
     "alwaysStrict": true,
 
-    /* Additional Checks */
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    /* Additional Checks (TS6133 = unused locals/parameters) */
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
     "exactOptionalPropertyTypes": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,

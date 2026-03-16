@@ -1,4 +1,5 @@
 import * as locale from 'locale-codes';
+import type { Context } from './index';
 
 export interface LanguageConfig {
   code: string;
@@ -9,7 +10,7 @@ export interface LanguageConfig {
 }
 
 export class ConfigService {
-  private static supportedLanguages: LanguageConfig[] = [
+  private supportedLanguages: LanguageConfig[] = [
     {
       code: 'ja',
       name: 'Japanese',
@@ -43,21 +44,21 @@ export class ConfigService {
   /**
    * Get all enabled languages for the application
    */
-  static getEnabledLanguages(): LanguageConfig[] {
+  getEnabledLanguages(ctx: Context): LanguageConfig[] {
     return this.supportedLanguages.filter(lang => lang.enabled);
   }
 
   /**
    * Get all supported languages (enabled and disabled)
    */
-  static getAllLanguages(): LanguageConfig[] {
+  getAllLanguages(ctx: Context): LanguageConfig[] {
     return [...this.supportedLanguages];
   }
 
   /**
    * Check if a language code is enabled
    */
-  static isLanguageEnabled(languageCode: string): boolean {
+  isLanguageEnabled(ctx: Context, languageCode: string): boolean {
     return this.supportedLanguages.some(
       lang => lang.code === languageCode && lang.enabled
     );
@@ -66,7 +67,7 @@ export class ConfigService {
   /**
    * Get language configuration by code
    */
-  static getLanguageByCode(languageCode: string): LanguageConfig | null {
+  getLanguageByCode(ctx: Context, languageCode: string): LanguageConfig | null {
     return (
       this.supportedLanguages.find(lang => lang.code === languageCode) || null
     );
@@ -75,7 +76,11 @@ export class ConfigService {
   /**
    * Enable/disable a language (for admin functionality)
    */
-  static updateLanguageStatus(languageCode: string, enabled: boolean): boolean {
+  updateLanguageStatus(
+    ctx: Context,
+    languageCode: string,
+    enabled: boolean
+  ): boolean {
     const languageIndex = this.supportedLanguages.findIndex(
       lang => lang.code === languageCode
     );
@@ -91,7 +96,7 @@ export class ConfigService {
   /**
    * Validate a language code using locale-codes package
    */
-  static isValidLanguageCode(languageCode: string): boolean {
+  isValidLanguageCode(ctx: Context, languageCode: string): boolean {
     const localeInfo = locale.getByISO6391(languageCode);
     return localeInfo !== undefined;
   }
@@ -99,21 +104,22 @@ export class ConfigService {
   /**
    * Get language information from locale-codes package
    */
-  static getLanguageInfo(languageCode: string) {
+  getLanguageInfo(ctx: Context, languageCode: string) {
     return locale.getByISO6391(languageCode);
   }
 
   /**
    * Get language information by tag (e.g., 'ja-JP', 'ko-KR')
    */
-  static getLanguageInfoByTag(tag: string) {
+  getLanguageInfoByTag(ctx: Context, tag: string) {
     return locale.getByTag(tag);
   }
 
   /**
    * Add a new language to supported languages using locale-codes validation
    */
-  static addSupportedLanguage(
+  addSupportedLanguage(
+    ctx: Context,
     languageCode: string,
     enabled: boolean = false
   ): boolean {

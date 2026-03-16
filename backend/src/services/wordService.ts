@@ -1,8 +1,6 @@
 import { WordUserMarkSource } from '@prisma/client';
-import { UserActionLogService } from './userActionLogService';
-import { OpenAIService } from './ai/openaiService';
 
-import { prisma } from './index';
+import type { Context } from './index';
 import { NUMBER_OF_TRANSLATION_TO_REDUCE } from './consts';
 
 interface CreateWordUserMarkData {
@@ -18,7 +16,8 @@ export class WordService {
    * Create or update a word user mark
    * If the word doesn't exist, it will be created first
    */
-  static async createOrUpdateWordUserMark(
+  async createOrUpdateWordUserMark(
+    ctx: Context,
     userId: number,
     data: CreateWordUserMarkData
   ) {
@@ -32,7 +31,7 @@ export class WordService {
       }
 
       // Use upsert to find or create the word
-      const word = await prisma.word.upsert({
+      const word = await ctx.prisma.word.upsert({
         where: {
           word_language_code: {
             word: data.word,
@@ -47,7 +46,7 @@ export class WordService {
       });
 
       // Get existing mark value to track changes
-      const existingWordUserMark = await prisma.wordUserMark.findUnique({
+      const existingWordUserMark = await ctx.prisma.wordUserMark.findUnique({
         where: {
           user_id_word_id: {
             user_id: userId,
@@ -66,7 +65,7 @@ export class WordService {
         };
 
       // Use proper upsert with the unique constraint on user_id + word_id
-      const wordUserMark = await prisma.wordUserMark.upsert({
+      const wordUserMark = await ctx.prisma.wordUserMark.upsert({
         where: {
           user_id_word_id: {
             user_id: userId,
@@ -90,11 +89,16 @@ export class WordService {
       });
 
       // Log user action
-      await UserActionLogService.logWordMarkAction(userId, data.languageCode, {
-        word_id: word.id,
-        old_mark: oldMark,
-        new_mark: data.mark,
-      });
+      await ctx.userActionLogService.logWordMarkAction(
+        ctx,
+        userId,
+        data.languageCode,
+        {
+          word_id: word.id,
+          old_mark: oldMark,
+          new_mark: data.mark,
+        }
+      );
 
       return {
         success: true,
@@ -113,13 +117,14 @@ export class WordService {
   /**
    * Get word user mark by word and language
    */
-  static async getWordUserMark(
+  async getWordUserMark(
+    ctx: Context,
     userId: number,
     word: string,
     languageCode: string
   ) {
     try {
-      const wordUserMark = await prisma.wordUserMark.findFirst({
+      const wordUserMark = await ctx.prisma.wordUserMark.findFirst({
         where: {
           user_id: userId,
           word: {
@@ -148,13 +153,14 @@ export class WordService {
   /**
    * Get bulk word user marks by words and language
    */
-  static async getBulkWordUserMarks(
+  async getBulkWordUserMarks(
+    ctx: Context,
     userId: number,
     words: string[],
     languageCode: string
   ) {
     try {
-      const wordUserMarks = await prisma.wordUserMark.findMany({
+      const wordUserMarks = await ctx.prisma.wordUserMark.findMany({
         where: {
           user_id: userId,
           word: {
@@ -190,14 +196,15 @@ export class WordService {
   /**
    * Delete word user mark
    */
-  static async deleteWordUserMark(
+  async deleteWordUserMark(
+    ctx: Context,
     userId: number,
     word: string,
     languageCode: string
   ) {
     try {
       // Use deleteMany to avoid the need for a separate find operation
-      const deleteResult = await prisma.wordUserMark.deleteMany({
+      const deleteResult = await ctx.prisma.wordUserMark.deleteMany({
         where: {
           user_id: userId,
           word: {
@@ -230,7 +237,8 @@ export class WordService {
   /**
    * Get all word user marks for a user
    */
-  static async getUserWordMarks(
+  async getUserWordMarks(
+    ctx: Context,
     userId: number,
     page: number = 1,
     limit: number = 50
@@ -239,7 +247,7 @@ export class WordService {
       const skip = (page - 1) * limit;
 
       const [wordUserMarks, total] = await Promise.all([
-        prisma.wordUserMark.findMany({
+        ctx.prisma.wordUserMark.findMany({
           where: { user_id: userId },
           include: {
             word: true,
@@ -248,7 +256,7 @@ export class WordService {
           skip,
           take: limit,
         }),
-        prisma.wordUserMark.count({
+        ctx.prisma.wordUserMark.count({
           where: { user_id: userId },
         }),
       ]);
@@ -277,7 +285,8 @@ export class WordService {
   /**
    * Get detailed word marks with related sentences and lessons
    */
-  static async getUserWordMarksWithDetails(
+  async getUserWordMarksWithDetails(
+    ctx: Context,
     userId: number,
     page: number = 1,
     limit: number = 50,
@@ -352,7 +361,7 @@ export class WordService {
       const needsAllData = sortBy === 'sentence_count';
 
       const [wordUserMarks, total] = await Promise.all([
-        prisma.wordUserMark.findMany({
+        ctx.prisma.wordUserMark.findMany({
           where: whereClause,
           include: {
             word: {
@@ -385,12 +394,12 @@ export class WordService {
           orderBy,
           ...(needsAllData ? {} : { skip, take: limit }), // Skip pagination if we need all data
         }),
-        prisma.wordUserMark.count({
+        ctx.prisma.wordUserMark.count({
           where: whereClause,
         }),
       ]);
 
-      const sentenceCounts = await prisma.sentenceWord.groupBy({
+      const sentenceCounts = await ctx.prisma.sentenceWord.groupBy({
         by: ['word_id'],
         where: {
           sentence: {
@@ -502,13 +511,14 @@ export class WordService {
   /**
    * Get word translations by word and language
    */
-  static async getWordTranslations(
+  async getWordTranslations(
+    ctx: Context,
     word: string,
     sourceLanguage: string,
     targetLanguage: string = 'en'
   ) {
     try {
-      const translations = await prisma.wordTranslation.findMany({
+      const translations = await ctx.prisma.wordTranslation.findMany({
         where: {
           word: {
             word: word,
@@ -529,16 +539,17 @@ export class WordService {
       // If no translations exist, try to generate them using AI
       if (translationData.length === 0) {
         try {
-          const openaiService = new OpenAIService();
-          const generatedTranslations = await openaiService.getWordTranslation(
-            word,
-            sourceLanguage,
-            targetLanguage
-          );
+          const generatedTranslations =
+            await ctx.openaiService.getWordTranslation(
+              ctx,
+              word,
+              sourceLanguage,
+              targetLanguage
+            );
 
           if (generatedTranslations.length > 0) {
             // Ensure the word exists in the database
-            const wordRecord = await prisma.word.upsert({
+            const wordRecord = await ctx.prisma.word.upsert({
               where: {
                 word_language_code: {
                   word: word,
@@ -556,7 +567,7 @@ export class WordService {
             for (const translation of generatedTranslations) {
               const trimmedTranslation = translation.trim();
               if (trimmedTranslation) {
-                await prisma.wordTranslation.upsert({
+                await ctx.prisma.wordTranslation.upsert({
                   where: {
                     word_id_language_code_translation: {
                       word_id: wordRecord.id,
@@ -598,10 +609,10 @@ export class WordService {
       // If there are more than NUMBER_OF_TRANSLATION_TO_REDUCE translations, simplify them using OpenAI
       if (translationData.length >= NUMBER_OF_TRANSLATION_TO_REDUCE) {
         try {
-          const openaiService = new OpenAIService();
           const translationTexts = translationData.map(t => t.translation);
           const simplifiedTranslations =
-            await openaiService.simplifyTranslations(
+            await ctx.openaiService.simplifyTranslations(
+              ctx,
               word,
               translationTexts,
               sourceLanguage,
@@ -617,7 +628,8 @@ export class WordService {
           }
 
           // Update the database with simplified translations
-          await WordService.updateTranslationsInDatabase(
+          await this.updateTranslationsInDatabase(
+            ctx,
             word,
             sourceLanguage,
             targetLanguage,
@@ -661,9 +673,13 @@ export class WordService {
   /**
    * Get word pronunciations by word and language
    */
-  static async getWordPronunciations(word: string, languageCode: string) {
+  async getWordPronunciations(
+    ctx: Context,
+    word: string,
+    languageCode: string
+  ) {
     try {
-      const pronunciations = await prisma.wordPronunciation.findMany({
+      const pronunciations = await ctx.prisma.wordPronunciation.findMany({
         where: {
           word: {
             word: word,
@@ -678,15 +694,16 @@ export class WordService {
       // If no pronunciations exist, try to generate one using AI
       if (pronunciations.length === 0) {
         try {
-          const openaiService = new OpenAIService();
-          const pronunciationData = await openaiService.getWordPronunciation(
-            word,
-            languageCode
-          );
+          const pronunciationData =
+            await ctx.openaiService.getWordPronunciation(
+              ctx,
+              word,
+              languageCode
+            );
 
           if (pronunciationData) {
             // Ensure the word exists in the database
-            const wordRecord = await prisma.word.upsert({
+            const wordRecord = await ctx.prisma.word.upsert({
               where: {
                 word_language_code: {
                   word: word,
@@ -706,7 +723,7 @@ export class WordService {
               pronunciationData.pronunciationType.trim();
 
             if (trimmedPronunciation && trimmedPronunciationType) {
-              await prisma.wordPronunciation.upsert({
+              await ctx.prisma.wordPronunciation.upsert({
                 where: {
                   word_id_pronunciation_pronunciation_type: {
                     word_id: wordRecord.id,
@@ -724,7 +741,7 @@ export class WordService {
 
               // Fetch the newly created pronunciation to return
               const newPronunciation =
-                await prisma.wordPronunciation.findUnique({
+                await ctx.prisma.wordPronunciation.findUnique({
                   where: {
                     word_id_pronunciation_pronunciation_type: {
                       word_id: wordRecord.id,
@@ -782,9 +799,9 @@ export class WordService {
   /**
    * Get word stems by word and language
    */
-  static async getWordStems(word: string, languageCode: string) {
+  async getWordStems(ctx: Context, word: string, languageCode: string) {
     try {
-      const stems = await prisma.wordStem.findMany({
+      const stems = await ctx.prisma.wordStem.findMany({
         where: {
           word: {
             word: word,
@@ -815,7 +832,8 @@ export class WordService {
   /**
    * Update translations in database by replacing old ones with simplified ones
    */
-  private static async updateTranslationsInDatabase(
+  private async updateTranslationsInDatabase(
+    ctx: Context,
     word: string,
     sourceLanguage: string,
     targetLanguage: string,
@@ -823,7 +841,7 @@ export class WordService {
   ): Promise<void> {
     try {
       // First, get the word ID
-      const wordRecord = await prisma.word.findFirst({
+      const wordRecord = await ctx.prisma.word.findFirst({
         where: {
           word: word,
           language_code: sourceLanguage,
@@ -835,7 +853,7 @@ export class WordService {
       }
 
       // Delete existing translations for this word and target language
-      await prisma.wordTranslation.deleteMany({
+      await ctx.prisma.wordTranslation.deleteMany({
         where: {
           word_id: wordRecord.id,
           language_code: targetLanguage,
@@ -843,7 +861,7 @@ export class WordService {
       });
 
       // Insert the simplified translations
-      await prisma.wordTranslation.createMany({
+      await ctx.prisma.wordTranslation.createMany({
         data: simplifiedTranslations.map(translation => ({
           word_id: wordRecord.id,
           language_code: targetLanguage,

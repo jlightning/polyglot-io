@@ -1,6 +1,6 @@
 import { Prisma, UserActionType } from '@prisma/client';
 
-import { prisma } from './index';
+import type { Context } from './index';
 
 interface WordMarkActionData {
   word_id: number;
@@ -17,13 +17,14 @@ export class UserActionLogService {
   /**
    * Log a word mark action when a user marks or updates a word
    */
-  static async logWordMarkAction(
+  async logWordMarkAction(
+    ctx: Context,
     userId: number,
     languageCode: string,
     actionData: WordMarkActionData
   ) {
     try {
-      const userAction = await prisma.userActionLog.create({
+      const userAction = await ctx.prisma.userActionLog.create({
         data: {
           user_id: userId,
           language_code: languageCode,
@@ -53,13 +54,14 @@ export class UserActionLogService {
   /**
    * Log a read action when a user clicks on a word
    */
-  static async logReadAction(
+  async logReadAction(
+    ctx: Context,
     userId: number,
     languageCode: string,
     actionData: ReadActionData
   ) {
     try {
-      const userAction = await prisma.userActionLog.upsert({
+      const userAction = await ctx.prisma.userActionLog.upsert({
         where: {
           is_read_user_id_word_id_sentence_id: {
             is_read: true,
@@ -98,13 +100,14 @@ export class UserActionLogService {
   /**
    * Get action history for a word for the current user (word_mark and read entries)
    */
-  static async getActionHistoryByWord(
+  async getActionHistoryByWord(
+    ctx: Context,
     userId: number,
     word: string,
     languageCode: string
   ) {
     try {
-      const wordRecord = await prisma.word.findUnique({
+      const wordRecord = await ctx.prisma.word.findUnique({
         where: {
           word_language_code: {
             word,
@@ -117,7 +120,7 @@ export class UserActionLogService {
         return { success: true, data: [] };
       }
 
-      const logs = await prisma.userActionLog.findMany({
+      const logs = await ctx.prisma.userActionLog.findMany({
         where: {
           user_id: userId,
           word_id: wordRecord.id,

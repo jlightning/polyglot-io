@@ -1,4 +1,4 @@
-import { OpenAIService } from './ai/openaiService';
+import type { Context } from './index';
 
 const MAX_CACHE_ENTRIES = 200;
 
@@ -7,47 +7,41 @@ const MAX_CACHE_ENTRIES = 200;
  * Uses a simple FIFO eviction when at capacity (no LRU for MVP).
  */
 export class TtsService {
-  private static cache = new Map<string, Buffer>();
-  private static keyOrder: string[] = [];
-  private static openAIService: OpenAIService | null = null;
+  private cache = new Map<string, Buffer>();
+  private keyOrder: string[] = [];
 
-  private static getOpenAIService(): OpenAIService {
-    if (!TtsService.openAIService) {
-      TtsService.openAIService = new OpenAIService();
-    }
-    return TtsService.openAIService;
-  }
-
-  private static evictOne(): void {
-    if (TtsService.keyOrder.length === 0) return;
-    const oldest = TtsService.keyOrder.shift();
-    if (oldest) TtsService.cache.delete(oldest);
+  private evictOne(): void {
+    if (this.keyOrder.length === 0) return;
+    const oldest = this.keyOrder.shift();
+    if (oldest) this.cache.delete(oldest);
   }
 
   /**
    * Get TTS audio from cache or generate via OpenAI and cache the result.
    * Text is normalized (trimmed). No persistence; cache is process memory only.
    */
-  static async getCachedOrGenerateVoice(
+  async getCachedOrGenerateVoice(
+    ctx: Context,
     text: string,
     languageCode: string
   ): Promise<Buffer> {
     const normalizedText = text.trim();
     const key = `${languageCode}:${normalizedText}`;
 
-    const cached = TtsService.cache.get(key);
+    const cached = this.cache.get(key);
     if (cached) return cached;
 
-    const buffer = await TtsService.getOpenAIService().generateSpeech(
+    const buffer = await ctx.openaiService.generateSpeech(
+      ctx,
       normalizedText,
       languageCode
     );
 
-    if (TtsService.cache.size >= MAX_CACHE_ENTRIES) {
-      TtsService.evictOne();
+    if (this.cache.size >= MAX_CACHE_ENTRIES) {
+      this.evictOne();
     }
-    TtsService.cache.set(key, buffer);
-    TtsService.keyOrder.push(key);
+    this.cache.set(key, buffer);
+    this.keyOrder.push(key);
 
     return buffer;
   }

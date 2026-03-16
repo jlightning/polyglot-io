@@ -1,5 +1,5 @@
 import { WordUserMarkSource } from '@prisma/client';
-import { WordService } from '../wordService';
+import type { Context } from '../index';
 
 interface LingQImportWordData {
   word: string;
@@ -28,7 +28,8 @@ export class LingQService {
   /**
    * Fetch LingQs from LingQ API and import them
    */
-  static async fetchAndImportFromLingQ(
+  async fetchAndImportFromLingQ(
+    ctx: Context,
     userId: number,
     apiKey: string,
     languageCode: string
@@ -141,7 +142,7 @@ export class LingQService {
       }));
 
       // Use WordService to import the processed words
-      return await this.importWordsFromLingQ(userId, wordsToImport);
+      return await this.importWordsFromLingQ(ctx, userId, wordsToImport);
     } catch (error: any) {
       console.error('Error fetching from LingQ API:', error);
       return {
@@ -156,7 +157,8 @@ export class LingQService {
   /**
    * Batch import words from LingQ data using WordService
    */
-  static async importWordsFromLingQ(
+  async importWordsFromLingQ(
+    ctx: Context,
     userId: number,
     words: LingQImportWordData[]
   ) {
@@ -181,7 +183,8 @@ export class LingQService {
               }
 
               // Use WordService to create or update the word mark
-              const result = await WordService.createOrUpdateWordUserMark(
+              const result = await ctx.wordService.createOrUpdateWordUserMark(
+                ctx,
                 userId,
                 {
                   word: wordData.word,
@@ -237,7 +240,7 @@ export class LingQService {
   /**
    * Validate LingQ API key by fetching user languages
    */
-  static async validateApiKey(apiKey: string) {
+  async validateApiKey(ctx: Context, apiKey: string) {
     try {
       const response = await fetch('https://www.lingq.com/api/v2/languages/', {
         headers: {
@@ -262,7 +265,7 @@ export class LingQService {
   /**
    * Get available languages from LingQ API
    */
-  static async getAvailableLanguages(apiKey: string) {
+  async getAvailableLanguages(ctx: Context, apiKey: string) {
     try {
       const response = await fetch('https://www.lingq.com/api/v2/languages/', {
         headers: {

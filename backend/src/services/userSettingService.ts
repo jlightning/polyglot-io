@@ -1,4 +1,4 @@
-import { prisma } from './index';
+import type { Context } from './index';
 
 // Default settings values
 const DEFAULT_SETTINGS = {
@@ -26,9 +26,9 @@ export class UserSettingService {
    * Get all settings for a user as an object
    * Returns default values if settings don't exist
    */
-  static async getUserSettings(userId: number): Promise<UserSettings> {
+  async getUserSettings(ctx: Context, userId: number): Promise<UserSettings> {
     try {
-      const settings = await prisma.userSetting.findMany({
+      const settings = await ctx.prisma.userSetting.findMany({
         where: {
           user_id: userId,
         },
@@ -56,7 +56,8 @@ export class UserSettingService {
   /**
    * Set/update a setting value for a user
    */
-  static async setUserSetting(
+  async setUserSetting(
+    ctx: Context,
     userId: number,
     key: string,
     value: string
@@ -73,7 +74,7 @@ export class UserSettingService {
       }
 
       // Upsert the setting
-      await prisma.userSetting.upsert({
+      await ctx.prisma.userSetting.upsert({
         where: {
           user_id_setting_key: {
             user_id: userId,

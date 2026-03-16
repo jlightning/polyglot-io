@@ -1,6 +1,6 @@
 import express from 'express';
-import { UserSettingService } from '../services/userSettingService';
 import { authenticateToken } from '../middleware/auth';
+import { ctx } from './index';
 
 const router = express.Router();
 
@@ -15,7 +15,7 @@ router.get('/', authenticateToken, async (req, res) => {
       });
     }
 
-    const settings = await UserSettingService.getUserSettings(userId);
+    const settings = await ctx.userSettingService.getUserSettings(ctx, userId);
 
     return res.json({
       success: true,
@@ -60,7 +60,12 @@ router.put('/:key', authenticateToken, async (req, res) => {
       });
     }
 
-    const result = await UserSettingService.setUserSetting(userId, key, value);
+    const result = await ctx.userSettingService.setUserSetting(
+      ctx,
+      userId,
+      key,
+      value
+    );
 
     if (result.success) {
       return res.json(result);

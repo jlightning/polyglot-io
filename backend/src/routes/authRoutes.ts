@@ -1,9 +1,6 @@
 import express from 'express';
-import {
-  UserService,
-  RegisterUserData,
-  LoginUserData,
-} from '../services/authService';
+import type { RegisterUserData, LoginUserData } from '../services/authService';
+import { ctx } from './index';
 
 const router = express.Router();
 
@@ -77,7 +74,7 @@ router.post('/register', validateRegistration, async (req, res) => {
       phone_number: req.body.phone_number?.trim() || undefined,
     };
 
-    const result = await UserService.registerUser(userData);
+    const result = await ctx.authService.registerUser(ctx, userData);
 
     if (result.success) {
       res.status(201).json(result);
@@ -101,7 +98,7 @@ router.post('/login', validateLogin, async (req, res) => {
       password: req.body.password,
     };
 
-    const result = await UserService.loginUser(loginData);
+    const result = await ctx.authService.loginUser(ctx, loginData);
 
     if (result.success) {
       res.status(200).json(result);
@@ -129,7 +126,7 @@ router.get('/verify', async (req, res) => {
       });
     }
 
-    const verification = await UserService.verifyToken(token);
+    const verification = await ctx.authService.verifyToken(ctx, token);
 
     if (verification.valid) {
       return res.status(200).json({

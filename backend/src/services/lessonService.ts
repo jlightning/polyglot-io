@@ -4,16 +4,8 @@ import {
   LessonProcessingStatus,
   UserLessonProgressStatus,
 } from '@prisma/client';
-import { ConfigService } from './configService';
-import { S3Service } from './s3Service';
-import { TextProcessingService } from './textProcessingService';
-import { OpenAIService } from './ai/openaiService';
-import { SentenceService } from './sentenceService';
-
-import { prisma } from './index';
-
-// Create OpenAI service instance
-const openaiService = new OpenAIService();
+import type { Context } from './index';
+import { wrapInTransaction } from './db';
 
 export interface CreateLessonData {
   title: string;
@@ -85,13 +77,14 @@ export class LessonService {
   /**
    * Create a new lesson with optional URLs and process lesson file
    */
-  static async createLesson(
+  async createLesson(
+    ctx: Context,
     userId: number,
     lessonData: CreateLessonData
   ): Promise<LessonResponse> {
     try {
       // Validate language code
-      if (!ConfigService.isLanguageEnabled(lessonData.languageCode)) {
+      if (!ctx.configService.isLanguageEnabled(ctx, lessonData.languageCode)) {
         return {
           success: false,
           message: 'Language not supported or not enabled',
@@ -104,13 +97,15 @@ export class LessonService {
       if (lessonData.fileKey) {
         try {
           // Download file content to determine type
-          const fileContent = await S3Service.getFileContent(
+          const fileContent = await ctx.s3Service.getFileContent(
+            ctx,
             lessonData.fileKey
           );
           const fileName = lessonData.fileKey.split('/').pop() || '';
 
           // Use TextProcessingService to detect file type
-          const detectedFileType = TextProcessingService.getFileType(
+          const detectedFileType = ctx.textProcessingService.getFileType(
+            ctx,
             fileContent,
             fileName
           );
@@ -127,9 +122,9 @@ export class LessonService {
         }
       }
 
-      const lesson = await prisma.$transaction(async tx => {
+      const lesson = await wrapInTransaction(ctx, async ctx => {
         // Create lesson in database
-        const lesson = await tx.lesson.create({
+        const lesson = await ctx.prisma.lesson.create({
           data: {
             created_by: userId,
             title: lessonData.title,
@@ -142,7 +137,7 @@ export class LessonService {
 
         // Process lesson file if provided
         if (lessonData.fileKey) {
-          await this.processLessonFile(tx, lesson.id, lessonData.fileKey);
+          await this.processLessonFile(ctx, lesson.id, lessonData.fileKey);
         }
 
         return lesson;
@@ -173,12 +168,13 @@ export class LessonService {
   /**
    * Create a new manual lesson (no file; sentences are added one by one from the lesson view)
    */
-  static async createManualLesson(
+  async createManualLesson(
+    ctx: Context,
     userId: number,
     lessonData: CreateManualLessonData
   ): Promise<LessonResponse> {
     try {
-      if (!ConfigService.isLanguageEnabled(lessonData.languageCode)) {
+      if (!ctx.configService.isLanguageEnabled(ctx, lessonData.languageCode)) {
         return {
           success: false,
           message: 'Language not supported or not enabled',
@@ -187,8 +183,8 @@ export class LessonService {
 
       const lessonType = lessonData.lessonType ?? LessonType.manual;
 
-      const lesson = await prisma.$transaction(async tx => {
-        const lesson = await tx.lesson.create({
+      const lesson = await wrapInTransaction(ctx, async ctx => {
+        const lesson = await ctx.prisma.lesson.create({
           data: {
             created_by: userId,
             title: lessonData.title,
@@ -199,7 +195,7 @@ export class LessonService {
             created_with_prompt: lessonData.createdWithPrompt ?? null,
           },
         });
-        await tx.lessonFile.create({
+        await ctx.prisma.lessonFile.create({
           data: {
             lesson_id: lesson.id,
             file_s3_key: null,
@@ -213,7 +209,8 @@ export class LessonService {
         Array.isArray(lessonData.sentences) &&
         lessonData.sentences.length > 0
       ) {
-        const addResult = await SentenceService.addSentencesToLesson(
+        const addResult = await ctx.sentenceService.addSentencesToLesson(
+          ctx,
           lesson.id,
           userId,
           lessonData.sentences
@@ -254,13 +251,14 @@ export class LessonService {
   /**
    * Create a new manga lesson and process manga pages with OCR
    */
-  static async createMangaLesson(
+  async createMangaLesson(
+    ctx: Context,
     userId: number,
     lessonData: CreateMangaLessonData
   ): Promise<LessonResponse> {
     try {
       // Validate language code
-      if (!ConfigService.isLanguageEnabled(lessonData.languageCode)) {
+      if (!ctx.configService.isLanguageEnabled(ctx, lessonData.languageCode)) {
         return {
           success: false,
           message: 'Language not supported or not enabled',
@@ -279,7 +277,8 @@ export class LessonService {
         ) {
           try {
             console.log(`Converting image to JPG: ${pageKey}`);
-            const jpgKey = await S3Service.convertImageToJpgAndReplace(
+            const jpgKey = await ctx.s3Service.convertImageToJpgAndReplace(
+              ctx,
               pageKey,
               userId
             );
@@ -297,7 +296,7 @@ export class LessonService {
       }
 
       // Create manga lesson in database with pending processing status
-      const lesson = await prisma.lesson.create({
+      const lesson = await ctx.prisma.lesson.create({
         data: {
           created_by: userId,
           title: lessonData.title,
@@ -310,7 +309,7 @@ export class LessonService {
       });
 
       // Create lesson file record for this manga page using processed keys
-      await prisma.lessonFile.createMany({
+      await ctx.prisma.lessonFile.createMany({
         data: processedMangaPageKeys.map(p => ({
           lesson_id: lesson.id,
           file_s3_key: p,
@@ -347,7 +346,7 @@ export class LessonService {
           languageCode: lesson.language_code,
           processingStatus: lesson.processing_status,
           ...(lesson.image_s3_key && {
-            imageUrl: S3Service.getFileUrl(lesson.image_s3_key),
+            imageUrl: ctx.s3Service.getFileUrl(ctx, lesson.image_s3_key),
           }),
           createdAt: lesson.created_at,
         },
@@ -551,14 +550,14 @@ export class LessonService {
   /**
    * Process a lesson file (SRT or TXT) and create sentence records
    */
-  private static async processLessonFile(
-    tx: Prisma.TransactionClient,
+  private async processLessonFile(
+    ctx: Context,
     lessonId: number,
     fileKey: string
   ): Promise<void> {
     try {
       // Create lesson file record
-      const lessonFile = await tx.lessonFile.create({
+      const lessonFile = await ctx.prisma.lessonFile.create({
         data: {
           lesson_id: lessonId,
           file_s3_key: fileKey,
@@ -566,7 +565,7 @@ export class LessonService {
       });
 
       // Download file content from S3
-      const fileContent = await S3Service.getFileContent(fileKey);
+      const fileContent = await ctx.s3Service.getFileContent(ctx, fileKey);
 
       if (!fileContent || fileContent.trim().length === 0) {
         throw new Error('File content is empty');
@@ -576,7 +575,8 @@ export class LessonService {
       const fileName = fileKey.split('/').pop() || '';
 
       // Process the file content to extract sentences
-      const processedSentences = TextProcessingService.processLessonFile(
+      const processedSentences = ctx.textProcessingService.processLessonFile(
+        ctx,
         fileContent,
         fileName
       );
@@ -596,7 +596,7 @@ export class LessonService {
       }));
 
       // Create sentence records in database
-      await tx.sentence.createMany({
+      await ctx.prisma.sentence.createMany({
         data: sentenceData,
       });
 
@@ -612,12 +612,13 @@ export class LessonService {
   /**
    * Get a specific lesson by ID
    */
-  static async getLessonById(
+  async getLessonById(
+    ctx: Context,
     userId: number,
     lessonId: number
   ): Promise<LessonResponse> {
     try {
-      const lesson = await prisma.lesson.findFirst({
+      const lesson = await ctx.prisma.lesson.findFirst({
         where: {
           id: lessonId,
           created_by: userId,
@@ -641,7 +642,10 @@ export class LessonService {
       // Generate signed URLs for S3 keys
       if (lesson.image_s3_key) {
         try {
-          imageUrl = await S3Service.getDownloadUrl(lesson.image_s3_key);
+          imageUrl = await ctx.s3Service.getDownloadUrl(
+            ctx,
+            lesson.image_s3_key
+          );
         } catch (error) {
           console.error('Error generating image download URL:', error);
           imageUrl = null;
@@ -655,7 +659,8 @@ export class LessonService {
         lesson.lessonFiles[0]?.file_s3_key
       ) {
         try {
-          fileUrl = await S3Service.getDownloadUrl(
+          fileUrl = await ctx.s3Service.getDownloadUrl(
+            ctx,
             lesson.lessonFiles[0]?.file_s3_key
           );
         } catch (error) {
@@ -666,7 +671,10 @@ export class LessonService {
 
       if (lesson.audio_s3_key) {
         try {
-          audioUrl = await S3Service.getDownloadUrl(lesson.audio_s3_key);
+          audioUrl = await ctx.s3Service.getDownloadUrl(
+            ctx,
+            lesson.audio_s3_key
+          );
         } catch (error) {
           console.error('Error generating audio download URL:', error);
           audioUrl = null;
@@ -674,7 +682,7 @@ export class LessonService {
       }
 
       // Get user progress for this lesson
-      const progress = await prisma.userLessonProgress.findUnique({
+      const progress = await ctx.prisma.userLessonProgress.findUnique({
         where: {
           user_id_lesson_id: {
             user_id: userId,
@@ -683,7 +691,7 @@ export class LessonService {
         },
       });
 
-      const pin = await prisma.lessonUserPin.findUnique({
+      const pin = await ctx.prisma.lessonUserPin.findUnique({
         where: {
           user_id_lesson_id: { user_id: userId, lesson_id: lesson.id },
         },
@@ -697,7 +705,10 @@ export class LessonService {
             let imageUrl: string | undefined;
             if (file.file_s3_key) {
               try {
-                imageUrl = await S3Service.getDownloadUrl(file.file_s3_key);
+                imageUrl = await ctx.s3Service.getDownloadUrl(
+                  ctx,
+                  file.file_s3_key
+                );
               } catch (error) {
                 console.error('Error generating file download URL:', error);
               }
@@ -720,7 +731,7 @@ export class LessonService {
           languageCode: lesson.language_code,
           lessonType: lesson.lesson_type,
           processingStatus: lesson.processing_status,
-          totalSentences: await prisma.sentence.count({
+          totalSentences: await ctx.prisma.sentence.count({
             where: { lesson_id: lesson.id },
           }),
           ...(imageUrl && { imageUrl }),
@@ -752,12 +763,13 @@ export class LessonService {
   /**
    * Pin a lesson for the user
    */
-  static async pinLesson(
+  async pinLesson(
+    ctx: Context,
     userId: number,
     lessonId: number
   ): Promise<{ success: boolean; message: string }> {
     try {
-      const lesson = await prisma.lesson.findFirst({
+      const lesson = await ctx.prisma.lesson.findFirst({
         where: {
           id: lessonId,
           created_by: userId,
@@ -769,7 +781,7 @@ export class LessonService {
           message: 'Lesson not found or access denied',
         };
       }
-      await prisma.lessonUserPin.upsert({
+      await ctx.prisma.lessonUserPin.upsert({
         where: {
           user_id_lesson_id: { user_id: userId, lesson_id: lessonId },
         },
@@ -789,12 +801,13 @@ export class LessonService {
   /**
    * Unpin a lesson for the user
    */
-  static async unpinLesson(
+  async unpinLesson(
+    ctx: Context,
     userId: number,
     lessonId: number
   ): Promise<{ success: boolean; message: string }> {
     try {
-      const lesson = await prisma.lesson.findFirst({
+      const lesson = await ctx.prisma.lesson.findFirst({
         where: {
           id: lessonId,
           created_by: userId,
@@ -806,7 +819,7 @@ export class LessonService {
           message: 'Lesson not found or access denied',
         };
       }
-      await prisma.lessonUserPin.deleteMany({
+      await ctx.prisma.lessonUserPin.deleteMany({
         where: {
           user_id: userId,
           lesson_id: lessonId,
@@ -825,7 +838,8 @@ export class LessonService {
   /**
    * Get lessons filtered by language
    */
-  static async getLessonsByLanguage(
+  async getLessonsByLanguage(
+    ctx: Context,
     userId: number,
     languageCode: string,
     filters?: {
@@ -836,7 +850,7 @@ export class LessonService {
   ): Promise<LessonResponse> {
     try {
       // Validate language code
-      if (!ConfigService.isLanguageEnabled(languageCode)) {
+      if (!ctx.configService.isLanguageEnabled(ctx, languageCode)) {
         return {
           success: false,
           message: 'Language not supported or not enabled',
@@ -870,7 +884,7 @@ export class LessonService {
       }
 
       // Load pinned lesson IDs (same filters)
-      const pinnedPins = await prisma.lessonUserPin.findMany({
+      const pinnedPins = await ctx.prisma.lessonUserPin.findMany({
         where: {
           user_id: userId,
           lesson: whereClause,
@@ -880,7 +894,7 @@ export class LessonService {
       const pinnedIds = pinnedPins.map(p => p.lesson_id);
 
       // Load pinned lessons then unpinned, combine (pinned first)
-      const pinnedLessons = await prisma.lesson.findMany({
+      const pinnedLessons = await ctx.prisma.lesson.findMany({
         where: {
           id: { in: pinnedIds },
           ...whereClause,
@@ -888,7 +902,7 @@ export class LessonService {
         include: { lessonFiles: true },
         orderBy: { id: 'desc' },
       });
-      const unpinnedLessons = await prisma.lesson.findMany({
+      const unpinnedLessons = await ctx.prisma.lesson.findMany({
         where: {
           id: { notIn: pinnedIds },
           ...whereClause,
@@ -906,7 +920,10 @@ export class LessonService {
 
           if (lesson.image_s3_key) {
             try {
-              imageUrl = await S3Service.getDownloadUrl(lesson.image_s3_key);
+              imageUrl = await ctx.s3Service.getDownloadUrl(
+                ctx,
+                lesson.image_s3_key
+              );
             } catch (error) {
               console.error('Error generating image download URL:', error);
               imageUrl = null;
@@ -920,7 +937,8 @@ export class LessonService {
             lesson.lessonFiles[0]?.file_s3_key
           ) {
             try {
-              fileUrl = await S3Service.getDownloadUrl(
+              fileUrl = await ctx.s3Service.getDownloadUrl(
+                ctx,
                 lesson.lessonFiles[0]?.file_s3_key
               );
             } catch (error) {
@@ -931,7 +949,10 @@ export class LessonService {
 
           if (lesson.audio_s3_key) {
             try {
-              audioUrl = await S3Service.getDownloadUrl(lesson.audio_s3_key);
+              audioUrl = await ctx.s3Service.getDownloadUrl(
+                ctx,
+                lesson.audio_s3_key
+              );
             } catch (error) {
               console.error('Error generating audio download URL:', error);
               audioUrl = null;
@@ -939,7 +960,7 @@ export class LessonService {
           }
 
           // Get user progress for this lesson
-          const progress = await prisma.userLessonProgress.findUnique({
+          const progress = await ctx.prisma.userLessonProgress.findUnique({
             where: {
               user_id_lesson_id: {
                 user_id: userId,
@@ -989,14 +1010,15 @@ export class LessonService {
   /**
    * Update a lesson's title and optional files
    */
-  static async updateLesson(
+  async updateLesson(
+    ctx: Context,
     userId: number,
     lessonId: number,
     updateData: UpdateLessonData
   ): Promise<LessonResponse> {
     try {
       // Find the lesson to ensure it belongs to the user
-      const existingLesson = await prisma.lesson.findFirst({
+      const existingLesson = await ctx.prisma.lesson.findFirst({
         where: {
           id: lessonId,
           created_by: userId,
@@ -1015,7 +1037,7 @@ export class LessonService {
       const oldAudioKey = existingLesson.audio_s3_key;
 
       // Update the lesson in the database
-      const updatedLesson = await prisma.lesson.update({
+      const updatedLesson = await ctx.prisma.lesson.update({
         where: {
           id: lessonId,
         },
@@ -1049,14 +1071,14 @@ export class LessonService {
 
       // Delete old S3 files asynchronously (don't wait for completion)
       if (s3KeysToDelete.length > 0) {
-        Promise.all(s3KeysToDelete.map(key => S3Service.deleteFile(key))).catch(
-          (error: any) => {
-            console.error(
-              'Error deleting old S3 files during lesson update:',
-              error
-            );
-          }
-        );
+        Promise.all(
+          s3KeysToDelete.map(key => ctx.s3Service.deleteFile(ctx, key))
+        ).catch((error: any) => {
+          console.error(
+            'Error deleting old S3 files during lesson update:',
+            error
+          );
+        });
       }
 
       return {
@@ -1088,13 +1110,14 @@ export class LessonService {
   /**
    * Delete a lesson with all associated sentences and S3 files
    */
-  static async deleteLesson(
+  async deleteLesson(
+    ctx: Context,
     userId: number,
     lessonId: number
   ): Promise<LessonResponse> {
     try {
       // Find the lesson to ensure it belongs to the user
-      const lesson = await prisma.lesson.findFirst({
+      const lesson = await ctx.prisma.lesson.findFirst({
         where: {
           id: lessonId,
           created_by: userId,
@@ -1121,14 +1144,14 @@ export class LessonService {
       };
 
       // Delete lesson and all associated records in a transaction
-      await prisma.$transaction(async tx => {
-        await tx.userLessonProgress.deleteMany({
+      await wrapInTransaction(ctx, async ctx => {
+        await ctx.prisma.userLessonProgress.deleteMany({
           where: {
             lesson_id: lessonId,
           },
         });
 
-        const allSentences = await tx.sentence.findMany({
+        const allSentences = await ctx.prisma.sentence.findMany({
           where: {
             lesson_id: lessonId,
           },
@@ -1139,34 +1162,34 @@ export class LessonService {
 
         const sentenceIds = allSentences.map(s => s.id);
 
-        await tx.sentenceWord.deleteMany({
+        await ctx.prisma.sentenceWord.deleteMany({
           where: {
             sentence_id: { in: sentenceIds },
           },
         });
 
-        await tx.sentenceTranslation.deleteMany({
+        await ctx.prisma.sentenceTranslation.deleteMany({
           where: {
             sentence_id: { in: sentenceIds },
           },
         });
 
         // First, delete all sentences associated with the lesson
-        await tx.sentence.deleteMany({
+        await ctx.prisma.sentence.deleteMany({
           where: {
             lesson_id: lessonId,
           },
         });
 
         // Delete all lesson files associated with the lesson
-        await tx.lessonFile.deleteMany({
+        await ctx.prisma.lessonFile.deleteMany({
           where: {
             lesson_id: lessonId,
           },
         });
 
         // Then delete the lesson itself
-        await tx.lesson.delete({
+        await ctx.prisma.lesson.delete({
           where: {
             id: lessonId,
           },
@@ -1175,18 +1198,22 @@ export class LessonService {
 
       const s3DeletePromises = [
         s3KeysToDelete.imageKey &&
-          S3Service.deleteFile(s3KeysToDelete.imageKey).catch(error => {
-            console.error('Error deleting image from S3:', error);
-          }),
+          ctx.s3Service
+            .deleteFile(ctx, s3KeysToDelete.imageKey)
+            .catch(error => {
+              console.error('Error deleting image from S3:', error);
+            }),
         ...s3KeysToDelete.fileKeys.map(fileKey =>
-          S3Service.deleteFile(fileKey).catch(error => {
+          ctx.s3Service.deleteFile(ctx, fileKey).catch(error => {
             console.error('Error deleting file from S3:', error);
           })
         ),
         s3KeysToDelete.audioKey &&
-          S3Service.deleteFile(s3KeysToDelete.audioKey).catch(error => {
-            console.error('Error deleting audio from S3:', error);
-          }),
+          ctx.s3Service
+            .deleteFile(ctx, s3KeysToDelete.audioKey)
+            .catch(error => {
+              console.error('Error deleting audio from S3:', error);
+            }),
       ].filter(Boolean);
 
       await Promise.all(s3DeletePromises);
@@ -1207,7 +1234,8 @@ export class LessonService {
   /**
    * Process OCR on a selected region of a manga page and add extracted sentences
    */
-  static async processOCROnSelectedRegion(
+  async processOCROnSelectedRegion(
+    ctx: Context,
     lessonId: number,
     lessonFileId: number,
     selection: { x: number; y: number; width: number; height: number }
@@ -1219,7 +1247,7 @@ export class LessonService {
   }> {
     try {
       // Verify lesson ownership
-      const lesson = await prisma.lesson.findFirst({
+      const lesson = await ctx.prisma.lesson.findFirst({
         where: {
           id: lessonId,
         },
@@ -1255,11 +1283,15 @@ export class LessonService {
         };
       }
 
-      const imageBuffer = await S3Service.getFileBuffer(lessonFile.file_s3_key);
+      const imageBuffer = await ctx.s3Service.getFileBuffer(
+        ctx,
+        lessonFile.file_s3_key
+      );
       const imageBase64 = imageBuffer.toString('base64');
 
       // Extract text from selected region using OpenAI Vision API
-      const extractedTexts = await openaiService.extractTextFromImageRegion(
+      const extractedTexts = await ctx.openaiService.extractTextFromImageRegion(
+        ctx,
         imageBase64,
         lesson.language_code,
         selection
@@ -1277,7 +1309,7 @@ export class LessonService {
       const newSentenceRecords = [];
       for (const text of extractedTexts) {
         try {
-          const sentence = await prisma.sentence.create({
+          const sentence = await ctx.prisma.sentence.create({
             data: {
               lesson_id: lessonId,
               lesson_file_id: lessonFileId,
@@ -1301,10 +1333,12 @@ export class LessonService {
       }
 
       // Process all new sentences using SentenceService to split text and store translations
-      const processedSentences = await SentenceService.processSentenceSplitText(
-        newSentenceRecords,
-        lesson.language_code
-      );
+      const processedSentences =
+        await ctx.sentenceService.processSentenceSplitText(
+          ctx,
+          newSentenceRecords,
+          lesson.language_code
+        );
 
       return {
         success: true,

@@ -1,6 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { UserActionLogService } from '../services/userActionLogService';
-import { prisma } from '../services';
+import { ctx } from './index';
 
 const router = Router();
 
@@ -17,7 +16,8 @@ router.get('/word', async (req: Request, res: Response) => {
       });
     }
 
-    const result = await UserActionLogService.getActionHistoryByWord(
+    const result = await ctx.userActionLogService.getActionHistoryByWord(
+      ctx,
       req.userId!,
       word,
       languageCode
@@ -66,7 +66,7 @@ router.post('/log', async (req: Request, res: Response) => {
       }
 
       // Look up or create the word to get word_id
-      const word = await prisma.word.findUnique({
+      const word = await ctx.prisma.word.findUnique({
         where: {
           word_language_code: {
             word: actionData.word,
@@ -78,7 +78,8 @@ router.post('/log', async (req: Request, res: Response) => {
       if (!word) return res.status(200);
 
       // Log the action with word_id
-      result = await UserActionLogService.logReadAction(
+      result = await ctx.userActionLogService.logReadAction(
+        ctx,
         req.userId!,
         languageCode,
         { word_id: word.id, sentence_id: actionData.sentence_id }

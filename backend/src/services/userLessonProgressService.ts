@@ -1,6 +1,6 @@
 import { UserLessonProgressStatus } from '@prisma/client';
 
-import { prisma } from './index';
+import type { Context } from './index';
 
 export interface UserLessonProgressData {
   id: number;
@@ -34,7 +34,8 @@ export class UserLessonProgressService {
   /**
    * Update user's progress for a lesson when they change pages or finish the lesson
    */
-  static async updateProgress(
+  async updateProgress(
+    ctx: Context,
     userId: number,
     lessonId: number,
     currentPage: number,
@@ -43,7 +44,7 @@ export class UserLessonProgressService {
   ): Promise<UpdateProgressResponse> {
     try {
       // First, verify the lesson exists and belongs to the user
-      const lesson = await prisma.lesson.findFirst({
+      const lesson = await ctx.prisma.lesson.findFirst({
         where: {
           id: lessonId,
           created_by: userId,
@@ -59,7 +60,7 @@ export class UserLessonProgressService {
 
       // Get the first sentence of the current page
       const offset = (currentPage - 1) * sentencesPerPage;
-      const firstSentenceOnPage = await prisma.sentence.findFirst({
+      const firstSentenceOnPage = await ctx.prisma.sentence.findFirst({
         where: { lesson_id: lessonId },
         orderBy: { id: 'asc' },
         skip: offset,
@@ -78,7 +79,7 @@ export class UserLessonProgressService {
       }
 
       // Determine status based on finishLesson parameter or page position
-      const totalSentences = await prisma.sentence.count({
+      const totalSentences = await ctx.prisma.sentence.count({
         where: { lesson_id: lessonId },
       });
       const totalPages = Math.ceil(totalSentences / sentencesPerPage);
@@ -92,7 +93,7 @@ export class UserLessonProgressService {
       }
 
       // Upsert the progress record
-      const progress = await prisma.userLessonProgress.upsert({
+      const progress = await ctx.prisma.userLessonProgress.upsert({
         where: {
           user_id_lesson_id: {
             user_id: userId,
@@ -153,14 +154,15 @@ export class UserLessonProgressService {
   /**
    * Get user's progress for a lesson and calculate which page they should navigate to
    */
-  static async getProgress(
+  async getProgress(
+    ctx: Context,
     userId: number,
     lessonId: number,
     sentencesPerPage: number = 5
   ): Promise<GetProgressResponse> {
     try {
       // First, verify the lesson exists and belongs to the user
-      const lesson = await prisma.lesson.findFirst({
+      const lesson = await ctx.prisma.lesson.findFirst({
         where: {
           id: lessonId,
           created_by: userId,
@@ -175,7 +177,7 @@ export class UserLessonProgressService {
       }
 
       // Get the progress record
-      const progress = await prisma.userLessonProgress.findUnique({
+      const progress = await ctx.prisma.userLessonProgress.findUnique({
         where: {
           user_id_lesson_id: {
             user_id: userId,
@@ -197,7 +199,7 @@ export class UserLessonProgressService {
       }
 
       // Calculate which page contains the read_till_sentence_id
-      const sentencesBefore = await prisma.sentence.count({
+      const sentencesBefore = await ctx.prisma.sentence.count({
         where: {
           lesson_id: lessonId,
           id: {
@@ -243,7 +245,10 @@ export class UserLessonProgressService {
   /**
    * Get all progress records for a user (for dashboard/overview purposes)
    */
-  static async getUserProgressOverview(userId: number): Promise<{
+  async getUserProgressOverview(
+    ctx: Context,
+    userId: number
+  ): Promise<{
     success: boolean;
     message?: string;
     progressList?: Array<{
@@ -255,7 +260,7 @@ export class UserLessonProgressService {
     }>;
   }> {
     try {
-      const progressRecords = await prisma.userLessonProgress.findMany({
+      const progressRecords = await ctx.prisma.userLessonProgress.findMany({
         where: {
           user_id: userId,
         },
@@ -296,7 +301,8 @@ export class UserLessonProgressService {
   /**
    * Update user's progress for a lesson using a specific sentence ID (used in video view)
    */
-  static async updateProgressBySentence(
+  async updateProgressBySentence(
+    ctx: Context,
     userId: number,
     lessonId: number,
     sentenceId: number,
@@ -304,7 +310,7 @@ export class UserLessonProgressService {
   ): Promise<UpdateProgressResponse> {
     try {
       // First, verify the lesson exists and belongs to the user
-      const lesson = await prisma.lesson.findFirst({
+      const lesson = await ctx.prisma.lesson.findFirst({
         where: {
           id: lessonId,
           created_by: userId,
@@ -319,7 +325,7 @@ export class UserLessonProgressService {
       }
 
       // Verify the sentence exists and belongs to this lesson
-      const sentence = await prisma.sentence.findFirst({
+      const sentence = await ctx.prisma.sentence.findFirst({
         where: {
           id: sentenceId,
           lesson_id: lessonId,
@@ -348,7 +354,7 @@ export class UserLessonProgressService {
       }
 
       // Upsert the progress record
-      const progress = await prisma.userLessonProgress.upsert({
+      const progress = await ctx.prisma.userLessonProgress.upsert({
         where: {
           user_id_lesson_id: {
             user_id: userId,
@@ -409,13 +415,14 @@ export class UserLessonProgressService {
   /**
    * Reset progress for a lesson (start from beginning)
    */
-  static async resetProgress(
+  async resetProgress(
+    ctx: Context,
     userId: number,
     lessonId: number
   ): Promise<UpdateProgressResponse> {
     try {
       // Verify the lesson exists and belongs to the user
-      const lesson = await prisma.lesson.findFirst({
+      const lesson = await ctx.prisma.lesson.findFirst({
         where: {
           id: lessonId,
           created_by: userId,
@@ -430,7 +437,7 @@ export class UserLessonProgressService {
       }
 
       // Delete the progress record to start fresh
-      await prisma.userLessonProgress.deleteMany({
+      await ctx.prisma.userLessonProgress.deleteMany({
         where: {
           user_id: userId,
           lesson_id: lessonId,

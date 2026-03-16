@@ -1,7 +1,7 @@
 import OpenAI from 'openai';
 import dotenv from 'dotenv';
 import { OPENAI_MODEL } from './consts';
-import { ConfigService } from '../configService';
+import type { Context } from '../index';
 
 dotenv.config();
 
@@ -119,6 +119,7 @@ export class OpenAIService {
    * @returns Promise<SentenceAnalysis> - Structured analysis with word translations
    */
   async splitSentenceAndTranslate(
+    ctx: Context,
     sentence: string,
     sourceLanguage: string
   ): Promise<SentenceAnalysis> {
@@ -293,6 +294,7 @@ export class OpenAIService {
    * @returns Promise<{ pronunciation: string; pronunciationType: PronunciationType } | null> - Pronunciation data or null if generation fails
    */
   async getWordPronunciation(
+    ctx: Context,
     word: string,
     languageCode: string
   ): Promise<{
@@ -465,6 +467,7 @@ export class OpenAIService {
    * @returns Promise<string[]> - Array of translations or empty array if generation fails
    */
   async getWordTranslation(
+    ctx: Context,
     word: string,
     sourceLanguage: string,
     targetLanguage: string = 'en'
@@ -603,6 +606,7 @@ export class OpenAIService {
    * @returns Promise<string[]> - Array of extracted sentences/text lines
    */
   async extractTextFromImage(
+    ctx: Context,
     imageBase64: string,
     sourceLanguage: string
   ): Promise<string[]> {
@@ -744,6 +748,7 @@ export class OpenAIService {
    * @returns Promise<SentenceAnalysis[]> - Array of sentence analyses
    */
   async splitMultipleSentencesAndTranslate(
+    ctx: Context,
     sentences: string[],
     sourceLanguage: string
   ): Promise<SentenceAnalysis[]> {
@@ -758,7 +763,7 @@ export class OpenAIService {
     for (let i = 0; i < sentences.length; i += batchSize) {
       const batch = sentences.slice(i, i + batchSize);
       const batchPromises = batch.map(sentence =>
-        this.splitSentenceAndTranslate(sentence, sourceLanguage)
+        this.splitSentenceAndTranslate(ctx, sentence, sourceLanguage)
       );
 
       try {
@@ -781,12 +786,13 @@ export class OpenAIService {
    * @returns Promise<{ text: string }> - Lesson content in the target language
    */
   async generateLessonFromPrompt(
+    ctx: Context,
     prompt: string,
     languageCode: string,
     difficulty: string = 'Intermediate'
   ): Promise<{ text: string }> {
     const code = languageCode.trim().toLowerCase();
-    const configured = ConfigService.getLanguageByCode(code);
+    const configured = ctx.configService.getLanguageByCode(ctx, code);
     const languageName = configured?.name ?? languageCode;
 
     const systemPrompt = [
@@ -824,6 +830,7 @@ export class OpenAIService {
    * @returns Promise<string> - The English translation
    */
   async translateSentenceWithContext(
+    ctx: Context,
     targetSentence: string,
     contextSentences: string[],
     sourceLanguage: string
@@ -915,6 +922,7 @@ export class OpenAIService {
    * @returns Promise<string[]> - Array of extracted sentences/text lines
    */
   async extractTextFromImageRegion(
+    ctx: Context,
     imageBase64: string,
     sourceLanguage: string,
     selection: { x: number; y: number; width: number; height: number }
@@ -1066,6 +1074,7 @@ export class OpenAIService {
    * @returns Promise<string[]> - Array of simplified translations
    */
   async simplifyTranslations(
+    ctx: Context,
     word: string,
     translations: string[],
     sourceLanguage: string,
@@ -1233,8 +1242,12 @@ export class OpenAIService {
    * @param languageCode - Source language code (e.g. 'ja', 'ko') for pronunciation
    * @returns Promise<Buffer> - MP3 audio buffer
    */
-  async generateSpeech(text: string, languageCode: string): Promise<Buffer> {
-    const langConfig = ConfigService.getLanguageByCode(languageCode);
+  async generateSpeech(
+    ctx: Context,
+    text: string,
+    languageCode: string
+  ): Promise<Buffer> {
+    const langConfig = ctx.configService.getLanguageByCode(ctx, languageCode);
     const languageName = langConfig?.name ?? languageCode;
     const instructions = `Speak in ${languageName}.`;
 

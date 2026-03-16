@@ -1,6 +1,6 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { prisma } from './index';
+import type { Context } from './index';
 
 export interface RegisterUserData {
   email: string;
@@ -30,10 +30,13 @@ const JWT_SECRET = process.env['JWT_SECRET'] || 'your-secret-key';
 const SALT_ROUNDS = 12;
 
 export class UserService {
-  static async registerUser(userData: RegisterUserData): Promise<AuthResponse> {
+  async registerUser(
+    ctx: Context,
+    userData: RegisterUserData
+  ): Promise<AuthResponse> {
     try {
       // Check if user already exists
-      const existingUser = await prisma.user.findFirst({
+      const existingUser = await ctx.prisma.user.findFirst({
         where: {
           OR: [{ email: userData.email }, { username: userData.username }],
         },
@@ -53,7 +56,7 @@ export class UserService {
       const hashedPassword = await bcrypt.hash(userData.password, SALT_ROUNDS);
 
       // Create user
-      const newUser = await prisma.user.create({
+      const newUser = await ctx.prisma.user.create({
         data: {
           email: userData.email,
           username: userData.username,
@@ -93,10 +96,13 @@ export class UserService {
     }
   }
 
-  static async loginUser(loginData: LoginUserData): Promise<AuthResponse> {
+  async loginUser(
+    ctx: Context,
+    loginData: LoginUserData
+  ): Promise<AuthResponse> {
     try {
       // Find user by email
-      const user = await prisma.user.findUnique({
+      const user = await ctx.prisma.user.findUnique({
         where: { email: loginData.email },
       });
 
@@ -150,7 +156,8 @@ export class UserService {
     }
   }
 
-  static async verifyToken(
+  async verifyToken(
+    ctx: Context,
     token: string
   ): Promise<{ valid: boolean; userId?: number }> {
     try {

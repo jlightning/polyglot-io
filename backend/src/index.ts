@@ -13,10 +13,8 @@ import importRoutes from './routes/importRoutes';
 import userActionLogRoutes from './routes/userActionLogRoutes';
 import userSettingRoutes from './routes/userSettingRoutes';
 import ttsRoutes from './routes/ttsRoutes';
-import { S3Service } from './services/s3Service';
+import { ctx } from './routes';
 import { authenticateToken } from './middleware/auth';
-import { prisma } from './services';
-import { CronService } from './services/cronService';
 
 // Load environment variables
 dotenv.config();
@@ -45,7 +43,7 @@ app.get('/api', (_req, res) => {
 
 // Initialize S3 service
 try {
-  S3Service.initialize();
+  ctx.s3Service.initialize(ctx);
   console.log('S3 service initialized successfully');
 } catch (error) {
   console.warn('S3 service initialization failed:', error);
@@ -87,7 +85,7 @@ app.use('*', (_req, res) => {
 // Graceful shutdown
 process.on('SIGINT', async () => {
   console.log('Shutting down gracefully...');
-  await prisma.$disconnect();
+  await ctx.prisma.$disconnect();
   process.exit(0);
 });
 
@@ -95,4 +93,4 @@ app.listen(port, () => {
   console.log(`Server running on port ${port}`);
 });
 
-new CronService().registerCron();
+ctx.cronService.registerCron(ctx);

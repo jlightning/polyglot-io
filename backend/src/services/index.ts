@@ -1,3 +1,35 @@
+import type { UserService } from './authService';
+import type { ConfigService } from './configService';
+import type { LessonService } from './lessonService';
+import type { SentenceService } from './sentenceService';
+import type { WordService } from './wordService';
+import type { UserLessonProgressService } from './userLessonProgressService';
+import type { UserScoreService } from './userScoreService';
+import type { UserActionLogService } from './userActionLogService';
+import type { UserSettingService } from './userSettingService';
+import type { CronService } from './cronService';
+import type { S3Service } from './s3Service';
+import type { TtsService } from './ttsService';
+import type { OpenAIService } from './ai/openaiService';
+import type { TextProcessingService } from './textProcessingService';
+import type { LingQService } from './import/lingqService';
 import { PrismaClient } from '@prisma/client';
 
-export const prisma = new PrismaClient();
+export type Context = {
+  prisma: PrismaClient;
+  authService: UserService;
+  configService: ConfigService;
+  lessonService: LessonService;
+  sentenceService: SentenceService;
+  wordService: WordService;
+  userLessonProgressService: UserLessonProgressService;
+  userScoreService: UserScoreService;
+  userActionLogService: UserActionLogService;
+  userSettingService: UserSettingService;
+  cronService: CronService;
+  s3Service: S3Service;
+  ttsService: TtsService;
+  openaiService: OpenAIService;
+  textProcessingService: TextProcessingService;
+  lingqService: LingQService;
+};

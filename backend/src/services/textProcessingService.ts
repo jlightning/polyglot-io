@@ -1,5 +1,6 @@
 import { parseSrt } from './parser/srtParser';
 import { parseAss } from './parser/assParser';
+import type { Context } from './index';
 
 export interface ProcessedSentence {
   text: string;
@@ -107,7 +108,7 @@ export class TextProcessingService {
   /**
    * Parse SRT file content and extract sentences with timing information
    */
-  static parseSrtContent(srtContent: string): ProcessedSentence[] {
+  parseSrtContent(ctx: Context, srtContent: string): ProcessedSentence[] {
     try {
       // Parse the SRT content using our custom parser
       const subtitles = parseSrt(srtContent);
@@ -125,7 +126,7 @@ export class TextProcessingService {
           .trim();
 
         // Normalize katakana (convert small to big)
-        cleanText = this.normalizeKatakana(cleanText);
+        cleanText = this.normalizeKatakana(ctx, cleanText);
 
         if (!cleanText) continue; // Skip empty entries
 
@@ -153,7 +154,7 @@ export class TextProcessingService {
   /**
    * Parse ASS file content and extract sentences with timing information
    */
-  static parseAssContent(assContent: string): ProcessedSentence[] {
+  parseAssContent(ctx: Context, assContent: string): ProcessedSentence[] {
     try {
       // Parse the ASS content using our ASS parser
       const subtitles = parseAss(assContent);
@@ -171,7 +172,7 @@ export class TextProcessingService {
           .trim();
 
         // Normalize katakana (convert small to big)
-        cleanText = this.normalizeKatakana(cleanText);
+        cleanText = this.normalizeKatakana(ctx, cleanText);
 
         if (!cleanText) continue; // Skip empty entries
 
@@ -205,7 +206,7 @@ export class TextProcessingService {
   /**
    * Parse plain text content and split into sentences (no timing information)
    */
-  static parseTxtContent(txtContent: string): ProcessedSentence[] {
+  parseTxtContent(ctx: Context, txtContent: string): ProcessedSentence[] {
     try {
       // Clean up the text
       let cleanText = txtContent
@@ -214,7 +215,7 @@ export class TextProcessingService {
         .trim();
 
       // Normalize katakana (convert small to big)
-      cleanText = this.normalizeKatakana(cleanText);
+      cleanText = this.normalizeKatakana(ctx, cleanText);
 
       if (!cleanText) {
         throw new Error('Text file is empty or contains no readable content.');
@@ -240,7 +241,7 @@ export class TextProcessingService {
    * Convert half-width katakana characters to their full-size equivalents
    * Normalizes katakana for consistent representation
    */
-  static normalizeKatakana(text: string): string {
+  normalizeKatakana(ctx: Context, text: string): string {
     let normalized = text;
 
     // First, replace voiced mark combinations (2-character sequences)
@@ -261,7 +262,8 @@ export class TextProcessingService {
   /**
    * Determine file type based on content or file extension
    */
-  static getFileType(
+  getFileType(
+    ctx: Context,
     content: string,
     fileName?: string
   ): 'srt' | 'txt' | 'ass' {
@@ -299,19 +301,20 @@ export class TextProcessingService {
   /**
    * Main processing function that handles SRT, ASS, and TXT files
    */
-  static processLessonFile(
+  processLessonFile(
+    ctx: Context,
     content: string,
     fileName?: string
   ): ProcessedSentence[] {
-    const fileType = this.getFileType(content, fileName);
+    const fileType = this.getFileType(ctx, content, fileName);
 
     switch (fileType) {
       case 'srt':
-        return this.parseSrtContent(content);
+        return this.parseSrtContent(ctx, content);
       case 'ass':
-        return this.parseAssContent(content);
+        return this.parseAssContent(ctx, content);
       case 'txt':
-        return this.parseTxtContent(content);
+        return this.parseTxtContent(ctx, content);
       default:
         throw new Error(`Unsupported file type: ${fileType}`);
     }

@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { TtsService } from '../services/ttsService';
+import { ctx } from './index';
 
 const router = Router();
 const MAX_TEXT_LENGTH = 5000;
@@ -29,13 +29,14 @@ router.post('/', async (req: Request, res: Response) => {
       });
     }
 
-    const buffer = await TtsService.getCachedOrGenerateVoice(
+    const buffer = await ctx.ttsService.getCachedOrGenerateVoice(
+      ctx,
       text,
       languageCode.trim()
     );
 
     res.setHeader('Content-Type', 'audio/mpeg');
-    res.send(buffer);
+    return res.send(buffer);
   } catch (error) {
     console.error('TTS route error:', error);
     return res.status(502).json({

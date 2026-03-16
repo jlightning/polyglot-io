@@ -7,8 +7,7 @@ dayjs.extend(utc);
 dayjs.extend(timezone);
 dayjs.extend(isoWeek);
 
-import { prisma } from './index';
-import { UserSettingService } from './userSettingService';
+import type { Context } from './index';
 
 // Daily score target for backfill logic (fallback default)
 const DEFAULT_DAILY_SCORE_TARGET = 200;
@@ -41,7 +40,8 @@ export class UserScoreService {
    * Known words count = count of words marked 4 or 5
    * Filtered by language code
    */
-  static async getUserStats(
+  async getUserStats(
+    ctx: Context,
     userId: number,
     languageCode: string,
     date?: Date,
@@ -64,7 +64,7 @@ export class UserScoreService {
 
       // Calculate score using raw SQL for better performance
       // Sum of (new_mark - old_mark) from user action logs for the target day
-      const scoreResult = await prisma.$queryRaw<{ total_score: number }[]>`
+      const scoreResult = await ctx.prisma.$queryRaw<{ total_score: number }[]>`
         SELECT COALESCE(SUM(
           CAST(JSON_EXTRACT(action, '$.new_mark') AS SIGNED) - 
           CAST(JSON_EXTRACT(action, '$.old_mark') AS SIGNED)
@@ -80,7 +80,7 @@ export class UserScoreService {
       const score = scoreResult[0]?.total_score || 0;
 
       // Count known words (marks 4 or 5) for this user
-      const knownWordsCount = await prisma.wordUserMark.count({
+      const knownWordsCount = await ctx.prisma.wordUserMark.count({
         where: {
           user_id: userId,
           mark: {
@@ -110,14 +110,18 @@ export class UserScoreService {
   /**
    * Get user score history for the last 7 days (including today)
    */
-  static async getScoreHistory(
+  async getScoreHistory(
+    ctx: Context,
     userId: number,
     languageCode: string,
     userTimezone?: string
   ): Promise<ScoreHistoryResponse> {
     try {
       // Get user's daily score target from settings
-      const userSettings = await UserSettingService.getUserSettings(userId);
+      const userSettings = await ctx.userSettingService.getUserSettings(
+        ctx,
+        userId
+      );
       const dailyScoreTarget =
         parseInt(userSettings.DAILY_SCORE_TARGET, 10) ||
         DEFAULT_DAILY_SCORE_TARGET;
@@ -137,7 +141,9 @@ export class UserScoreService {
         const endOfDay = targetDate.endOf('day').utc().toDate();
 
         // Calculate score for this day
-        const scoreResult = await prisma.$queryRaw<{ total_score: number }[]>`
+        const scoreResult = await ctx.prisma.$queryRaw<
+          { total_score: number }[]
+        >`
           SELECT COALESCE(SUM(
             CAST(JSON_EXTRACT(action, '$.new_mark') AS SIGNED) - 
             CAST(JSON_EXTRACT(action, '$.old_mark') AS SIGNED)

@@ -1,6 +1,6 @@
 import express from 'express';
-import { UserScoreService } from '../services/userScoreService';
 import { authenticateToken } from '../middleware/auth';
+import { ctx } from './index';
 
 const router = express.Router();
 
@@ -25,7 +25,8 @@ router.get('/getUserStats', authenticateToken, async (req, res) => {
       });
     }
 
-    const result = await UserScoreService.getUserStats(
+    const result = await ctx.userScoreService.getUserStats(
+      ctx,
       userId,
       languageCode,
       undefined,
@@ -67,7 +68,8 @@ router.get('/getScoreHistory', authenticateToken, async (req, res) => {
       });
     }
 
-    const result = await UserScoreService.getScoreHistory(
+    const result = await ctx.userScoreService.getScoreHistory(
+      ctx,
       userId,
       languageCode,
       timezone

@@ -1,20 +1,19 @@
 import cron from 'node-cron';
-import { prisma } from './index';
+import type { Context } from './index';
+import { wrapInTransaction } from './db';
 import { NUMBER_OF_TRANSLATION_TO_REDUCE } from './consts';
-import { WordService } from './wordService';
 import {
   halfWidthToFullWidthKatakana,
   voicedMarkMap,
-  TextProcessingService,
 } from './textProcessingService';
 
 export class CronService {
-  registerCron(): void {
-    this.registerWordTranslationCleaningCron();
-    this.registerKatakanaNormalizationCron();
+  registerCron(ctx: Context): void {
+    this.registerWordTranslationCleaningCron(ctx);
+    this.registerKatakanaNormalizationCron(ctx);
   }
 
-  registerWordTranslationCleaningCron(): void {
+  registerWordTranslationCleaningCron(ctx: Context): void {
     let isRunning = false;
 
     cron.schedule('*/30 * * * *', async () => {
@@ -24,7 +23,7 @@ export class CronService {
       console.log('Running registerWordTranslationCleaningCron');
 
       try {
-        const wordIdsToProcess = await prisma.wordTranslation.groupBy({
+        const wordIdsToProcess = await ctx.prisma.wordTranslation.groupBy({
           by: 'word_id',
           _count: {
             id: true,
@@ -38,7 +37,7 @@ export class CronService {
           },
         });
 
-        const words = await prisma.word.findMany({
+        const words = await ctx.prisma.word.findMany({
           where: {
             id: { in: wordIdsToProcess.map(w => w.word_id) },
           },
@@ -49,7 +48,11 @@ export class CronService {
           console.log(
             `Processing word translations (${i + 1}/${words.length}) for: ${word.word} (${word.language_code}) that has ${wordIdsToProcess.find(w => w.word_id === word.id)?._count} translations`
           );
-          await WordService.getWordTranslations(word.word, word.language_code);
+          await ctx.wordService.getWordTranslations(
+            ctx,
+            word.word,
+            word.language_code
+          );
         }
       } finally {
         isRunning = false;
@@ -60,7 +63,7 @@ export class CronService {
   /**
    * Normalize katakana words: convert half-width to full-width and merge related data
    */
-  private static async normalizeKatakanaWords(): Promise<void> {
+  private async normalizeKatakanaWords(ctx: Context): Promise<void> {
     // Get all half-width katakana characters from exported constants
     const halfWidthChars = [
       ...Object.keys(halfWidthToFullWidthKatakana),
@@ -73,7 +76,7 @@ export class CronService {
     }));
 
     // Find all Japanese words containing half-width katakana using Prisma contains
-    const wordsToNormalize = await prisma.word.findMany({
+    const wordsToNormalize = await ctx.prisma.word.findMany({
       where: {
         language_code: 'ja',
         OR: orConditions,
@@ -91,7 +94,8 @@ export class CronService {
 
     for (let i = 0; i < wordsToNormalize.length; i++) {
       const halfWidthWord = wordsToNormalize[i]!;
-      const normalizedWordText = TextProcessingService.normalizeKatakana(
+      const normalizedWordText = ctx.textProcessingService.normalizeKatakana(
+        ctx,
         halfWidthWord.word
       );
 
@@ -105,9 +109,9 @@ export class CronService {
       );
 
       try {
-        await prisma.$transaction(async tx => {
+        await wrapInTransaction(ctx, async ctx => {
           // Find or create the full-width word
-          const fullWidthWord = await tx.word.upsert({
+          const fullWidthWord = await ctx.prisma.word.upsert({
             where: {
               word_language_code: {
                 word: normalizedWordText,
@@ -129,12 +133,12 @@ export class CronService {
           }
 
           // Merge WordStem records
-          const halfWidthStems = await tx.wordStem.findMany({
+          const halfWidthStems = await ctx.prisma.wordStem.findMany({
             where: { word_id: halfWidthWord.id },
           });
 
           for (const stem of halfWidthStems) {
-            const existingStem = await tx.wordStem.findUnique({
+            const existingStem = await ctx.prisma.wordStem.findUnique({
               where: {
                 word_id_stem: {
                   word_id: fullWidthWord.id,
@@ -144,7 +148,7 @@ export class CronService {
             });
 
             if (!existingStem) {
-              await tx.wordStem.create({
+              await ctx.prisma.wordStem.create({
                 data: {
                   word_id: fullWidthWord.id,
                   stem: stem.stem,
@@ -154,13 +158,14 @@ export class CronService {
           }
 
           // Merge WordPronunciation records
-          const halfWidthPronunciations = await tx.wordPronunciation.findMany({
-            where: { word_id: halfWidthWord.id },
-          });
+          const halfWidthPronunciations =
+            await ctx.prisma.wordPronunciation.findMany({
+              where: { word_id: halfWidthWord.id },
+            });
 
           for (const pronunciation of halfWidthPronunciations) {
             // Check if pronunciation already exists
-            const existing = await tx.wordPronunciation.findFirst({
+            const existing = await ctx.prisma.wordPronunciation.findFirst({
               where: {
                 word_id: fullWidthWord.id,
                 pronunciation: pronunciation.pronunciation,
@@ -169,7 +174,7 @@ export class CronService {
             });
 
             if (!existing) {
-              await tx.wordPronunciation.create({
+              await ctx.prisma.wordPronunciation.create({
                 data: {
                   word_id: fullWidthWord.id,
                   pronunciation: pronunciation.pronunciation,
@@ -180,23 +185,25 @@ export class CronService {
           }
 
           // Merge WordTranslation records
-          const halfWidthTranslations = await tx.wordTranslation.findMany({
-            where: { word_id: halfWidthWord.id },
-          });
-
-          for (const translation of halfWidthTranslations) {
-            const existingTranslation = await tx.wordTranslation.findUnique({
-              where: {
-                word_id_language_code_translation: {
-                  word_id: fullWidthWord.id,
-                  language_code: translation.language_code,
-                  translation: translation.translation,
-                },
-              },
+          const halfWidthTranslations =
+            await ctx.prisma.wordTranslation.findMany({
+              where: { word_id: halfWidthWord.id },
             });
 
+          for (const translation of halfWidthTranslations) {
+            const existingTranslation =
+              await ctx.prisma.wordTranslation.findUnique({
+                where: {
+                  word_id_language_code_translation: {
+                    word_id: fullWidthWord.id,
+                    language_code: translation.language_code,
+                    translation: translation.translation,
+                  },
+                },
+              });
+
             if (!existingTranslation) {
-              await tx.wordTranslation.create({
+              await ctx.prisma.wordTranslation.create({
                 data: {
                   word_id: fullWidthWord.id,
                   language_code: translation.language_code,
@@ -207,13 +214,13 @@ export class CronService {
           }
 
           // Merge WordUserMark records
-          const halfWidthUserMarks = await tx.wordUserMark.findMany({
+          const halfWidthUserMarks = await ctx.prisma.wordUserMark.findMany({
             where: { word_id: halfWidthWord.id },
           });
 
           for (const userMark of halfWidthUserMarks) {
             // Check if full-width word already has a mark from this user
-            const existingMark = await tx.wordUserMark.findUnique({
+            const existingMark = await ctx.prisma.wordUserMark.findUnique({
               where: {
                 user_id_word_id: {
                   user_id: userMark.user_id,
@@ -229,7 +236,7 @@ export class CronService {
                 (userMark.mark === existingMark.mark &&
                   userMark.updated_at > existingMark.updated_at)
               ) {
-                await tx.wordUserMark.update({
+                await ctx.prisma.wordUserMark.update({
                   where: {
                     user_id_word_id: {
                       user_id: userMark.user_id,
@@ -246,7 +253,7 @@ export class CronService {
               }
             } else {
               // No existing mark, create new one
-              await tx.wordUserMark.create({
+              await ctx.prisma.wordUserMark.create({
                 data: {
                   user_id: userMark.user_id,
                   word_id: fullWidthWord.id,
@@ -259,22 +266,25 @@ export class CronService {
           }
 
           // Update SentenceWord references
-          const halfWidthSentenceWords = await tx.sentenceWord.findMany({
-            where: { word_id: halfWidthWord.id },
-          });
+          const halfWidthSentenceWords = await ctx.prisma.sentenceWord.findMany(
+            {
+              where: { word_id: halfWidthWord.id },
+            }
+          );
 
           for (const sentenceWord of halfWidthSentenceWords) {
-            const existingSentenceWord = await tx.sentenceWord.findUnique({
-              where: {
-                word_id_sentence_id: {
-                  word_id: fullWidthWord.id,
-                  sentence_id: sentenceWord.sentence_id,
+            const existingSentenceWord =
+              await ctx.prisma.sentenceWord.findUnique({
+                where: {
+                  word_id_sentence_id: {
+                    word_id: fullWidthWord.id,
+                    sentence_id: sentenceWord.sentence_id,
+                  },
                 },
-              },
-            });
+              });
 
             if (!existingSentenceWord) {
-              await tx.sentenceWord.create({
+              await ctx.prisma.sentenceWord.create({
                 data: {
                   word_id: fullWidthWord.id,
                   sentence_id: sentenceWord.sentence_id,
@@ -284,29 +294,29 @@ export class CronService {
           }
 
           // Delete old SentenceWord records
-          await tx.sentenceWord.deleteMany({
+          await ctx.prisma.sentenceWord.deleteMany({
             where: { word_id: halfWidthWord.id },
           });
 
           // Delete all related records for the half-width word before deleting the word
-          await tx.wordStem.deleteMany({
+          await ctx.prisma.wordStem.deleteMany({
             where: { word_id: halfWidthWord.id },
           });
 
-          await tx.wordPronunciation.deleteMany({
+          await ctx.prisma.wordPronunciation.deleteMany({
             where: { word_id: halfWidthWord.id },
           });
 
-          await tx.wordTranslation.deleteMany({
+          await ctx.prisma.wordTranslation.deleteMany({
             where: { word_id: halfWidthWord.id },
           });
 
-          await tx.wordUserMark.deleteMany({
+          await ctx.prisma.wordUserMark.deleteMany({
             where: { word_id: halfWidthWord.id },
           });
 
           // Now delete the half-width word
-          await tx.word.delete({
+          await ctx.prisma.word.delete({
             where: { id: halfWidthWord.id },
           });
         });
@@ -320,7 +330,7 @@ export class CronService {
     }
   }
 
-  registerKatakanaNormalizationCron(): void {
+  registerKatakanaNormalizationCron(ctx: Context): void {
     let isRunning = false;
 
     cron.schedule('*/30 * * * *', async () => {
@@ -330,7 +340,7 @@ export class CronService {
       console.log('Running katakana normalization cron');
 
       try {
-        await CronService.normalizeKatakanaWords();
+        await this.normalizeKatakanaWords(ctx);
       } catch (error) {
         console.error('Error in katakana normalization cron:', error);
       } finally {

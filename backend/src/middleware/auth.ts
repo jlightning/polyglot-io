@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { UserService } from '../services/authService';
+import { ctx } from '../routes';
 
 // Extend Request interface to include userId
 declare global {
@@ -31,7 +31,7 @@ export const authenticateToken = async (
   }
 
   try {
-    const verification = await UserService.verifyToken(token);
+    const verification = await ctx.authService.verifyToken(ctx, token);
     if (!verification.valid) {
       res.status(403).json({
         success: false,

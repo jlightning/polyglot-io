@@ -7,12 +7,13 @@ import {
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import dayjs from 'dayjs';
 import sharp from 'sharp';
+import type { Context } from './index';
 
 export class S3Service {
-  private static s3Client: S3Client;
-  private static bucketName: string;
+  private s3Client!: S3Client;
+  private bucketName!: string;
 
-  static initialize() {
+  initialize(ctx: Context): void {
     if (!process.env['AWS_REGION'] || !process.env['AWS_S3_BUCKET_NAME']) {
       throw new Error(
         'AWS configuration missing. Please set AWS_REGION and AWS_S3_BUCKET_NAME environment variables.'
@@ -33,13 +34,14 @@ export class S3Service {
   /**
    * Generate a pre-signed URL for file upload
    */
-  static async getUploadUrl(
+  async getUploadUrl(
+    ctx: Context,
     fileName: string,
     fileType: string,
     userId: number
   ): Promise<{ uploadUrl: string; key: string }> {
     if (!this.s3Client) {
-      this.initialize();
+      this.initialize(ctx);
     }
 
     const key = `lessons/${userId}/${dayjs().valueOf()}-${fileName}`;
@@ -65,9 +67,9 @@ export class S3Service {
   /**
    * Generate a pre-signed URL for file download
    */
-  static async getDownloadUrl(key: string): Promise<string> {
+  async getDownloadUrl(ctx: Context, key: string): Promise<string> {
     if (!this.s3Client) {
-      this.initialize();
+      this.initialize(ctx);
     }
 
     const command = new GetObjectCommand({
@@ -81,9 +83,9 @@ export class S3Service {
   /**
    * Get file content from S3
    */
-  static async getFileContent(key: string): Promise<string> {
+  async getFileContent(ctx: Context, key: string): Promise<string> {
     if (!this.s3Client) {
-      this.initialize();
+      this.initialize(ctx);
     }
 
     try {
@@ -110,9 +112,9 @@ export class S3Service {
   /**
    * Get file buffer from S3 (for binary files like images)
    */
-  static async getFileBuffer(key: string): Promise<Buffer> {
+  async getFileBuffer(ctx: Context, key: string): Promise<Buffer> {
     if (!this.s3Client) {
-      this.initialize();
+      this.initialize(ctx);
     }
 
     try {
@@ -157,7 +159,10 @@ export class S3Service {
   /**
    * Get public file URL from S3
    */
-  static getFileUrl(key: string): string {
+  getFileUrl(ctx: Context, key: string): string {
+    if (!this.s3Client) {
+      this.initialize(ctx);
+    }
     const region = process.env['AWS_REGION'] || 'us-east-1';
     return `https://${this.bucketName}.s3.${region}.amazonaws.com/${key}`;
   }
@@ -165,9 +170,9 @@ export class S3Service {
   /**
    * Delete a file from S3
    */
-  static async deleteFile(key: string): Promise<boolean> {
+  async deleteFile(ctx: Context, key: string): Promise<boolean> {
     if (!this.s3Client) {
-      this.initialize();
+      this.initialize(ctx);
     }
 
     try {
@@ -188,17 +193,18 @@ export class S3Service {
    * Convert image file (PNG, GIF, WebP) to JPG and replace it in S3
    * Downloads image from S3, converts to JPG, uploads JPG, and deletes original
    */
-  static async convertImageToJpgAndReplace(
+  async convertImageToJpgAndReplace(
+    ctx: Context,
     imageKey: string,
     _userId: number
   ): Promise<string> {
     if (!this.s3Client) {
-      this.initialize();
+      this.initialize(ctx);
     }
 
     try {
       // Download image file from S3
-      const imageBuffer = await this.getFileBuffer(imageKey);
+      const imageBuffer = await this.getFileBuffer(ctx, imageKey);
 
       // Convert image to JPG using Sharp
       const jpgBuffer = await sharp(imageBuffer)
@@ -219,7 +225,7 @@ export class S3Service {
       await this.s3Client.send(uploadCommand);
 
       // Delete original image file
-      await this.deleteFile(imageKey);
+      await this.deleteFile(ctx, imageKey);
 
       console.log(`Successfully converted ${imageKey} to ${jpgKey}`);
       return jpgKey;
@@ -232,7 +238,7 @@ export class S3Service {
   /**
    * Check if a file is PNG based on its S3 key (kept for backward compatibility)
    */
-  static isPngFile(key: string): boolean {
+  isPngFile(ctx: Context, key: string): boolean {
     return key.toLowerCase().endsWith('.png');
   }
 }

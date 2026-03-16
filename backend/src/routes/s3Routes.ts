@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { S3Service } from '../services/s3Service';
+import { ctx } from './index';
 
 const router = Router();
 
@@ -61,7 +61,8 @@ router.post('/upload-file', async (req: Request, res: Response) => {
       maxSize = 5 * 1024 * 1024; // 5MB default
     }
 
-    const result = await S3Service.getUploadUrl(
+    const result = await ctx.s3Service.getUploadUrl(
+      ctx,
       fileName,
       fileType,
       req.userId!

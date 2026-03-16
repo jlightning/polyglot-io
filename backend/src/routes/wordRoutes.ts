@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { WordService } from '../services/wordService';
+import { ctx } from './index';
 
 const router = Router();
 
@@ -22,12 +22,16 @@ router.post('/mark', async (req: Request, res: Response) => {
       });
     }
 
-    const result = await WordService.createOrUpdateWordUserMark(req.userId!, {
-      word,
-      languageCode,
-      note: note || '',
-      mark,
-    });
+    const result = await ctx.wordService.createOrUpdateWordUserMark(
+      ctx,
+      req.userId!,
+      {
+        word,
+        languageCode,
+        note: note || '',
+        mark,
+      }
+    );
 
     if (result.success) {
       return res.status(result.data ? 200 : 201).json(result);
@@ -55,7 +59,8 @@ router.get('/mark/:word/:languageCode', async (req: Request, res: Response) => {
       });
     }
 
-    const result = await WordService.getWordUserMark(
+    const result = await ctx.wordService.getWordUserMark(
+      ctx,
       req.userId!,
       decodeURIComponent(word),
       languageCode
@@ -89,7 +94,8 @@ router.delete(
         });
       }
 
-      const result = await WordService.deleteWordUserMark(
+      const result = await ctx.wordService.deleteWordUserMark(
+        ctx,
         req.userId!,
         decodeURIComponent(word),
         languageCode
@@ -124,7 +130,12 @@ router.get('/marks', async (req: Request, res: Response) => {
       });
     }
 
-    const result = await WordService.getUserWordMarks(req.userId!, page, limit);
+    const result = await ctx.wordService.getUserWordMarks(
+      ctx,
+      req.userId!,
+      page,
+      limit
+    );
 
     if (result.success) {
       return res.json(result);
@@ -159,7 +170,8 @@ router.post('/marks/bulk', async (req: Request, res: Response) => {
       });
     }
 
-    const result = await WordService.getBulkWordUserMarks(
+    const result = await ctx.wordService.getBulkWordUserMarks(
+      ctx,
       req.userId!,
       words,
       languageCode
@@ -207,7 +219,8 @@ router.get('/marks/details', async (req: Request, res: Response) => {
       });
     }
 
-    const result = await WordService.getUserWordMarksWithDetails(
+    const result = await ctx.wordService.getUserWordMarksWithDetails(
+      ctx,
       req.userId!,
       page,
       limit,
@@ -246,7 +259,8 @@ router.get(
         });
       }
 
-      const result = await WordService.getWordTranslations(
+      const result = await ctx.wordService.getWordTranslations(
+        ctx,
         decodeURIComponent(word),
         sourceLanguage,
         targetLanguage
@@ -281,7 +295,8 @@ router.get(
         });
       }
 
-      const result = await WordService.getWordPronunciations(
+      const result = await ctx.wordService.getWordPronunciations(
+        ctx,
         decodeURIComponent(word),
         languageCode
       );
@@ -315,7 +330,8 @@ router.get(
         });
       }
 
-      const result = await WordService.getWordStems(
+      const result = await ctx.wordService.getWordStems(
+        ctx,
         decodeURIComponent(word),
         languageCode
       );
