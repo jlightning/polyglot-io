@@ -85,7 +85,8 @@ const SettingsPage: React.FC = () => {
             Daily Score Target
           </Text>
           <Text size="2" color="gray" mb="4" as="div">
-            Set your daily goal for word learning score
+            Set your daily goal for word learning score (per language). This
+            applies to the currently selected language.
           </Text>
 
           <RadioGroup.Root
@@ -151,7 +152,11 @@ const SettingsPage: React.FC = () => {
         <Flex gap="3" justify="end">
           <MyButton
             onClick={handleSave}
-            disabled={isLoading || selectedTarget === dailyScoreTarget}
+            disabled={
+              isLoading ||
+              selectedTarget === dailyScoreTarget ||
+              !selectedLanguage
+            }
             variant="solid"
           >
             {isLoading ? 'Saving...' : 'Save'}

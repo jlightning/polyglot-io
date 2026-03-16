@@ -1,10 +1,17 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Select, Text, Flex } from '@radix-ui/themes';
 import { useLanguage } from '../contexts/LanguageContext';
 
 const LanguageSwitcher: React.FC = () => {
+  const navigate = useNavigate();
   const { selectedLanguage, setSelectedLanguage, languages, loading, error } =
     useLanguage();
+
+  const handleLanguageChange = (languageCode: string) => {
+    setSelectedLanguage(languageCode);
+    navigate('/lessons');
+  };
 
   if (loading) {
     return (
@@ -38,7 +45,10 @@ const LanguageSwitcher: React.FC = () => {
 
   return (
     <Flex direction="column" gap="2">
-      <Select.Root value={selectedLanguage} onValueChange={setSelectedLanguage}>
+      <Select.Root
+        value={selectedLanguage}
+        onValueChange={handleLanguageChange}
+      >
         <Select.Trigger placeholder="Select language" />
         <Select.Content>
           <Select.Group>

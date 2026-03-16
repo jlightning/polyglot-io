@@ -8,6 +8,7 @@ import React, {
 } from 'react';
 import axios from 'axios';
 import { useAuth } from './AuthContext';
+import { useLanguage } from './LanguageContext';
 
 interface UserSettings {
   DAILY_SCORE_TARGET: string;
@@ -46,12 +47,10 @@ export const UserSettingProvider: React.FC<UserSettingProviderProps> = ({
   children,
 }) => {
   const { token, isAuthenticated, axiosInstance } = useAuth();
+  const { selectedLanguage } = useLanguage();
   const [dailyScoreTarget, setDailyScoreTarget] = useState<number>(200);
   const [settings, setSettings] = useState<UserSettings | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-
-  const backendUrl =
-    import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
 
   const fetchUserSettings = useCallback(async () => {
     if (!token || !isAuthenticated) {
@@ -62,7 +61,10 @@ export const UserSettingProvider: React.FC<UserSettingProviderProps> = ({
 
     try {
       setIsLoading(true);
-      const response = await axiosInstance.get('/api/user-settings');
+      const params = selectedLanguage ? { languageCode: selectedLanguage } : {};
+      const response = await axiosInstance.get('/api/user-settings', {
+        params,
+      });
       if (response.data.success && response.data.settings) {
         setSettings(response.data.settings);
         const dailyScoreTargetValue = parseInt(
@@ -77,7 +79,7 @@ export const UserSettingProvider: React.FC<UserSettingProviderProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [token, isAuthenticated, axiosInstance]);
+  }, [token, isAuthenticated, axiosInstance, selectedLanguage]);
 
   const updateUserSetting = useCallback(
     async (
@@ -89,9 +91,14 @@ export const UserSettingProvider: React.FC<UserSettingProviderProps> = ({
       }
 
       try {
-        const response = await axiosInstance.put(`/api/user-settings/${key}`, {
-          value,
-        });
+        const body: { value: string; languageCode?: string } = { value };
+        if (key === 'DAILY_SCORE_TARGET' && selectedLanguage) {
+          body.languageCode = selectedLanguage;
+        }
+        const response = await axiosInstance.put(
+          `/api/user-settings/${key}`,
+          body
+        );
 
         if (response.data.success) {
           // Update local state
@@ -126,7 +133,7 @@ export const UserSettingProvider: React.FC<UserSettingProviderProps> = ({
         };
       }
     },
-    [token, isAuthenticated, axiosInstance, fetchUserSettings]
+    [token, isAuthenticated, axiosInstance, fetchUserSettings, selectedLanguage]
   );
 
   // Fetch settings when authenticated

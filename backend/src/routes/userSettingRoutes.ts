@@ -4,7 +4,7 @@ import { ctx } from './index';
 
 const router = express.Router();
 
-// Get all settings for authenticated user
+// Get all settings for authenticated user (optional languageCode for language-scoped settings e.g. DAILY_SCORE_TARGET)
 router.get('/', authenticateToken, async (req, res) => {
   try {
     const userId = req.userId;
@@ -15,7 +15,12 @@ router.get('/', authenticateToken, async (req, res) => {
       });
     }
 
-    const settings = await ctx.userSettingService.getUserSettings(ctx, userId);
+    const languageCode = req.query['languageCode'] as string | undefined;
+    const settings = await ctx.userSettingService.getUserSettings(
+      ctx,
+      userId,
+      languageCode
+    );
 
     return res.json({
       success: true,
@@ -42,7 +47,7 @@ router.put('/:key', authenticateToken, async (req, res) => {
     }
 
     const { key } = req.params;
-    const { value } = req.body;
+    const { value, languageCode } = req.body;
 
     // Validate key
     const allowedKeys = ['DAILY_SCORE_TARGET'];
@@ -60,11 +65,24 @@ router.put('/:key', authenticateToken, async (req, res) => {
       });
     }
 
+    if (
+      key === 'DAILY_SCORE_TARGET' &&
+      (!languageCode ||
+        typeof languageCode !== 'string' ||
+        languageCode.trim() === '')
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: 'languageCode is required for DAILY_SCORE_TARGET',
+      });
+    }
+
     const result = await ctx.userSettingService.setUserSetting(
       ctx,
       userId,
       key,
-      value
+      value,
+      key === 'DAILY_SCORE_TARGET' ? languageCode : undefined
     );
 
     if (result.success) {

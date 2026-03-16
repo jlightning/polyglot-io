@@ -269,15 +269,17 @@ model UserActionLog {
 }
 
 model UserSetting {
-  id           Int      @id @default(autoincrement())
-  user_id      Int
-  setting_key  String   @db.VarChar(100)
-  setting_value String  @db.VarChar(255)
-  created_at   DateTime @default(now()) @db.Timestamp(0)
-  updated_at   DateTime @default(now()) @updatedAt @db.Timestamp(0)
+  id                Int      @id @default(autoincrement())
+  user_id           Int
+  setting_key       String   @db.VarChar(100)
+  language_code     String?  @db.VarChar(10)
+  language_code_key String   @default(dbgenerated("(IFNULL(`language_code`,''))")) @db.VarChar(10)
+  setting_value     String   @db.VarChar(255)
+  created_at        DateTime @default(now()) @db.Timestamp(0)
+  updated_at        DateTime @default(now()) @updatedAt @db.Timestamp(0)
 
   user User @relation(fields: [user_id], references: [id])
 
-  @@unique([user_id, setting_key])
+  @@unique([user_id, setting_key, language_code_key])
   @@map("user_setting")
 }

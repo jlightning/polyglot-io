@@ -117,10 +117,11 @@ export class UserScoreService {
     userTimezone?: string
   ): Promise<ScoreHistoryResponse> {
     try {
-      // Get user's daily score target from settings
+      // Get user's daily score target for this language from settings
       const userSettings = await ctx.userSettingService.getUserSettings(
         ctx,
-        userId
+        userId,
+        languageCode
       );
       const dailyScoreTarget =
         parseInt(userSettings.DAILY_SCORE_TARGET, 10) ||
