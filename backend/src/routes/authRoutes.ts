@@ -114,39 +114,4 @@ router.post('/login', validateLogin, async (req, res) => {
   }
 });
 
-// Token verification endpoint (for protected routes)
-router.get('/verify', async (req, res) => {
-  try {
-    const token = req.headers.authorization?.replace('Bearer ', '');
-
-    if (!token) {
-      return res.status(401).json({
-        success: false,
-        message: 'No token provided',
-      });
-    }
-
-    const verification = await ctx.authService.verifyToken(ctx, token);
-
-    if (verification.valid) {
-      return res.status(200).json({
-        success: true,
-        message: 'Token is valid',
-        userId: verification.userId,
-      });
-    } else {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid token',
-      });
-    }
-  } catch (error) {
-    console.error('Token verification error:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-    });
-  }
-});
-
 export default router;
