@@ -320,8 +320,10 @@ export class SentenceService {
           word_translations: wordTranslations,
           word_pronunciations: wordPronunciations,
           word_stems: wordStems,
-          start_time: sentence.start_time ? Number(sentence.start_time) : null,
-          end_time: sentence.end_time ? Number(sentence.end_time) : null,
+          start_time:
+            sentence.start_time != null ? Number(sentence.start_time) : null,
+          end_time:
+            sentence.end_time != null ? Number(sentence.end_time) : null,
         });
       }
     }
@@ -355,10 +357,12 @@ export class SentenceService {
                 original_text: sentence.original_text,
                 split_text: null,
                 word_translations: null,
-                start_time: sentence.start_time
-                  ? Number(sentence.start_time)
-                  : null,
-                end_time: sentence.end_time ? Number(sentence.end_time) : null,
+                start_time:
+                  sentence.start_time != null
+                    ? Number(sentence.start_time)
+                    : null,
+                end_time:
+                  sentence.end_time != null ? Number(sentence.end_time) : null,
               };
             }
 
@@ -419,10 +423,12 @@ export class SentenceService {
               word_translations: wordTranslations,
               word_pronunciations: wordPronunciations,
               word_stems: wordStems,
-              start_time: sentence.start_time
-                ? Number(sentence.start_time)
-                : null,
-              end_time: sentence.end_time ? Number(sentence.end_time) : null,
+              start_time:
+                sentence.start_time != null
+                  ? Number(sentence.start_time)
+                  : null,
+              end_time:
+                sentence.end_time != null ? Number(sentence.end_time) : null,
             };
           }
         );
@@ -439,8 +445,10 @@ export class SentenceService {
           word_translations: null as WordWithTranslation[] | null,
           word_pronunciations: null as WordWithPronunciation[] | null,
           word_stems: null as WordWithStems[] | null,
-          start_time: sentence.start_time ? Number(sentence.start_time) : null,
-          end_time: sentence.end_time ? Number(sentence.end_time) : null,
+          start_time:
+            sentence.start_time != null ? Number(sentence.start_time) : null,
+          end_time:
+            sentence.end_time != null ? Number(sentence.end_time) : null,
         }));
         processedResults.push(...fallbackResults);
       }
@@ -1301,8 +1309,9 @@ export class SentenceService {
         success: true,
         sentence: {
           id: result.id,
-          start_time: result.start_time ? Number(result.start_time) : null,
-          end_time: result.end_time ? Number(result.end_time) : null,
+          start_time:
+            result.start_time != null ? Number(result.start_time) : null,
+          end_time: result.end_time != null ? Number(result.end_time) : null,
         },
       };
     } catch (error) {

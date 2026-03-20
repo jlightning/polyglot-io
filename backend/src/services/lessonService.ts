@@ -388,8 +388,9 @@ export class LessonService {
         lesson_file_id: lessonFile.id,
         original_text: sentence.text,
         split_text: Prisma.JsonNull, // Keep null as requested using Prisma.JsonNull
-        start_time: sentence.startTime ? sentence.startTime / 1000 : null, // Convert milliseconds to seconds for Decimal
-        end_time: sentence.endTime ? sentence.endTime / 1000 : null, // Convert milliseconds to seconds for Decimal
+        start_time:
+          sentence.startTime != null ? sentence.startTime / 1000 : null, // ms → seconds (0 is valid)
+        end_time: sentence.endTime != null ? sentence.endTime / 1000 : null,
       }));
 
       // Create sentence records in database

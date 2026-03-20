@@ -133,12 +133,14 @@ export class UserLessonProgressService {
           sentenceInfo: {
             id: progress.sentence.id,
             originalText: progress.sentence.original_text,
-            startTime: progress.sentence.start_time
-              ? progress.sentence.start_time.toNumber()
-              : null,
-            endTime: progress.sentence.end_time
-              ? progress.sentence.end_time.toNumber()
-              : null,
+            startTime:
+              progress.sentence.start_time != null
+                ? progress.sentence.start_time.toNumber()
+                : null,
+            endTime:
+              progress.sentence.end_time != null
+                ? progress.sentence.end_time.toNumber()
+                : null,
           },
         },
       };
@@ -223,12 +225,14 @@ export class UserLessonProgressService {
             id: progress.sentence.id,
             originalText: progress.sentence.original_text,
             lesson_file_id: progress.sentence.lesson_file_id,
-            startTime: progress.sentence.start_time
-              ? progress.sentence.start_time.toNumber()
-              : null,
-            endTime: progress.sentence.end_time
-              ? progress.sentence.end_time.toNumber()
-              : null,
+            startTime:
+              progress.sentence.start_time != null
+                ? progress.sentence.start_time.toNumber()
+                : null,
+            endTime:
+              progress.sentence.end_time != null
+                ? progress.sentence.end_time.toNumber()
+                : null,
           },
         },
         shouldNavigateToPage: pageNumber,
@@ -394,12 +398,14 @@ export class UserLessonProgressService {
           sentenceInfo: {
             id: progress.sentence.id,
             originalText: progress.sentence.original_text,
-            startTime: progress.sentence.start_time
-              ? progress.sentence.start_time.toNumber()
-              : null,
-            endTime: progress.sentence.end_time
-              ? progress.sentence.end_time.toNumber()
-              : null,
+            startTime:
+              progress.sentence.start_time != null
+                ? progress.sentence.start_time.toNumber()
+                : null,
+            endTime:
+              progress.sentence.end_time != null
+                ? progress.sentence.end_time.toNumber()
+                : null,
           },
         },
       };
