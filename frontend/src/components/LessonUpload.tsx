@@ -706,10 +706,20 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
                     <Text size="2" weight="medium" mb="2" as="div">
                       Or paste lesson text below
                     </Text>
+                    <Text size="1" color="gray" mb="2" as="div">
+                      You can paste a{' '}
+                      <Text weight="medium" as="span" color="gray">
+                        YouTube transcript
+                      </Text>
+                      : under the video, open the menu (⋯), choose Show
+                      transcript, select all and copy. Timestamps are detected
+                      automatically and sentences get start/end times from the
+                      transcript.
+                    </Text>
                     <textarea
                       value={lessonPastedText}
                       onChange={e => setLessonPastedText(e.target.value)}
-                      placeholder="Paste your lesson text here (plain text or subtitle content)..."
+                      placeholder="Plain text, subtitles, or YouTube transcript (with lines like 0:00, 0:02, …)…"
                       rows={6}
                       style={{
                         width: '100%',
