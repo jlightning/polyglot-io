@@ -8,6 +8,26 @@ export interface ProcessedSentence {
   endTime?: number | undefined; // in milliseconds
 }
 
+const YOUTUBE_LAST_CUE_END_OFFSET_MS = 5000;
+const YOUTUBE_MIN_CUES_FOR_DETECTION = 3;
+
+/** Whole-line YouTube transcript timestamp: M:SS or H:MM:SS */
+const YOUTUBE_TIMESTAMP_LINE = /^\s*(\d{1,2}):(\d{2})(?::(\d{2}))?\s*$/;
+
+function parseYoutubeTimestampLineMs(line: string): number | null {
+  const m = line.trim().match(YOUTUBE_TIMESTAMP_LINE);
+  if (!m) return null;
+  if (m[3] !== undefined) {
+    const h = parseInt(m[1]!, 10);
+    const min = parseInt(m[2]!, 10);
+    const s = parseInt(m[3]!, 10);
+    return ((h * 60 + min) * 60 + s) * 1000;
+  }
+  const min = parseInt(m[1]!, 10);
+  const s = parseInt(m[2]!, 10);
+  return (min * 60 + s) * 1000;
+}
+
 // Mapping of all half-width katakana (半角カタカナ) to full-width katakana
 export const halfWidthToFullWidthKatakana: { [key: string]: string } = {
   '\uFF65': '\u30FB', // ･ → ・ (middle dot)
@@ -204,8 +224,48 @@ export class TextProcessingService {
   }
 
   /**
+   * Split normalized plain text into sentence strings (newlines + punctuation boundaries).
+   * Sentence-ending: . 。 ． ! ！ ? ？
+   */
+  private splitNormalizedTextIntoSentenceTexts(normalized: string): string[] {
+    const sentenceEndChars = /[。．.!！.?？]/;
+    const sentenceSplitRe = new RegExp(`(?<=${sentenceEndChars.source})\\s*`);
+
+    const rawParts = normalized
+      .split(/\n+/)
+      .map(part => part.trim())
+      .filter(Boolean)
+      .flatMap(trimmed =>
+        trimmed
+          .split(sentenceSplitRe)
+          .map(seg => seg.trim())
+          .filter(Boolean)
+      );
+
+    const punctuationOnly = /^[。．.!！.?？\s]+$/;
+    const quoteOnly = /^["”\s]+$/;
+    const sentences: string[] = [];
+    for (const text of rawParts) {
+      const isPunctuationOnly = punctuationOnly.test(text);
+      const prev = sentences[sentences.length - 1];
+      const prevPunctOnly = prev ? punctuationOnly.test(prev) : false;
+      if (isPunctuationOnly && prevPunctOnly) continue;
+
+      const isQuoteOnly = quoteOnly.test(text);
+      if (isQuoteOnly && sentences.length) {
+        sentences[sentences.length - 1]! += text;
+        continue;
+      }
+
+      sentences.push(text);
+    }
+
+    return sentences;
+  }
+
+  /**
    * Parse plain text content and split into sentences (no timing information).
-   * Splits on newlines and on sentence-ending punctuation: dots (., 。, ．) and exclamation (!, ！).
+   * Splits on newlines and on sentence-ending punctuation: dots (., 。, ．), exclamation (!, ！), question (?, ？).
    */
   parseTxtContent(ctx: Context, txtContent: string): ProcessedSentence[] {
     try {
@@ -222,54 +282,15 @@ export class TextProcessingService {
         throw new Error('Text file is empty or contains no readable content.');
       }
 
-      // Sentence-ending: dots (., 。, ．) and exclamation (!, ！) for English, Japanese, Chinese
-      const sentenceEndChars = /[。．.!！.]/;
-      const sentenceSplitRe = new RegExp(`(?<=${sentenceEndChars.source})\\s*`);
+      const sentenceTexts =
+        this.splitNormalizedTextIntoSentenceTexts(cleanText);
+      const texts = sentenceTexts.length > 0 ? sentenceTexts : [cleanText];
 
-      const rawSentences: ProcessedSentence[] = cleanText
-        .split(/\n+/)
-        .map(part => part.trim())
-        .filter(Boolean)
-        .flatMap(trimmed =>
-          trimmed
-            .split(sentenceSplitRe)
-            .map(seg => seg.trim())
-            .filter(Boolean)
-            .map(text => ({
-              text,
-              startTime: undefined as number | undefined,
-              endTime: undefined as number | undefined,
-            }))
-        );
-
-      // Deduplicate consecutive sentences that are only sentence-ending punctuation (e.g. "!", "!!", "。")
-      const punctuationOnly = /^[。．.!！.\s]+$/;
-      const quoteOnly = /^["”\s]+$/;
-      const sentences: ProcessedSentence[] = [];
-      for (const s of rawSentences) {
-        const isPunctuationOnly = punctuationOnly.test(s.text);
-        const prev = sentences[sentences.length - 1];
-        const prevPunctOnly = prev ? punctuationOnly.test(prev.text) : false;
-        if (isPunctuationOnly && prevPunctOnly) continue;
-
-        const isQuoteOnly = quoteOnly.test(s.text);
-        if (isQuoteOnly && sentences.length) {
-          sentences[sentences.length - 1]!.text += s!.text;
-          continue;
-        }
-
-        sentences.push(s);
-      }
-
-      return sentences.length > 0
-        ? sentences
-        : [
-            {
-              text: cleanText,
-              startTime: undefined as number | undefined,
-              endTime: undefined as number | undefined,
-            },
-          ];
+      return texts.map(text => ({
+        text,
+        startTime: undefined as number | undefined,
+        endTime: undefined as number | undefined,
+      }));
     } catch (error) {
       console.error('Error parsing TXT content:', error);
       throw new Error(
@@ -301,13 +322,136 @@ export class TextProcessingService {
   }
 
   /**
+   * Content from the first whole-line timestamp onward (drops pasted title / junk above transcript).
+   */
+  private sliceFromFirstYoutubeTimestampLine(content: string): string | null {
+    const lines = content
+      .replace(/\r\n/g, '\n')
+      .replace(/\r/g, '\n')
+      .split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (line !== undefined && parseYoutubeTimestampLineMs(line) !== null) {
+        return lines.slice(i).join('\n');
+      }
+    }
+    return null;
+  }
+
+  /** Parse sliced transcript into cues (timestamp + dialogue until next timestamp). */
+  private extractYoutubeCues(
+    sliced: string
+  ): { startMs: number; rawText: string }[] {
+    const lines = sliced.split('\n');
+    const cues: { startMs: number; rawText: string }[] = [];
+    let i = 0;
+
+    while (i < lines.length) {
+      const trimmed = (lines[i] ?? '').trim();
+      if (trimmed === '') {
+        i++;
+        continue;
+      }
+
+      const startMs = parseYoutubeTimestampLineMs(trimmed);
+      if (startMs === null) {
+        i++;
+        continue;
+      }
+
+      i++;
+      const bodyParts: string[] = [];
+      while (i < lines.length) {
+        const raw = lines[i] ?? '';
+        const nextTrim = raw.trim();
+        if (nextTrim === '') {
+          i++;
+          continue;
+        }
+        if (parseYoutubeTimestampLineMs(nextTrim) !== null) {
+          break;
+        }
+        bodyParts.push(nextTrim);
+        i++;
+      }
+
+      const rawText = bodyParts.join(' ');
+      if (rawText.length > 0) {
+        cues.push({ startMs, rawText });
+      }
+    }
+
+    return cues;
+  }
+
+  private isYoutubeTranscriptLike(content: string): boolean {
+    const sliced = this.sliceFromFirstYoutubeTimestampLine(content);
+    if (!sliced) return false;
+    const cues = this.extractYoutubeCues(sliced);
+    return cues.length >= YOUTUBE_MIN_CUES_FOR_DETECTION;
+  }
+
+  /**
+   * YouTube “copy transcript” paste: alternating timestamp lines and dialogue.
+   */
+  parseYoutubeTranscriptContent(
+    ctx: Context,
+    content: string
+  ): ProcessedSentence[] {
+    try {
+      const sliced =
+        this.sliceFromFirstYoutubeTimestampLine(content) ?? content;
+      const cues = this.extractYoutubeCues(sliced);
+
+      if (cues.length === 0) {
+        throw new Error(
+          'No transcript cues found. Expected lines like 0:00 then dialogue.'
+        );
+      }
+
+      const out: ProcessedSentence[] = [];
+
+      for (let i = 0; i < cues.length; i++) {
+        const cue = cues[i]!;
+        const endMs =
+          cues[i + 1]?.startMs ?? cue.startMs + YOUTUBE_LAST_CUE_END_OFFSET_MS;
+
+        let normalized = this.normalizeKatakana(ctx, cue.rawText.trim());
+        if (!normalized) continue;
+
+        const sentenceTexts =
+          this.splitNormalizedTextIntoSentenceTexts(normalized);
+        const texts = sentenceTexts.length > 0 ? sentenceTexts : [normalized];
+
+        for (const text of texts) {
+          out.push({
+            text,
+            startTime: cue.startMs,
+            endTime: endMs,
+          });
+        }
+      }
+
+      if (out.length === 0) {
+        throw new Error('Transcript contained no dialogue text.');
+      }
+
+      return out;
+    } catch (error) {
+      console.error('Error parsing YouTube transcript content:', error);
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to parse YouTube transcript: ${message}`);
+    }
+  }
+
+  /**
    * Determine file type based on content or file extension
    */
   getFileType(
     ctx: Context,
     content: string,
     fileName?: string
-  ): 'srt' | 'txt' | 'ass' {
+  ): 'srt' | 'txt' | 'ass' | 'youtube_transcript' {
     // Check if content looks like ASS format (starts with [Script Info] or [V4+ Styles] or [Events])
     const assPattern = /^\[Script Info\]|^\[V4\+? Styles\]|^\[Events\]/m;
     if (assPattern.test(content)) {
@@ -335,6 +479,10 @@ export class TextProcessingService {
       return 'srt';
     }
 
+    if (this.isYoutubeTranscriptLike(content)) {
+      return 'youtube_transcript';
+    }
+
     // Default to txt
     return 'txt';
   }
@@ -354,6 +502,8 @@ export class TextProcessingService {
         return this.parseSrtContent(ctx, content);
       case 'ass':
         return this.parseAssContent(ctx, content);
+      case 'youtube_transcript':
+        return this.parseYoutubeTranscriptContent(ctx, content);
       case 'txt':
         return this.parseTxtContent(ctx, content);
       default:

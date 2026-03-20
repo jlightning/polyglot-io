@@ -110,7 +110,9 @@ export class LessonService {
             fileName
           );
           lessonType =
-            detectedFileType === 'srt' || detectedFileType === 'ass'
+            detectedFileType === 'srt' ||
+            detectedFileType === 'ass' ||
+            detectedFileType === 'youtube_transcript'
               ? LessonType.subtitle
               : LessonType.text;
         } catch (error) {
