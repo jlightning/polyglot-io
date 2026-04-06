@@ -20,6 +20,23 @@ export function wordWithFullWidthDigits(word: string): string {
   return word.replace(/[0-9]/g, d => FULL_WIDTH_DIGITS[parseInt(d, 10)] ?? d);
 }
 
+/**
+ * Converts full-width digits (０–９) to ASCII so marks stored under "1体" match lookup "１体".
+ */
+export function wordWithAsciiDigits(word: string): string {
+  if (!word) return word;
+  let out = '';
+  for (const ch of word) {
+    const c = ch.codePointAt(0)!;
+    if (c >= 0xff10 && c <= 0xff19) {
+      out += String.fromCodePoint(c - 0xff10 + 0x30);
+    } else {
+      out += ch;
+    }
+  }
+  return out;
+}
+
 interface WordMarkContextType {
   // Get word mark (returns undefined if not marked)
   getWordMark: (word: string) => number | undefined;
@@ -68,8 +85,10 @@ export const WordMarkProvider: React.FC<WordMarkProviderProps> = ({
 
   const getWordMark = useCallback(
     (word: string): number | undefined => {
+      const ascii = wordWithAsciiDigits(word);
+      const fullWidth = wordWithFullWidthDigits(word);
       return (
-        wordMarks.get(word) ?? wordMarks.get(wordWithFullWidthDigits(word))
+        wordMarks.get(word) ?? wordMarks.get(fullWidth) ?? wordMarks.get(ascii)
       );
     },
     [wordMarks]
