@@ -145,6 +145,16 @@ const Sidebar: React.FC<SidebarProps> = () => {
                       ? 'var(--yellow-9)'
                       : 'var(--gray-6)';
 
+                // Brighter than bar fills so small labels stay readable on dark UI
+                const scoreLabelColor =
+                  actualScore >= dailyScoreTarget
+                    ? 'var(--green-11)'
+                    : actualScore > 0
+                      ? 'var(--yellow-11)'
+                      : totalScore > 0
+                        ? 'var(--orange-11)'
+                        : 'var(--gray-11)';
+
                 return (
                   <Flex
                     key={day.date}
@@ -163,7 +173,7 @@ const Sidebar: React.FC<SidebarProps> = () => {
                       style={{
                         fontSize: '8px',
                         lineHeight: 1,
-                        color: actualColor,
+                        color: scoreLabelColor,
                       }}
                     >
                       {totalScore}
