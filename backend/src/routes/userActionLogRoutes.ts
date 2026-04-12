@@ -93,4 +93,12 @@ router.post('/log', async (req: Request, res: Response) => {
   }
 });
 
+router.get('/clean-up', async (req: Request, res: Response) => {
+  await ctx.userActionLogService.cleanUpDuplicatedLog(ctx);
+
+  return res.status(200).json({
+    success: true,
+  });
+});
+
 export default router;

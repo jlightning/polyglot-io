@@ -1,6 +1,7 @@
 import { Prisma, UserActionType } from '@prisma/client';
 
 import type { Context } from './index';
+import { wrapInTransaction } from './db';
 
 interface WordMarkActionData {
   word_id: number;
@@ -159,5 +160,108 @@ export class UserActionLogService {
         data: [],
       };
     }
+  }
+
+  async cleanUpDuplicatedLog(ctx: Context) {
+    console.log('cleanUpDuplicatedLog: starting');
+
+    const tmp = await ctx.prisma.$queryRaw<
+      { ids: string; user_id: number; word_id: number; created_date: string }[]
+    >`
+      SELECT
+        GROUP_CONCAT(id) AS ids,
+        user_id,
+        word_id,
+        DATE_FORMAT(CONVERT_TZ(created_at, 'UTC', 'Asia/Singapore'), '%Y-%m-%d') AS created_date
+      FROM user_action_log ual
+      WHERE type = ${UserActionType.word_mark}
+      GROUP BY user_id, word_id, DATE_FORMAT(CONVERT_TZ(created_at, 'UTC', 'Asia/Singapore'), '%Y-%m-%d')
+      HAVING COUNT(1) > 1
+    `;
+
+    const data = tmp
+      .map(i => ({ ...i, ids: i.ids.split(',').map(Number) }))
+      .filter(i => i.ids?.length > 1);
+
+    console.log('cleanUpDuplicatedLog: duplicate groups to process', {
+      count: data.length,
+    });
+
+    for (const item of data) {
+      const logs = await ctx.prisma.userActionLog.findMany({
+        where: {
+          id: { in: item.ids },
+        },
+        orderBy: [{ created_at: 'asc' }, { id: 'asc' }],
+      });
+
+      const firstLog = logs[0];
+      const lastLog = logs[logs.length - 1];
+
+      if (!firstLog || !lastLog) continue;
+
+      const oldMark = (firstLog.action as unknown as WordMarkActionData)
+        ?.old_mark;
+      const newMark = (lastLog.action as unknown as WordMarkActionData)
+        ?.new_mark;
+
+      if (typeof oldMark !== 'number' || typeof newMark !== 'number') continue;
+
+      await wrapInTransaction(ctx, async ctx => {
+        if (oldMark === newMark) {
+          await ctx.prisma.userActionLog.deleteMany({
+            where: {
+              id: { in: logs.map(l => l.id) },
+            },
+          });
+
+          console.log(
+            'cleanUpDuplicatedLog: removed redundant word_mark logs (same old/new)',
+            {
+              user_id: item.user_id,
+              word_id: item.word_id,
+              created_date: item.created_date,
+              removedCount: logs.length,
+            }
+          );
+
+          return;
+        }
+
+        await ctx.prisma.userActionLog.update({
+          where: {
+            id: lastLog.id,
+          },
+          data: {
+            action: {
+              ...(lastLog?.action as unknown as WordMarkActionData),
+              old_mark: oldMark,
+              new_mark: newMark,
+            },
+          },
+        });
+
+        await ctx.prisma.userActionLog.deleteMany({
+          where: {
+            id: { in: logs.map(l => l.id).filter(lid => lid !== lastLog.id) },
+          },
+        });
+
+        console.log(
+          'cleanUpDuplicatedLog: merged word_mark logs into one entry',
+          {
+            user_id: item.user_id,
+            word_id: item.word_id,
+            created_date: item.created_date,
+            keptLogId: lastLog.id,
+            removedCount: logs.length - 1,
+            oldMark,
+            newMark,
+          }
+        );
+      });
+    }
+
+    console.log('cleanUpDuplicatedLog: finished');
   }
 }

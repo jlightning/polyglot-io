@@ -11,6 +11,7 @@ export class CronService {
   registerCron(ctx: Context): void {
     this.registerWordTranslationCleaningCron(ctx);
     this.registerKatakanaNormalizationCron(ctx);
+    this.registerUserActionLogDuplicateCleanupCron(ctx);
   }
 
   registerWordTranslationCleaningCron(ctx: Context): void {
@@ -343,6 +344,28 @@ export class CronService {
         await this.normalizeKatakanaWords(ctx);
       } catch (error) {
         console.error('Error in katakana normalization cron:', error);
+      } finally {
+        isRunning = false;
+      }
+    });
+  }
+
+  registerUserActionLogDuplicateCleanupCron(ctx: Context): void {
+    let isRunning = false;
+
+    cron.schedule('0 * * * *', async () => {
+      if (isRunning) return;
+      isRunning = true;
+
+      console.log('Running user action log duplicate cleanup cron');
+
+      try {
+        await ctx.userActionLogService.cleanUpDuplicatedLog(ctx);
+      } catch (error) {
+        console.error(
+          'Error in user action log duplicate cleanup cron:',
+          error
+        );
       } finally {
         isRunning = false;
       }
