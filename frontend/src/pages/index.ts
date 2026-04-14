@@ -5,3 +5,4 @@ export { default as LessonVideoViewPage } from './LessonVideoViewPage';
 export { default as LessonMangaViewPage } from './LessonMangaViewPage';
 export { default as WordsPage } from './WordsPage';
 export { default as SettingsPage } from './SettingsPage';
+export { default as ChartsPage } from './ChartsPage';

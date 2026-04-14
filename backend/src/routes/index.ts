@@ -8,6 +8,7 @@ import { WordService } from '../services/wordService';
 import { UserLessonProgressService } from '../services/userLessonProgressService';
 import { UserScoreService } from '../services/userScoreService';
 import { UserActionLogService } from '../services/userActionLogService';
+import { ChartService } from '../services/chartService';
 import { UserSettingService } from '../services/userSettingService';
 import { CronService } from '../services/cronService';
 import { S3Service } from '../services/s3Service';
@@ -28,6 +29,7 @@ export const ctx: Context = {
   userLessonProgressService: new UserLessonProgressService(),
   userScoreService: new UserScoreService(),
   userActionLogService: new UserActionLogService(),
+  chartService: new ChartService(),
   userSettingService: new UserSettingService(),
   cronService: new CronService(),
   s3Service: new S3Service(),

@@ -6,6 +6,7 @@ import type { WordService } from './wordService';
 import type { UserLessonProgressService } from './userLessonProgressService';
 import type { UserScoreService } from './userScoreService';
 import type { UserActionLogService } from './userActionLogService';
+import type { ChartService } from './chartService';
 import type { UserSettingService } from './userSettingService';
 import type { CronService } from './cronService';
 import type { S3Service } from './s3Service';
@@ -25,6 +26,7 @@ export type Context = {
   userLessonProgressService: UserLessonProgressService;
   userScoreService: UserScoreService;
   userActionLogService: UserActionLogService;
+  chartService: ChartService;
   userSettingService: UserSettingService;
   cronService: CronService;
   s3Service: S3Service;

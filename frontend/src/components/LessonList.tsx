@@ -15,7 +15,6 @@ import {
   EyeOpenIcon,
   VideoIcon,
   Pencil1Icon,
-  PinTopIcon,
   DrawingPinIcon,
   DrawingPinFilledIcon,
 } from '@radix-ui/react-icons';

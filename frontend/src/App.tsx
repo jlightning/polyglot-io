@@ -17,6 +17,7 @@ import {
   LessonMangaViewPage,
   WordsPage,
   SettingsPage,
+  ChartsPage,
 } from './pages';
 import { Flex, Text } from '@radix-ui/themes';
 import Sidebar from './components/Sidebar';
@@ -68,6 +69,7 @@ const AppContent: React.FC = () => {
                     element={<LessonMangaViewPage />}
                   />
                   <Route path="/words" element={<WordsPage />} />
+                  <Route path="/charts" element={<ChartsPage />} />
                   <Route path="/settings" element={<SettingsPage />} />
                 </Routes>
               </Flex>

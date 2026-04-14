@@ -12,6 +12,7 @@ import userScoreRoutes from './routes/userScoreRoutes';
 import importRoutes from './routes/importRoutes';
 import userActionLogRoutes from './routes/userActionLogRoutes';
 import userSettingRoutes from './routes/userSettingRoutes';
+import chartRoutes from './routes/chartRoutes';
 import ttsRoutes from './routes/ttsRoutes';
 import { ctx } from './routes';
 import { authenticateToken } from './middleware/auth';
@@ -63,6 +64,7 @@ app.use('/api/user-score', authenticateToken, userScoreRoutes);
 app.use('/api/import', authenticateToken, importRoutes);
 app.use('/api/user-action-log', authenticateToken, userActionLogRoutes);
 app.use('/api/user-settings', authenticateToken, userSettingRoutes);
+app.use('/api/charts', authenticateToken, chartRoutes);
 app.use('/api/tts', authenticateToken, ttsRoutes);
 
 // Error handling middleware
