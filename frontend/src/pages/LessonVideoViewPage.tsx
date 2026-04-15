@@ -1188,8 +1188,8 @@ const LessonVideoViewPage: React.FC = () => {
             <Flex align="center" justify="between" style={{ padding: '0 8px' }}>
               <Heading size="4">Video Player</Heading>
               <Text size="2" color="gray">
-                {lesson.totalSentences} sentences total •{' '}
-                {sentenceBuffer.sentences.length} loaded
+                {sentenceBuffer.sentences.length} / {lesson.totalSentences}{' '}
+                loaded
               </Text>
             </Flex>
 

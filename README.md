@@ -46,26 +46,6 @@ AWS_SECRET_ACCESS_KEY=your-secret-key
 AWS_S3_BUCKET_NAME=your-bucket
 ```
 
-Update `backend/.env` and keep these core values:
-
-```env
-DATABASE_URL="mysql://polyglotio_user:polyglotio_password@localhost:3307/polyglotio"
-SHADOW_DATABASE_URL="mysql://polyglotio_user:polyglotio_password@localhost:3307/polyglotio_shadow"
-PORT=3001
-CORS_ORIGIN=http://localhost:5173
-OPENAI_API_KEY=your-openai-api-key
-AWS_REGION=your-aws-region
-AWS_ACCESS_KEY_ID=your-access-key
-AWS_SECRET_ACCESS_KEY=your-secret-key
-AWS_S3_BUCKET_NAME=your-bucket
-```
-
-`frontend/.env`:
-
-```env
-VITE_BACKEND_URL=http://localhost:3001
-```
-
 ### 4) Start database and apply migrations
 
 ```bash
