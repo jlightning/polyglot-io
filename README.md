@@ -2,7 +2,7 @@
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
-Polyglot.io is a full-stack language learning app for learning through lessons, videos with synced subtitles, and vocabulary tracking.
+Polyglot.io is a full-stack language learning app focused on lessons, synchronized subtitle reading, and vocabulary retention.
 
 > Inspired by [LingQ](https://www.lingq.com/) and [Steve Kaufmann](https://www.thelinguist.com/).
 
@@ -13,12 +13,14 @@ Polyglot.io is a full-stack language learning app for learning through lessons, 
 - Node.js `>=18`
 - Yarn `>=1.22`
 - Docker + Docker Compose (for MySQL)
-- OpenAI API key (translations, AI lesson generation, TTS)
-- AWS S3 credentials (file uploads)
+- OpenAI API key (required for translations, lesson generation, and TTS)
+- AWS S3 credentials (required for uploads and file-based lessons)
 
-### 2) Install dependencies
+### 2) Clone and install
 
 ```bash
+git clone <repository-url>
+cd polyglot-io
 yarn install
 ```
 
@@ -29,7 +31,22 @@ cp backend/env.example backend/.env
 cp frontend/env.example frontend/.env
 ```
 
-Update `backend/.env` with your credentials and keep these values:
+In `backend/.env`, set your OpenAI API key:
+
+```env
+OPENAI_API_KEY=your-openai-api-key
+```
+
+In `backend/.env`, also set your AWS S3 credentials:
+
+```env
+AWS_REGION=your-aws-region
+AWS_ACCESS_KEY_ID=your-access-key
+AWS_SECRET_ACCESS_KEY=your-secret-key
+AWS_S3_BUCKET_NAME=your-bucket
+```
+
+Update `backend/.env` and keep these core values:
 
 ```env
 DATABASE_URL="mysql://polyglotio_user:polyglotio_password@localhost:3307/polyglotio"
@@ -37,7 +54,7 @@ SHADOW_DATABASE_URL="mysql://polyglotio_user:polyglotio_password@localhost:3307/
 PORT=3001
 CORS_ORIGIN=http://localhost:5173
 OPENAI_API_KEY=your-openai-api-key
-AWS_REGION=us-east-1
+AWS_REGION=your-aws-region
 AWS_ACCESS_KEY_ID=your-access-key
 AWS_SECRET_ACCESS_KEY=your-secret-key
 AWS_S3_BUCKET_NAME=your-bucket
@@ -49,12 +66,12 @@ AWS_S3_BUCKET_NAME=your-bucket
 VITE_BACKEND_URL=http://localhost:3001
 ```
 
-### 4) Start database and run migrations
+### 4) Start database and apply migrations
 
 ```bash
 yarn docker:up
 yarn workspace backend db:generate
-yarn db:migrate
+yarn workspace backend db:migrate:deploy
 ```
 
 ### 5) Run the app
@@ -72,7 +89,7 @@ yarn dev
 - Watch videos with synchronized subtitles and clickable words
 - Mark words with difficulty levels and personal notes
 - Translate sentences and generate speech for words/sentences (OpenAI TTS)
-- Track lesson progress and vocabulary growth over time
+- Track lesson progress, word history, and learning charts
 - Import vocabulary from LingQ
 
 ## Common Commands
@@ -90,7 +107,7 @@ yarn start
 # Database
 yarn docker:up
 yarn docker:down
-yarn db:migrate
+yarn db:migrate                      # create a new migration during schema work
 yarn workspace backend db:migrate:deploy
 yarn workspace backend db:generate
 yarn db:backup
@@ -125,6 +142,7 @@ polyglot-io/
 - **Frontend cannot reach backend**: check `VITE_BACKEND_URL` and ensure backend is running on `3001`.
 - **Uploads fail**: verify AWS keys, bucket name, and S3 CORS policy.
 - **AI features fail**: verify `OPENAI_API_KEY`.
+- **Need a quick server check**: `curl http://localhost:3001/health`
 
 ## Additional Docs
 
