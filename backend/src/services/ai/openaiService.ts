@@ -171,6 +171,9 @@ export class OpenAIService {
       const isChinese =
         sourceLanguage.toLowerCase().includes('chinese') ||
         sourceLanguage.toLowerCase() === 'zh';
+      const isKorean =
+        sourceLanguage.toLowerCase().includes('korean') ||
+        sourceLanguage.toLowerCase() === 'ko';
 
       const systemPrompt = [
         'You are a language learning assistant that helps break down sentences into individual words and provides English translations and pronunciations.',
@@ -184,7 +187,9 @@ export class OpenAIService {
         pronunciationInfo.instruction,
         isChinese
           ? "4. For Chinese: provide word stems as the character's 繁体 form if the input is 简体, or 简体 form if the input is 繁体; if the character is the same in both, use the same character."
-          : '4. Provide word stems or root forms for each word (e.g., for English: "running" -> ["run"], for Spanish: "corriendo" -> ["correr"])',
+          : isKorean
+            ? '4. For Korean: provide each stem in dictionary form and include Hanja for the stem in parentheses when applicable (e.g., "학교" -> ["학교(學校)"]); if no Hanja is commonly used, use only Hangul.'
+            : '4. Provide word stems or root forms for each word (e.g., for English: "running" -> ["run"], for Spanish: "corriendo" -> ["correr"])',
         '',
         'Guidelines:',
         '- Split compound words appropriately for the language',
@@ -196,6 +201,11 @@ export class OpenAIService {
         '- Exclude punctuation marks from the word list',
         '- If there is a name, split the name into first name and last name as 2 words and separate that from suffix',
         '- For word stems: provide the base/root form of the word (e.g., infinitive for verbs, singular for nouns)',
+        ...(isKorean
+          ? [
+              '- For Korean stems: include Hanja with the stem when applicable in the same string using parentheses (e.g., "경제(經濟)"); if not applicable, keep Hangul only.',
+            ]
+          : []),
         '- Include multiple stems if the word has multiple meanings or can be derived from different roots',
         '- For languages with complex morphology (like Spanish, French), always provide the canonical form',
         pronunciationInfo.guideline,
