@@ -47,7 +47,7 @@ export const UserSettingProvider: React.FC<UserSettingProviderProps> = ({
   children,
 }) => {
   const { token, isAuthenticated, axiosInstance } = useAuth();
-  const { selectedLanguage } = useLanguage();
+  const { selectedLanguage, loading: languageLoading } = useLanguage();
   const [dailyScoreTarget, setDailyScoreTarget] = useState<number>(200);
   const [settings, setSettings] = useState<UserSettings | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -59,11 +59,15 @@ export const UserSettingProvider: React.FC<UserSettingProviderProps> = ({
       return;
     }
 
+    // Per-language settings (e.g. DAILY_SCORE_TARGET) require languageCode; skip until resolved.
+    if (languageLoading || !selectedLanguage?.trim()) {
+      return;
+    }
+
     try {
       setIsLoading(true);
-      const params = selectedLanguage ? { languageCode: selectedLanguage } : {};
       const response = await axiosInstance.get('/api/user-settings', {
-        params,
+        params: { languageCode: selectedLanguage },
       });
       if (response.data.success && response.data.settings) {
         setSettings(response.data.settings);
@@ -79,7 +83,13 @@ export const UserSettingProvider: React.FC<UserSettingProviderProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [token, isAuthenticated, axiosInstance, selectedLanguage]);
+  }, [
+    token,
+    isAuthenticated,
+    axiosInstance,
+    selectedLanguage,
+    languageLoading,
+  ]);
 
   const updateUserSetting = useCallback(
     async (
