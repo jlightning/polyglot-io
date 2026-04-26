@@ -31,7 +31,7 @@ interface Sentence {
   end_time: number | null;
 }
 
-interface SentenceReconstructorProps {
+interface SentenceReConstructorProps {
   sentence: Sentence;
   fontSize?: string;
   onWordClick: (word: string) => void;
@@ -39,7 +39,7 @@ interface SentenceReconstructorProps {
   className?: string;
 }
 
-const SentenceReconstructor: React.FC<SentenceReconstructorProps> = ({
+const SentenceReConstructor: React.FC<SentenceReConstructorProps> = ({
   sentence,
   fontSize = '16px',
   onWordClick,
@@ -148,4 +148,4 @@ const SentenceReconstructor: React.FC<SentenceReconstructorProps> = ({
   return <>{elements}</>;
 };
 
-export default SentenceReconstructor;
+export default SentenceReConstructor;

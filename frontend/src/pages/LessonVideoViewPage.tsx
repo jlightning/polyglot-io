@@ -12,7 +12,7 @@ import MyButton from '../components/MyButton';
 import { useAuth } from '../contexts/AuthContext';
 import { useWordMark } from '../contexts/WordMarkContext';
 import WordSidebar from '../components/WordSidebar';
-import SentenceReconstructor from '../components/SentenceReconstructor';
+import SentenceReConstructor from '../components/SentenceReConstructor';
 import SentenceRetimeDialog from '../components/SentenceRetimeDialog';
 import axios from 'axios';
 
@@ -1060,7 +1060,7 @@ const LessonVideoViewPage: React.FC = () => {
                   }}
                 >
                   {sentence.split_text && sentence.split_text.length > 0 ? (
-                    <SentenceReconstructor
+                    <SentenceReConstructor
                       sentence={sentence}
                       fontSize="20px"
                       onWordClick={handleWordClick}
@@ -1566,7 +1566,7 @@ const LessonVideoViewPage: React.FC = () => {
                           >
                             {sentence.split_text &&
                             sentence.split_text.length > 0 ? (
-                              <SentenceReconstructor
+                              <SentenceReConstructor
                                 sentence={sentence}
                                 fontSize="16px"
                                 onWordClick={handleWordClick}

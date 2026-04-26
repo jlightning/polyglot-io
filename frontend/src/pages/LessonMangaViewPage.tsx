@@ -12,7 +12,7 @@ import MyButton from '../components/MyButton';
 import { useAuth } from '../contexts/AuthContext';
 import { useWordMark } from '../contexts/WordMarkContext';
 import WordSidebar from '../components/WordSidebar';
-import SentenceReconstructor from '../components/SentenceReconstructor';
+import SentenceReConstructor from '../components/SentenceReConstructor';
 import axios from 'axios';
 
 interface WordTranslation {
@@ -1098,7 +1098,7 @@ const LessonMangaViewPage: React.FC = () => {
                                   >
                                     {sentence.split_text &&
                                     sentence.split_text.length > 0 ? (
-                                      <SentenceReconstructor
+                                      <SentenceReConstructor
                                         sentence={sentence}
                                         fontSize="16px"
                                         onWordClick={handleWordClick}

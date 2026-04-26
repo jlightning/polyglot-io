@@ -18,7 +18,7 @@ import WordSidebar from '../components/WordSidebar';
 import Pagination from '../components/Pagination';
 import LessonEditDialog from '../components/LessonEditDialog';
 import SentenceAudioPlayer from '../components/SentenceAudioPlayer';
-import SentenceReconstructor from '../components/SentenceReconstructor';
+import SentenceReConstructor from '../components/SentenceReConstructor';
 import TTSPlayButton from '../components/TTSPlayButton';
 import axios from 'axios';
 
@@ -620,7 +620,7 @@ const LessonViewPage: React.FC = () => {
                     }}
                   >
                     {sentence.split_text && sentence.split_text.length > 0 ? (
-                      <SentenceReconstructor
+                      <SentenceReConstructor
                         sentence={sentence}
                         fontSize="18px"
                         onWordClick={handleWordClick}
