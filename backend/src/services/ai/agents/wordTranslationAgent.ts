@@ -21,7 +21,6 @@ export const wordTranslationAgent = new Agent({
       'Your task is to:',
       `1. Provide accurate ${targetLanguage} translations for the word "${word}"`,
       '2. Include multiple translations if the word has different meanings or contexts',
-      '3. Provide the most common and useful translations',
       '',
       'Guidelines:',
       '- Provide 3-5 translations depending on the word complexity',
