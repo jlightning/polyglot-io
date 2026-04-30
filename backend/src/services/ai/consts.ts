@@ -1,5 +1,4 @@
 export const OPENAI_MODEL = {
   GPT_41_MINI: 'gpt-4.1-mini',
-  GPT_41: 'gpt-4.1',
-  GPT_52: 'gpt-5.2',
+  GPT_54_MINI: 'gpt-5.4-mini',
 };

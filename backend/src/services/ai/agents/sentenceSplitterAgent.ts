@@ -20,8 +20,6 @@ export const sentenceSplitterAgent = new Agent({
         '- For languages with no spaces (like Chinese/Japanese), segment into meaningful units',
       ],
     });
-    const lowerLang = languageCode.toLowerCase();
-    const isChinese = lowerLang.includes('chinese') || lowerLang === 'zh';
 
     return [
       'You are a language learning assistant that splits sentences into individual meaningful words.',
@@ -29,7 +27,7 @@ export const sentenceSplitterAgent = new Agent({
       `The sentence is in ${languageCode}.`,
       '',
       'Your task is to:',
-      `1. Split the given sentence "${sentence}" into individual meaningful words (excluding punctuation marks, but try to split in a text book way)`,
+      `1. Split the given sentence "${sentence}" into individual meaningful words that make sense for a language learner (excluding punctuation marks)`,
       '2. Return the words as an array of strings in their original order of appearance',
       '',
       'Guidelines:',
@@ -43,5 +41,10 @@ export const sentenceSplitterAgent = new Agent({
   outputType: z.object({
     words: z.array(z.string()),
   }),
-  model: OPENAI_MODEL.GPT_41_MINI,
+  modelSettings: {
+    reasoning: {
+      effort: 'medium',
+    },
+  },
+  model: OPENAI_MODEL.GPT_54_MINI,
 });
