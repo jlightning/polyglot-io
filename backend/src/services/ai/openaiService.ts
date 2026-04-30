@@ -2,11 +2,10 @@ import OpenAI from 'openai';
 import dotenv from 'dotenv';
 import { OPENAI_MODEL } from './consts';
 import type { Context } from '../index';
+import { Runner } from '@openai/agents';
+import { PronunciationType, wordPronunciationAgent } from './agents';
 
 dotenv.config();
-
-// Enum for pronunciation types
-export type PronunciationType = 'hiragana' | 'romanization' | 'pinyin' | 'ipa';
 
 // Interface for individual word with translation and pronunciation
 export interface WordTranslation {
@@ -325,130 +324,21 @@ export class OpenAIService {
         throw new Error('Word cannot be empty');
       }
 
-      // Determine pronunciation instructions based on language code
-      const getPronunciationInstructions = (language: string) => {
-        const lowerLang = language.toLowerCase();
+      const runner = new Runner();
 
-        if (lowerLang.includes('japanese') || lowerLang === 'ja') {
-          return {
-            instruction: 'Provide pronunciation in hiragana',
-            type: 'hiragana' as PronunciationType,
-          };
-        } else if (lowerLang.includes('korean') || lowerLang === 'ko') {
-          return {
-            instruction:
-              'Provide pronunciation in romanized form (romanization)',
-            type: 'romanization' as PronunciationType,
-          };
-        } else if (lowerLang.includes('chinese') || lowerLang === 'zh') {
-          return {
-            instruction:
-              'Provide pronunciation in pinyin with tone marks (e.g. nǐ hǎo, zhōng guó). Use ā, á, ǎ, à for the four tones; no accent for neutral tone (轻声).',
-            type: 'pinyin' as PronunciationType,
-          };
+      const pronunciationData = await runner.run(
+        wordPronunciationAgent,
+        'Give pronunciation now',
+        {
+          context: { languageCode, word },
         }
-
-        // Default case for other languages
-        return {
-          instruction:
-            'Provide pronunciation in IPA (International Phonetic Alphabet) or romanized form',
-          type: 'ipa' as PronunciationType,
-        };
-      };
-
-      const pronunciationInfo = getPronunciationInstructions(languageCode);
-
-      // JSON schema for structured output
-      const wordPronunciationSchema = {
-        type: 'object',
-        properties: {
-          word: {
-            type: 'string',
-            description: 'The original word',
-          },
-          pronunciation: {
-            type: 'string',
-            description: `Pronunciation of the word (${pronunciationInfo.instruction})`,
-          },
-          pronunciationType: {
-            type: 'string',
-            enum: ['hiragana', 'romanization', 'pinyin', 'ipa'],
-            description: 'Type of pronunciation provided',
-          },
-        },
-        required: ['word', 'pronunciation', 'pronunciationType'],
-        additionalProperties: false,
-      } as const;
-
-      const systemPrompt = [
-        'You are a language learning assistant that provides pronunciations for words.',
-        '',
-        `The word is in ${languageCode}.`,
-        '',
-        'Your task is to:',
-        `1. Provide the pronunciation for the word "${word}"`,
-        `2. Use the appropriate pronunciation format: ${pronunciationInfo.instruction}`,
-        '',
-        'Guidelines:',
-        '- Provide accurate pronunciation based on the language',
-        pronunciationInfo.instruction,
-        '- Return the pronunciation in the specified format',
-      ].join('\n');
-
-      const userPrompt = `Please provide the pronunciation for the word "${word}" in ${languageCode}.`;
-
-      const completion = await this.client.chat.completions.create({
-        model: OPENAI_MODEL.GPT_41_MINI,
-        messages: [
-          {
-            role: 'system',
-            content: systemPrompt,
-          },
-          {
-            role: 'user',
-            content: userPrompt,
-          },
-        ],
-        response_format: {
-          type: 'json_schema',
-          json_schema: {
-            name: 'word_pronunciation',
-            schema: wordPronunciationSchema,
-          },
-        },
-        temperature: 0.1, // Low temperature for consistent results
-      });
-
-      const responseContent = completion.choices[0]?.message?.content;
-
-      if (!responseContent) {
-        throw new Error('No response received from OpenAI');
-      }
-
-      let pronunciationData: {
-        word: string;
-        pronunciation: string;
-        pronunciationType: string;
-      };
-      try {
-        pronunciationData = JSON.parse(responseContent);
-      } catch (parseError) {
-        console.error('Failed to parse OpenAI response:', parseError);
-        throw new Error('Invalid response format from OpenAI');
-      }
-
-      // Validate the response structure
-      if (
-        !pronunciationData.pronunciation ||
-        !pronunciationData.pronunciationType
-      ) {
-        throw new Error('Invalid response structure from OpenAI');
-      }
+      );
+      if (!pronunciationData)
+        throw new Error('Error while running wordPronunciationAgent');
 
       return {
-        pronunciation: pronunciationData.pronunciation.trim(),
-        pronunciationType:
-          pronunciationData.pronunciationType as PronunciationType,
+        pronunciation: pronunciationData.finalOutput!.pronunciation.trim(),
+        pronunciationType: pronunciationData.finalOutput!.pronunciationType,
       };
     } catch (error) {
       console.error('Error in getWordPronunciation:', error);
