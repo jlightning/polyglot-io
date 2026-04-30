@@ -164,6 +164,8 @@ export class OpenAIService {
             stems = (stemResult?.finalOutput?.stems ?? [])
               .map(s => s.trim())
               .filter(s => s.length > 0);
+
+            if (!stems.length) stems = [word];
           }
 
           return {
