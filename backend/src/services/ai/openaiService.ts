@@ -3,7 +3,19 @@ import dotenv from 'dotenv';
 import { OPENAI_MODEL } from './consts';
 import type { Context } from '../index';
 import { Runner } from '@openai/agents';
-import { PronunciationType, wordPronunciationAgent } from './agents';
+import {
+  imageTextExtractorAgent,
+  isStemSupportedLanguage,
+  lessonGeneratorAgent,
+  PronunciationType,
+  sentenceSplitterAgent,
+  sentenceTranslatorAgent,
+  simplifyTranslationsAgent,
+  wordPronunciationAgent,
+  wordStemAgent,
+  wordTranslationAgent,
+} from './agents';
+import pLimit from 'p-limit';
 
 dotenv.config();
 
@@ -23,80 +35,6 @@ export interface SentenceAnalysis {
   language: string; // Source language
 }
 
-// OpenAI structured output schema for OCR text extraction
-const ocrTextExtractionSchema = {
-  type: 'object',
-  properties: {
-    extractedTexts: {
-      type: 'array',
-      description:
-        'Array of extracted text segments from the image in reading order',
-      items: {
-        type: 'string',
-        description:
-          'Individual text segment or sentence extracted from the image',
-      },
-    },
-  },
-  required: ['extractedTexts'],
-  additionalProperties: false,
-} as const;
-
-// OpenAI structured output schema for word translations
-const wordTranslationSchema = {
-  type: 'object',
-  properties: {
-    originalSentence: {
-      type: 'string',
-      description: 'The original sentence that was analyzed',
-    },
-    language: {
-      type: 'string',
-      description:
-        "The source language of the original sentence (e.g., 'Spanish', 'French', 'German')",
-    },
-    words: {
-      type: 'array',
-      description: 'Array of words with their English translations',
-      items: {
-        type: 'object',
-        properties: {
-          word: {
-            type: 'string',
-            description: 'The original word from the sentence',
-          },
-          translation: {
-            type: 'string',
-            description: 'English translation of the word',
-          },
-          pronunciation: {
-            type: 'string',
-            description:
-              'Pronunciation of the word (hiragana for Japanese, romanization for Korean, pinyin with tone marks for Chinese: e.g. nǐ hǎo)',
-          },
-          pronunciationType: {
-            type: 'string',
-            enum: ['hiragana', 'romanization', 'pinyin', 'ipa'],
-            description: 'Type of pronunciation provided',
-          },
-          stems: {
-            type: 'array',
-            items: {
-              type: 'string',
-            },
-            description:
-              'Word stems or root forms (e.g., for English: "running" -> ["run"], for Spanish: "corriendo" -> ["correr"])',
-          },
-        },
-        required: ['word', 'translation', 'pronunciation', 'pronunciationType'],
-        additionalProperties: false,
-      },
-    },
-  },
-  required: ['originalSentence', 'language', 'words'],
-  additionalProperties: false,
-} as const;
-
 export class OpenAIService {
   private client: OpenAI;
 
@@ -112,197 +50,138 @@ export class OpenAIService {
   }
 
   /**
-   * Split a sentence into words and translate each word to English using GPT-4 with structured output
-   * @param sentence - The sentence to analyze
-   * @param sourceLanguage - The source language of the sentence
-   * @returns Promise<SentenceAnalysis> - Structured analysis with word translations
+   * Split a sentence into words and read translation/pronunciation/stems for
+   * each word from the database when available; fall back to AI agents when
+   * data is missing.
+   *
+   * This method is read-only on the database. Persistence is the caller's
+   * responsibility (see `storeWordTranslations` in sentenceService).
+   *
+   * - Uses sentenceSplitterAgent to split the sentence into words.
+   * - Per word: looks up Word + translations/pronunciations/stems in DB.
+   *   - Word found and slice exists -> use DB row.
+   *   - Word found but slice missing -> call the corresponding agent.
+   *   - Word not found at all -> call every relevant agent and use those.
+   * - Stems are only requested for Japanese/Korean.
    */
   async splitSentenceAndTranslate(
     ctx: Context,
     sentence: string,
-    sourceLanguage: string
+    sourceLanguage: string,
+    targetLanguage: string = 'en'
   ): Promise<SentenceAnalysis> {
-    try {
-      if (!sentence || sentence.trim().length === 0) {
-        throw new Error('Sentence cannot be empty');
-      }
-
-      // Determine pronunciation instructions based on source language
-      const getPronunciationInstructions = (language: string) => {
-        const lowerLang = language.toLowerCase();
-
-        if (lowerLang.includes('japanese') || lowerLang === 'ja') {
-          return {
-            instruction: '   - For Japanese: provide pronunciation in hiragana',
-            guideline:
-              '- For Japanese words, always provide hiragana pronunciation',
-            type: 'hiragana',
-          };
-        } else if (lowerLang.includes('korean') || lowerLang === 'ko') {
-          return {
-            instruction:
-              '   - For Korean: provide pronunciation in romanized form (romanization)',
-            guideline:
-              '- For Korean words, always provide romanized pronunciation',
-            type: 'romanization',
-          };
-        } else if (lowerLang.includes('chinese') || lowerLang === 'zh') {
-          return {
-            instruction:
-              '   - For Chinese: provide pronunciation in pinyin with tone marks (e.g. nǐ hǎo, zhōng guó). Use ā, á, ǎ, à for the four tones; use no accent for neutral tone (轻声).',
-            guideline:
-              '- For Chinese words, always provide pinyin with tone marks. Recognize both Simplified (简体) and Traditional (繁体) characters.',
-            type: 'pinyin',
-          };
-        }
-
-        // Default case for other languages
-        return {
-          instruction:
-            '   - Provide pronunciation in IPA (International Phonetic Alphabet) or romanized form',
-          guideline: '- Provide clear pronunciation guidance when possible',
-          type: 'ipa',
-        };
-      };
-
-      const pronunciationInfo = getPronunciationInstructions(sourceLanguage);
-
-      const isChinese =
-        sourceLanguage.toLowerCase().includes('chinese') ||
-        sourceLanguage.toLowerCase() === 'zh';
-      const isKorean =
-        sourceLanguage.toLowerCase().includes('korean') ||
-        sourceLanguage.toLowerCase() === 'ko';
-
-      const systemPrompt = [
-        'You are a language learning assistant that helps break down sentences into individual words and provides English translations and pronunciations.',
-        '',
-        `The sentence is in ${sourceLanguage}.`,
-        '',
-        'Your task is to:',
-        '1. Split the given sentence into individual meaningful words (excluding punctuation marks)',
-        '2. Provide accurate English translations for each word',
-        '3. Provide pronunciations for each word based on the language:',
-        pronunciationInfo.instruction,
-        isChinese
-          ? "4. For Chinese: provide word stems as the character's 繁体 form if the input is 简体, or 简体 form if the input is 繁体; if the character is the same in both, use the same character."
-          : isKorean
-            ? '4. For Korean: provide each stem in dictionary form and include Hanja for the stem in parentheses when applicable (e.g., "학교" -> ["학교(學校)"]); if no Hanja is commonly used, use only Hangul.'
-            : '4. Provide word stems or root forms for each word (e.g., for English: "running" -> ["run"], for Spanish: "corriendo" -> ["correr"])',
-        '',
-        'Guidelines:',
-        '- Split compound words appropriately for the language',
-        isChinese
-          ? '- For Chinese: segment by 词 (word/word compound), not by single 字 (character). One 词 can be one or more characters (e.g. 你好 = one word, 中国 = one word). Do not split meaningful compounds like 喜欢, 因为, 什么 into single characters.'
-          : '- For languages with no spaces (like Chinese/Japanese), segment into meaningful units',
-        '- Provide English translation for the word in the context of the sentence',
-        '- Be consistent with word segmentation',
-        '- Exclude punctuation marks from the word list',
-        '- If there is a name, split the name into first name and last name as 2 words and separate that from suffix',
-        '- For word stems: provide the base/root form of the word (e.g., infinitive for verbs, singular for nouns)',
-        ...(isKorean
-          ? [
-              '- For Korean stems: include Hanja with the stem when applicable in the same string using parentheses (e.g., "경제(經濟)"); if not applicable, keep Hangul only.',
-            ]
-          : []),
-        '- Include multiple stems if the word has multiple meanings or can be derived from different roots',
-        '- For languages with complex morphology (like Spanish, French), always provide the canonical form',
-        pronunciationInfo.guideline,
-      ].join('\n');
-
-      const userPrompt = [
-        `Please analyze this sentence: "${sentence}"`,
-        '',
-        'Split it into individual words and provide English translations and pronunciations for each word.',
-      ].join('\n');
-
-      const completion = await this.client.chat.completions.create({
-        model: OPENAI_MODEL.GPT_41_MINI,
-        messages: [
-          {
-            role: 'system',
-            content: systemPrompt,
-          },
-          {
-            role: 'user',
-            content: userPrompt,
-          },
-        ],
-        response_format: {
-          type: 'json_schema',
-          json_schema: {
-            name: 'sentence_analysis',
-            schema: wordTranslationSchema,
-          },
-        },
-        temperature: 0.1, // Low temperature for consistent results
-      });
-
-      const responseContent = completion.choices[0]?.message?.content;
-
-      if (!responseContent) {
-        throw new Error('No response received from OpenAI');
-      }
-
-      let analysis: SentenceAnalysis;
-      try {
-        analysis = JSON.parse(responseContent);
-      } catch (parseError) {
-        console.error('Failed to parse OpenAI response:', parseError);
-        throw new Error('Invalid response format from OpenAI');
-      }
-
-      // Validate the response structure
-      if (
-        !analysis.originalSentence ||
-        !analysis.words ||
-        !Array.isArray(analysis.words)
-      ) {
-        throw new Error('Invalid response structure from OpenAI');
-      }
-
-      // Ensure all required fields are present and set the correct language
-      analysis.words = analysis.words.map(word => ({
-        word: word.word || '',
-        translation: word.translation || '',
-        ...(word.pronunciation && { pronunciation: word.pronunciation }),
-        ...(word.pronunciationType && {
-          pronunciationType: word.pronunciationType,
-        }),
-        ...(word.stems &&
-          Array.isArray(word.stems) &&
-          word.stems.length > 0 && { stems: word.stems }),
-      }));
-
-      // Override the language with the provided source language
-      analysis.language = sourceLanguage;
-
-      return analysis;
-    } catch (error) {
-      console.error('Error in splitSentenceAndTranslate:', error);
-
-      if (error instanceof Error) {
-        // Re-throw known errors
-        if (
-          error.message.includes('OPENAI_API_KEY') ||
-          error.message.includes('Sentence cannot be empty') ||
-          error.message.includes('Invalid response')
-        ) {
-          throw error;
-        }
-      }
-
-      // Handle OpenAI API errors
-      if (error && typeof error === 'object' && 'error' in error) {
-        const openaiError = error as {
-          error: { message: string; type: string };
-        };
-        throw new Error(`OpenAI API error: ${openaiError.error.message}`);
-      }
-
-      // Generic error fallback
-      throw new Error('Failed to analyze sentence with OpenAI');
+    if (!sentence || sentence.trim().length === 0) {
+      throw new Error('Sentence cannot be empty');
     }
+
+    const runner = new Runner();
+
+    const splitResult = await runner.run(
+      sentenceSplitterAgent,
+      'Split sentence now',
+      {
+        context: { languageCode: sourceLanguage, sentence },
+      }
+    );
+    if (!splitResult) {
+      throw new Error('Error while running sentenceSplitterAgent');
+    }
+
+    const splitWords = (splitResult.finalOutput?.words ?? [])
+      .map(w => w.trim())
+      .filter(w => w.length > 0);
+
+    const stemSupported = isStemSupportedLanguage(sourceLanguage);
+
+    const limit = pLimit(5);
+    const hydratedWords: WordTranslation[] = await Promise.all(
+      splitWords.map(word =>
+        limit(async () => {
+          const wordRecord = await ctx.prisma.word.findUnique({
+            where: {
+              word_language_code: {
+                word,
+                language_code: sourceLanguage,
+              },
+            },
+            include: {
+              wordTranslations: {
+                where: { language_code: targetLanguage },
+              },
+              wordPronunciations: { take: 1 },
+              stems: true,
+            },
+          });
+
+          // Translation: use first DB row if any, else call agent.
+          let translation = wordRecord?.wordTranslations[0]?.translation ?? '';
+          if (!translation) {
+            const translationResult = await runner.run(
+              wordTranslationAgent,
+              'Give translations now',
+              {
+                context: {
+                  languageCode: sourceLanguage,
+                  word,
+                  targetLanguage,
+                },
+              }
+            );
+            translation =
+              (translationResult?.finalOutput?.translations ?? [])
+                .map(t => t.trim())
+                .find(t => t.length > 0) ?? '';
+          }
+
+          // Pronunciation: use existing DB row if any, else call agent.
+          const existingPronunciation = wordRecord?.wordPronunciations[0];
+          let pronunciation = existingPronunciation?.pronunciation;
+          let pronunciationType =
+            existingPronunciation?.pronunciation_type as PronunciationType;
+
+          if (!pronunciation || !pronunciationType) {
+            const generated = await this.getWordPronunciation(
+              ctx,
+              word,
+              sourceLanguage
+            );
+            if (generated?.pronunciation && generated.pronunciationType) {
+              pronunciation = generated.pronunciation.trim();
+              pronunciationType = generated.pronunciationType;
+            }
+          }
+
+          // Stems: only for Japanese/Korean. Use existing DB rows if any, else call agent.
+          let stems: string[] = wordRecord?.stems.map(s => s.stem) ?? [];
+          if (stemSupported && !stems?.length) {
+            const stemResult = await runner.run(
+              wordStemAgent,
+              'Give stems now',
+              {
+                context: { languageCode: sourceLanguage, word },
+              }
+            );
+            stems = (stemResult?.finalOutput?.stems ?? [])
+              .map(s => s.trim())
+              .filter(s => s.length > 0);
+          }
+
+          return {
+            word,
+            translation,
+            ...(pronunciation && { pronunciation }),
+            ...(pronunciationType && { pronunciationType }),
+            ...(stems.length > 0 && { stems }),
+          };
+        })
+      )
+    );
+
+    return {
+      originalSentence: sentence,
+      words: hydratedWords,
+      language: sourceLanguage,
+    };
   }
 
   /**
@@ -387,95 +266,25 @@ export class OpenAIService {
         throw new Error('Word cannot be empty');
       }
 
-      // JSON schema for structured output
-      const wordTranslationSchema = {
-        type: 'object',
-        properties: {
-          word: {
-            type: 'string',
-            description: 'The original word',
+      const runner = new Runner();
+
+      const translationData = await runner.run(
+        wordTranslationAgent,
+        'Give translations now',
+        {
+          context: {
+            languageCode: sourceLanguage,
+            word,
+            targetLanguage,
           },
-          translations: {
-            type: 'array',
-            description: `Array of ${targetLanguage} translations for the word`,
-            items: {
-              type: 'string',
-              description: 'A translation of the word',
-            },
-          },
-        },
-        required: ['word', 'translations'],
-        additionalProperties: false,
-      } as const;
+        }
+      );
+      if (!translationData)
+        throw new Error('Error while running wordTranslationAgent');
 
-      const systemPrompt = [
-        'You are a language learning assistant that provides translations for words.',
-        '',
-        `The word "${word}" is in ${sourceLanguage}.`,
-        '',
-        'Your task is to:',
-        `1. Provide accurate ${targetLanguage} translations for the word "${word}"`,
-        '2. Include multiple translations if the word has different meanings or contexts',
-        '3. Provide the most common and useful translations',
-        '',
-        'Guidelines:',
-        '- Provide 1-4 translations depending on the word complexity',
-        '- Prioritize the most common and useful translations',
-        '- Include different meanings or contexts if applicable',
-        '- Return translations as an array of strings',
-      ].join('\n');
+      const translations = translationData.finalOutput?.translations ?? [];
 
-      const userPrompt = `Please provide ${targetLanguage} translations for the word "${word}" in ${sourceLanguage}.`;
-
-      const completion = await this.client.chat.completions.create({
-        model: OPENAI_MODEL.GPT_41_MINI,
-        messages: [
-          {
-            role: 'system',
-            content: systemPrompt,
-          },
-          {
-            role: 'user',
-            content: userPrompt,
-          },
-        ],
-        response_format: {
-          type: 'json_schema',
-          json_schema: {
-            name: 'word_translation',
-            schema: wordTranslationSchema,
-          },
-        },
-        temperature: 0.1, // Low temperature for consistent results
-      });
-
-      const responseContent = completion.choices[0]?.message?.content;
-
-      if (!responseContent) {
-        throw new Error('No response received from OpenAI');
-      }
-
-      let translationData: {
-        word: string;
-        translations: string[];
-      };
-      try {
-        translationData = JSON.parse(responseContent);
-      } catch (parseError) {
-        console.error('Failed to parse OpenAI response:', parseError);
-        throw new Error('Invalid response format from OpenAI');
-      }
-
-      // Validate the response structure
-      if (
-        !translationData.translations ||
-        !Array.isArray(translationData.translations)
-      ) {
-        throw new Error('Invalid response structure from OpenAI');
-      }
-
-      // Clean and filter translations
-      const cleanedTranslations = translationData.translations
+      const cleanedTranslations = translations
         .map(t => t.trim())
         .filter(t => t.length > 0);
 
@@ -520,142 +329,40 @@ export class OpenAIService {
     imageBase64: string,
     sourceLanguage: string
   ): Promise<string[]> {
-    try {
-      if (!imageBase64 || imageBase64.trim().length === 0) {
-        throw new Error('Image data cannot be empty');
-      }
-
-      const lowerLang = sourceLanguage.toLowerCase();
-      const isJapanese = lowerLang.includes('japanese') || lowerLang === 'ja';
-      const isChinese = lowerLang.includes('chinese') || lowerLang === 'zh';
-
-      const systemPrompt = [
-        'You are an OCR specialist that extracts text from manga/comic images.',
-        '',
-        `The image contains text in ${sourceLanguage}.`,
-        '',
-        ...(isJapanese
-          ? ['Text is read top to bottom and from right to left.']
-          : []),
-        ...(isChinese
-          ? [
-              'For Chinese: text may be horizontal (left-to-right) or vertical (top-to-bottom). Recognize both Simplified (简体) and Traditional (繁体) characters.',
-            ]
-          : []),
-        'Your task is to:',
-        '1. Extract ALL visible text from the image in reading order',
-        '2. Include speech bubbles, thought bubbles, sound effects, and any other text',
-        '3. Separate different sentences or text blocks into individual array items',
-        '4. Maintain the original language and text exactly as written',
-        '5. Return the text using the structured format',
-        '',
-        'Guidelines:',
-        '- Read text in the correct order for the language (left-to-right, right-to-left, top-to-bottom)',
-        '- Include punctuation and special characters as they appear',
-        '- If text is unclear or partially obscured, make your best guess',
-        '- Skip decorative elements that are not readable text',
-        '- Each array item should be a complete sentence or text unit',
-        '- If no text is found, return an empty array',
-      ].join('\n');
-
-      const userPrompt = [
-        'Please extract all text from this manga image.',
-        'Return each text segment as a separate item in the extractedTexts array, maintaining reading order.',
-      ].join('\n');
-
-      const completion = await this.client.chat.completions.create({
-        model: OPENAI_MODEL.GPT_41,
-        messages: [
-          {
-            role: 'system',
-            content: systemPrompt,
-          },
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: userPrompt,
-              },
-              {
-                type: 'image_url',
-                image_url: {
-                  url: `data:image/jpeg;base64,${imageBase64}`,
-                },
-              },
-            ],
-          },
-        ],
-        response_format: {
-          type: 'json_schema',
-          json_schema: {
-            name: 'ocr_text_extraction',
-            schema: ocrTextExtractionSchema,
-          },
-        },
-        temperature: 0.1, // Low temperature for consistent results
-        max_tokens: 1000,
-      });
-
-      const responseContent = completion.choices[0]?.message?.content;
-
-      if (!responseContent) {
-        throw new Error('No response received from OpenAI Vision API');
-      }
-
-      let ocrResult: { extractedTexts: string[] };
-      try {
-        ocrResult = JSON.parse(responseContent);
-      } catch (parseError) {
-        console.error('Failed to parse OpenAI response:', parseError);
-        throw new Error('Invalid response format from OpenAI Vision API');
-      }
-
-      // Validate the response structure
-      if (
-        !ocrResult ||
-        typeof ocrResult !== 'object' ||
-        !ocrResult.extractedTexts ||
-        !Array.isArray(ocrResult.extractedTexts)
-      ) {
-        throw new Error('Invalid response structure from OpenAI Vision API');
-      }
-
-      // Filter out empty strings and clean text
-      const cleanedTexts = ocrResult.extractedTexts
-        .map(text => (typeof text === 'string' ? text.trim() : ''))
-        .filter(text => text.length > 0);
-
-      return cleanedTexts;
-    } catch (error) {
-      console.error('Error in extractTextFromImage:', error);
-
-      if (error instanceof Error) {
-        // Re-throw known errors
-        if (
-          error.message.includes('OPENAI_API_KEY') ||
-          error.message.includes('Image data cannot be empty') ||
-          error.message.includes('Invalid response')
-        ) {
-          throw error;
-        }
-      }
-
-      // Handle OpenAI API errors
-      if (error && typeof error === 'object' && 'error' in error) {
-        const openaiError = error as {
-          error: { message: string; type: string };
-        };
-        throw new Error(
-          `OpenAI Vision API error: ${openaiError.error.message}`
-        );
-      }
-
-      // Generic error fallback
-      throw new Error(
-        'Failed to extract text from image with OpenAI Vision API'
-      );
+    if (!imageBase64 || imageBase64.trim().length === 0) {
+      throw new Error('Image data cannot be empty');
     }
+
+    const runner = new Runner();
+
+    const result = await runner.run(
+      imageTextExtractorAgent,
+      [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'input_image',
+              image: `data:image/jpeg;base64,${imageBase64}`,
+            },
+            {
+              type: 'input_text',
+              text: 'Extract all text from this manga image, in reading order. Return each text segment as a separate item.',
+            },
+          ],
+        },
+      ],
+      {
+        context: { languageCode: sourceLanguage },
+      }
+    );
+    if (!result) {
+      throw new Error('Error while running imageTextExtractorAgent');
+    }
+
+    return (result.finalOutput?.extractedTexts ?? [])
+      .map(t => t.trim())
+      .filter(t => t.length > 0);
   }
 
   /**
@@ -673,26 +380,14 @@ export class OpenAIService {
       return [];
     }
 
-    // Process sentences in parallel with a reasonable concurrency limit
-    const batchSize = 5; // Limit concurrent requests to avoid rate limiting
-    const results: SentenceAnalysis[] = [];
-
-    for (let i = 0; i < sentences.length; i += batchSize) {
-      const batch = sentences.slice(i, i + batchSize);
-      const batchPromises = batch.map(sentence =>
-        this.splitSentenceAndTranslate(ctx, sentence, sourceLanguage)
-      );
-
-      try {
-        const batchResults = await Promise.all(batchPromises);
-        results.push(...batchResults);
-      } catch (error) {
-        console.error(`Error processing batch ${i / batchSize + 1}:`, error);
-        throw error;
-      }
-    }
-
-    return results;
+    const limit = pLimit(5);
+    return Promise.all(
+      sentences.map(sentence =>
+        limit(async () => {
+          return this.splitSentenceAndTranslate(ctx, sentence, sourceLanguage);
+        })
+      )
+    );
   }
 
   /**
@@ -712,31 +407,20 @@ export class OpenAIService {
     const configured = ctx.configService.getLanguageByCode(ctx, code);
     const languageName = configured?.name ?? languageCode;
 
-    const systemPrompt = [
-      'You are a language learning content creator.',
-      `Generate a short lesson in ${languageName} (language code: ${languageCode}).`,
-      `Target difficulty level: ${difficulty}. Use vocabulary, grammar, and sentence structures appropriate for this level.`,
-      'Output only valid, natural sentences in the target language. No numbering, no bullet points, no explanations.',
-      'Maximum 2048 characters. You may use newlines between sentences if you like.',
-    ].join('\n');
+    const runner = new Runner();
 
-    const userPrompt = `Generate a lesson in ${languageName} at ${difficulty} level based on this request: ${prompt}`;
-
-    const completion = await this.client.chat.completions.create({
-      model: OPENAI_MODEL.GPT_41_MINI,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-    });
-
-    const responseContent = completion.choices[0]?.message?.content;
-    if (!responseContent) {
-      throw new Error('No response received from OpenAI');
+    const result = await runner.run(
+      lessonGeneratorAgent,
+      `Generate a lesson in ${languageName} at ${difficulty} level based on this request: ${prompt}`,
+      {
+        context: { languageCode, languageName, difficulty },
+      }
+    );
+    if (!result) {
+      throw new Error('Error while running lessonGeneratorAgent');
     }
 
-    const text = responseContent.trim();
-    return { text };
+    return { text: (result.finalOutput?.text ?? '').trim() };
   }
 
   /**
@@ -752,83 +436,26 @@ export class OpenAIService {
     contextSentences: string[],
     sourceLanguage: string
   ): Promise<string> {
-    try {
-      if (!targetSentence || targetSentence.trim().length === 0) {
-        throw new Error('Target sentence cannot be empty');
-      }
-
-      const systemPrompt = [
-        'You are a professional translator that provides accurate and contextually appropriate English translations.',
-        '',
-        `The text is in ${sourceLanguage}.`,
-        '',
-        'Your task is to:',
-        '1. Translate the target sentence to natural, fluent English',
-        '2. Use the surrounding sentences as context to ensure the translation fits appropriately',
-        '3. Maintain the tone and style of the original text',
-        '4. Provide only the translation without any additional explanation or formatting',
-        '5. MUST also Provide grammar breakdown after the translation',
-        '',
-        'Guidelines:',
-        '- Consider the context provided by surrounding sentences',
-        '- Use natural English that flows well',
-        '- Maintain any cultural or contextual nuances where appropriate',
-        '- Keep the same level of formality as the original',
-      ].join('\n');
-
-      let userPrompt = `Context sentences:\n${contextSentences.join('\n')}\n\nTarget sentence to translate: "${targetSentence}"\n\nProvide only the English translation:`;
-
-      const completion = await this.client.chat.completions.create({
-        model: OPENAI_MODEL.GPT_41_MINI,
-        messages: [
-          {
-            role: 'system',
-            content: systemPrompt,
-          },
-          {
-            role: 'user',
-            content: userPrompt,
-          },
-        ],
-        temperature: 0.3, // Slightly higher for more natural translations
-        max_tokens: 500, // Reasonable limit for sentence translations
-      });
-
-      const responseContent = completion.choices[0]?.message?.content;
-
-      if (!responseContent) {
-        throw new Error('No translation received from OpenAI');
-      }
-
-      // Clean up the response (remove quotes if present and trim)
-      const translation = responseContent.trim().replace(/^["']|["']$/g, '');
-
-      return translation;
-    } catch (error) {
-      console.error('Error in translateSentenceWithContext:', error);
-
-      if (error instanceof Error) {
-        // Re-throw known errors
-        if (
-          error.message.includes('OPENAI_API_KEY') ||
-          error.message.includes('Target sentence cannot be empty') ||
-          error.message.includes('No translation received')
-        ) {
-          throw error;
-        }
-      }
-
-      // Handle OpenAI API errors
-      if (error && typeof error === 'object' && 'error' in error) {
-        const openaiError = error as {
-          error: { message: string; type: string };
-        };
-        throw new Error(`OpenAI API error: ${openaiError.error.message}`);
-      }
-
-      // Generic error fallback
-      throw new Error('Failed to translate sentence with OpenAI');
+    if (!targetSentence || targetSentence.trim().length === 0) {
+      throw new Error('Target sentence cannot be empty');
     }
+
+    const runner = new Runner();
+
+    const result = await runner.run(sentenceTranslatorAgent, 'Translate now', {
+      context: {
+        languageCode: sourceLanguage,
+        targetSentence,
+        contextSentences,
+      },
+    });
+    if (!result) {
+      throw new Error('Error while running sentenceTranslatorAgent');
+    }
+
+    return (result.finalOutput?.translation ?? '')
+      .trim()
+      .replace(/^["']|["']$/g, '');
   }
 
   /**
@@ -844,149 +471,16 @@ export class OpenAIService {
     sourceLanguage: string,
     selection: { x: number; y: number; width: number; height: number }
   ): Promise<string[]> {
-    try {
-      if (!imageBase64 || imageBase64.trim().length === 0) {
-        throw new Error('Image data cannot be empty');
-      }
-
-      // Crop the image to the selected region
-      const croppedImageBase64 = await this.cropImageToRegion(
-        imageBase64,
-        selection
-      );
-
-      const lowerLang = sourceLanguage.toLowerCase();
-      const isJapanese = lowerLang.includes('japanese') || lowerLang === 'ja';
-      const isChinese = lowerLang.includes('chinese') || lowerLang === 'zh';
-
-      const systemPrompt = [
-        'You are an OCR specialist that extracts text from manga/comic images.',
-        '',
-        `The image contains text in ${sourceLanguage}.`,
-        '',
-        ...(isJapanese
-          ? ['Text is read top to bottom and from right to left.']
-          : []),
-        ...(isChinese
-          ? [
-              'For Chinese: text may be horizontal (left-to-right) or vertical (top-to-bottom). Recognize both Simplified (简体) and Traditional (繁体) characters.',
-            ]
-          : []),
-        'Your task is to:',
-        '1. Extract ALL visible text from this cropped image region in reading order',
-        '2. Include speech bubbles, thought bubbles, sound effects, and any other text',
-        '3. Separate different sentences or text blocks into individual array items',
-        '4. Maintain the original language and text exactly as written',
-        '5. Return the text using the structured format',
-        '',
-        'Guidelines:',
-        '- Read text in the correct order for the language (left-to-right, right-to-left, top-to-bottom)',
-        '- Include punctuation and special characters as they appear',
-        '- If text is unclear or partially obscured, make your best guess',
-        '- Skip decorative elements that are not readable text',
-        '- Each array item should be a complete sentence or text unit',
-        '- If no text is found, return an empty array',
-        '- Focus only on the text in this specific region',
-      ].join('\n');
-
-      const userPrompt = [
-        'Please extract all text from this selected region of the manga image.',
-        'Focus only on the text within this cropped area.',
-      ].join('\n');
-
-      const completion = await this.client.chat.completions.create({
-        model: OPENAI_MODEL.GPT_41,
-        messages: [
-          {
-            role: 'system',
-            content: systemPrompt,
-          },
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: userPrompt,
-              },
-              {
-                type: 'image_url',
-                image_url: {
-                  url: `data:image/jpeg;base64,${croppedImageBase64}`,
-                  detail: 'high',
-                },
-              },
-            ],
-          },
-        ],
-        response_format: {
-          type: 'json_schema',
-          json_schema: {
-            name: 'text_extraction',
-            schema: {
-              type: 'object',
-              properties: {
-                extracted_texts: {
-                  type: 'array',
-                  items: {
-                    type: 'string',
-                  },
-                  description: 'Array of extracted text strings from the image',
-                },
-              },
-              required: ['extracted_texts'],
-              additionalProperties: false,
-            },
-          },
-        },
-        temperature: 0.1,
-        max_tokens: 1000,
-      });
-
-      const responseContent = completion.choices[0]?.message?.content;
-
-      if (!responseContent) {
-        throw new Error('No response received from OpenAI Vision API');
-      }
-
-      const parsedResponse = JSON.parse(responseContent);
-
-      if (!parsedResponse || !Array.isArray(parsedResponse.extracted_texts)) {
-        throw new Error('Invalid response format from OpenAI Vision API');
-      }
-
-      return parsedResponse.extracted_texts.filter(
-        (text: string) => text && text.trim().length > 0
-      );
-    } catch (error) {
-      console.error('Error in extractTextFromImageRegion:', error);
-
-      if (error instanceof Error) {
-        // Re-throw known errors
-        if (
-          error.message.includes('OPENAI_API_KEY') ||
-          error.message.includes('Image data cannot be empty') ||
-          error.message.includes('No response received') ||
-          error.message.includes('Invalid response format')
-        ) {
-          throw error;
-        }
-      }
-
-      // Handle OpenAI API errors
-      if (error && typeof error === 'object' && 'error' in error) {
-        const openaiError = error as {
-          error: { message: string; type: string };
-        };
-        throw new Error(
-          `OpenAI Vision API error: ${openaiError.error.message}`
-        );
-      }
-
-      // Generic error fallback
-      throw new Error(
-        'Failed to extract text from image region with OpenAI Vision API'
-      );
+    if (!imageBase64 || imageBase64.trim().length === 0) {
+      throw new Error('Image data cannot be empty');
     }
+
+    const croppedImageBase64 = await this.cropImageToRegion(
+      imageBase64,
+      selection
+    );
+
+    return this.extractTextFromImage(ctx, croppedImageBase64, sourceLanguage);
   }
 
   /**
@@ -1005,92 +499,28 @@ export class OpenAIService {
     targetLanguage: string = 'en'
   ): Promise<string[]> {
     try {
-      // JSON schema for structured output
-      const simplifyTranslationsSchema = {
-        type: 'object',
-        properties: {
-          simplifiedTranslations: {
-            type: 'array',
-            description: 'Array of simplified translations',
-            items: {
-              type: 'string',
-              description: 'A simplified translation',
-            },
+      const runner = new Runner();
+
+      const simplifyData = await runner.run(
+        simplifyTranslationsAgent,
+        'Simplify translations now',
+        {
+          context: {
+            languageCode: sourceLanguage,
+            word,
+            translations,
+            targetLanguage,
           },
-        },
-        required: ['simplifiedTranslations'],
-        additionalProperties: false,
-      } as const;
+        }
+      );
+      if (!simplifyData)
+        throw new Error('Error while running simplifyTranslationsAgent');
 
-      const systemPrompt = [
-        'You are a language expert that simplifies word translations.',
-        '',
-        `The word "${word}" in ${sourceLanguage} has ${translations.length} translations in ${targetLanguage}.`,
-        'Your task is to simplify the list to minimal list.',
-        '',
-        'Guidelines:',
-        '- Prioritize translations that cover different contexts or nuances',
-        '- Avoid very similar or redundant translations',
-        '- Maintain the original meaning and context',
-        '- Return a minimal but comprehensive set of translations',
-        '- Remove translation that the meaning is included in another translation',
-        '',
-        'Current translations:',
-        translations.map((t, i) => `${i + 1}. ${t}`).join('\n'),
-      ].join('\n');
+      const simplified = simplifyData.finalOutput?.simplifiedTranslations ?? [];
 
-      const userPrompt = `Please simplify the translations for "${word}" and return them in the specified JSON format.`;
-
-      const completion = await this.client.chat.completions.create({
-        model: OPENAI_MODEL.GPT_41_MINI,
-        messages: [
-          {
-            role: 'system',
-            content: systemPrompt,
-          },
-          {
-            role: 'user',
-            content: userPrompt,
-          },
-        ],
-        response_format: {
-          type: 'json_schema',
-          json_schema: {
-            name: 'simplify_translations',
-            schema: simplifyTranslationsSchema,
-          },
-        },
-        temperature: 0.1,
-      });
-
-      const responseContent = completion.choices[0]?.message?.content;
-
-      if (!responseContent) {
-        throw new Error('No response received from OpenAI');
-      }
-
-      let parsedResponse: { simplifiedTranslations: string[] };
-      try {
-        parsedResponse = JSON.parse(responseContent);
-      } catch (parseError) {
-        console.error('Failed to parse OpenAI response:', parseError);
-        throw new Error('Invalid response format from OpenAI');
-      }
-
-      // Validate the response structure
-      if (
-        !parsedResponse ||
-        !Array.isArray(parsedResponse.simplifiedTranslations)
-      ) {
-        throw new Error('Invalid response structure from OpenAI');
-      }
-
-      // Clean and filter the translations
-      const simplifiedTranslations = parsedResponse.simplifiedTranslations
+      const simplifiedTranslations = simplified
         .map(t => t.trim())
         .filter(t => t.length > 0);
-
-      console.log('simplifiedTranslations', simplifiedTranslations);
 
       return simplifiedTranslations;
     } catch (error) {
@@ -1112,52 +542,39 @@ export class OpenAIService {
   ): Promise<string> {
     const sharp = require('sharp');
 
-    try {
-      // Convert base64 to buffer
-      const imageBuffer = Buffer.from(imageBase64, 'base64');
-
-      // Get image metadata to calculate pixel coordinates
-      const metadata = await sharp(imageBuffer).metadata();
-
-      if (!metadata.width || !metadata.height) {
-        throw new Error('Could not determine image dimensions');
-      }
-
-      // Convert percentage coordinates to pixel coordinates
-      const left = Math.round(selection.x * metadata.width);
-      const top = Math.round(selection.y * metadata.height);
-      const width = Math.round(selection.width * metadata.width);
-      const height = Math.round(selection.height * metadata.height);
-
-      // Ensure coordinates are within image bounds
-      const clampedLeft = Math.max(0, Math.min(left, metadata.width - 1));
-      const clampedTop = Math.max(0, Math.min(top, metadata.height - 1));
-      const clampedWidth = Math.max(
-        1,
-        Math.min(width, metadata.width - clampedLeft)
-      );
-      const clampedHeight = Math.max(
-        1,
-        Math.min(height, metadata.height - clampedTop)
-      );
-
-      // Crop the image
-      const croppedBuffer = await sharp(imageBuffer)
-        .extract({
-          left: clampedLeft,
-          top: clampedTop,
-          width: clampedWidth,
-          height: clampedHeight,
-        })
-        .jpeg({ quality: 70 })
-        .toBuffer();
-
-      // Convert back to base64
-      return croppedBuffer.toString('base64');
-    } catch (error) {
-      console.error('Error cropping image:', error);
-      throw new Error('Failed to crop image region');
+    const imageBuffer = Buffer.from(imageBase64, 'base64');
+    const metadata = await sharp(imageBuffer).metadata();
+    if (!metadata.width || !metadata.height) {
+      throw new Error('Could not determine image dimensions');
     }
+
+    const left = Math.round(selection.x * metadata.width);
+    const top = Math.round(selection.y * metadata.height);
+    const width = Math.round(selection.width * metadata.width);
+    const height = Math.round(selection.height * metadata.height);
+
+    const clampedLeft = Math.max(0, Math.min(left, metadata.width - 1));
+    const clampedTop = Math.max(0, Math.min(top, metadata.height - 1));
+    const clampedWidth = Math.max(
+      1,
+      Math.min(width, metadata.width - clampedLeft)
+    );
+    const clampedHeight = Math.max(
+      1,
+      Math.min(height, metadata.height - clampedTop)
+    );
+
+    const croppedBuffer = await sharp(imageBuffer)
+      .extract({
+        left: clampedLeft,
+        top: clampedTop,
+        width: clampedWidth,
+        height: clampedHeight,
+      })
+      .jpeg({ quality: 70 })
+      .toBuffer();
+
+    return croppedBuffer.toString('base64');
   }
 
   /**

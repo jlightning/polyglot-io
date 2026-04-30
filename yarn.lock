@@ -4785,6 +4785,7 @@ __metadata:
     multer: "npm:^2.0.2"
     node-cron: "npm:^4.2.1"
     openai: "npm:^6.35.0"
+    p-limit: "npm:^7.3.0"
     prisma: "npm:^6.19.2"
     sharp: "npm:^0.34.3"
     tsx: "npm:^4.6.2"
@@ -7840,6 +7841,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"p-limit@npm:^7.3.0":
+  version: 7.3.0
+  resolution: "p-limit@npm:7.3.0"
+  dependencies:
+    yocto-queue: "npm:^1.2.1"
+  checksum: 8030f0ccc67d80d9c12f2b4ed277c5ede151f80a09cb1b143ab0ee597940784f2cf6e07e92d54c023fe9836784329750c25c6cd4488a7a326c0ae0ec2efca982
+  languageName: node
+  linkType: hard
+
 "p-locate@npm:^6.0.0":
   version: 6.0.0
   resolution: "p-locate@npm:6.0.0"
@@ -9799,6 +9809,13 @@ __metadata:
   version: 1.2.1
   resolution: "yocto-queue@npm:1.2.1"
   checksum: 5762caa3d0b421f4bdb7a1926b2ae2189fc6e4a14469258f183600028eb16db3e9e0306f46e8ebf5a52ff4b81a881f22637afefbef5399d6ad440824e9b27f9f
+  languageName: node
+  linkType: hard
+
+"yocto-queue@npm:^1.2.1":
+  version: 1.2.2
+  resolution: "yocto-queue@npm:1.2.2"
+  checksum: 36d4793e9cf7060f9da543baf67c55e354f4862c8d3d34de1a1b1d7c382d44171315cc54abf84d8900b8113d742b830108a1434f4898fb244f9b7e8426d4b8f5
   languageName: node
   linkType: hard
 

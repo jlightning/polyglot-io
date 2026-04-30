@@ -192,7 +192,7 @@ router.post('/generate', async (req: Request, res: Response) => {
     // Split into sentences: by newlines and by sentence-ending punctuation
     const sentences = text
       .trim()
-      .split(/\n+|(?<=[.!?])\s+/)
+      .split(/\n+|(?<=[.!?。．？！，、；：!?､｡])\s*/u)
       .map(s => s.trim())
       .filter(s => s.length > 0);
 
