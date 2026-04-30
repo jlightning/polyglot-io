@@ -24,7 +24,7 @@ export const wordTranslationAgent = new Agent({
       '3. Provide the most common and useful translations',
       '',
       'Guidelines:',
-      '- Provide 1-4 translations depending on the word complexity',
+      '- Provide 3-5 translations depending on the word complexity',
       '- Prioritize the most common and useful translations',
       '- Include different meanings or contexts if applicable',
       '- Return translations as an array of strings',
