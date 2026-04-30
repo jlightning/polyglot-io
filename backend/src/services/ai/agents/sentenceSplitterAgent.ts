@@ -15,6 +15,7 @@ export const sentenceSplitterAgent = new Agent({
     const languageRules = new LanguageRule({
       zh: [
         '- For Chinese: segment by 词 (word/word compound), not by single 字 (character). One 词 can be one or more characters (e.g. 你好 = one word, 中国 = one word). Do not split meaningful compounds like 喜欢, 因为, 什么 into single characters. Recognize both Simplified (简体) and Traditional (繁体) characters.',
+        '- Keep conventional transliterated and loan terms from other languages—including place and personal names—as one 词 in their usual written form (characters or roman letters as printed). Split only when ordinary Chinese usage clearly treats two separate words; otherwise do not carve multi-character phonetic adaptations into lone 字 (e.g. "莫斯科" stays one segment for Moscow, likewise "威士忌", "沙发", "香奈儿").',
         '- Split Arabic numerals from the classifier, unit, or time word glued right after them (e.g. "100年" → "100" + "年", "500元" → "500" + "元").',
         '- For spelled-out Chinese numerals, split the numeral phrase from the measure/classifier that follows when they express quantity + unit together (e.g. "五百年" → "五百" + "年").',
       ],
@@ -66,7 +67,6 @@ export const sentenceSplitterAgent = new Agent({
         '  - Trailing "わよ" as "わ" + "よ" (e.g. "行く" + "わ" + "よ", not one word "行くわよ")',
         '  - Name honorific suffixes "さん", "くん" as their own words (e.g. "田中" + "さん", "太郎" + "くん"; if the name has family + given parts, separate those too, then the suffix)',
         '- Keep glued numeral + classifier/unit/time as one word when they express one measured quantity (e.g. "100年", "50人", "10分", "百年").',
-        `- When there're phrase that cannot be split to smaller word without changing the meaning, keep the phrase as 1 word`,
       ],
       other: [
         '- For languages with no spaces (like Chinese/Japanese), segment into meaningful units',
@@ -87,7 +87,7 @@ export const sentenceSplitterAgent = new Agent({
       languageRules.getRule(languageCode),
       '- Be consistent with word segmentation',
       '- Exclude punctuation marks from the word list',
-      '- If there is a name, split the name into first name and last name as 2 words and separate that from suffix',
+      `- When there're phrase that cannot be split to smaller word without changing the meaning, keep the phrase as 1 word`,
     ].join('\n');
   },
   outputType: z.object({
