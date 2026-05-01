@@ -1,6 +1,7 @@
 import React, {
   useState,
   useEffect,
+  useLayoutEffect,
   useRef,
   useCallback,
   useMemo,
@@ -11,7 +12,7 @@ import MyButton from '../components/MyButton';
 
 import { useAuth } from '../contexts/AuthContext';
 import { useWordMark } from '../contexts/WordMarkContext';
-import WordSidebar from '../components/WordSidebar';
+import { useWordSidebar } from '../contexts/WordSidebarContext';
 import SentenceReConstructor from '../components/SentenceReConstructor';
 import SentenceRetimeDialog from '../components/SentenceRetimeDialog';
 import axios from 'axios';
@@ -68,11 +69,252 @@ interface SentenceBuffer {
 const SENTENCES_PER_PAGE = 10;
 const BUFFER_AHEAD = 2; // Load 2 pages ahead
 
+/** Renders in `WordSidebar` via `setSidebarFooter` (portal-like). */
+const LessonVideoSentencesFooter: React.FC<{
+  previousSentences: Sentence[];
+  activeSentences: Sentence[];
+  nextSentences: Sentence[];
+  videoUrl: string | null;
+  videoRef: React.RefObject<HTMLVideoElement | null>;
+  lesson: Lesson;
+  translations: { [key: number]: string };
+  loadingTranslations: { [key: number]: boolean };
+  isLastSentence: boolean;
+  lessonCompleted: boolean;
+  isFinishingLesson: boolean;
+  onSeek: (time: number) => void;
+  onWordClick: (word: string) => void;
+  onToggleTranslation: (sentenceId: number) => void;
+  onRetime: (sentence: Sentence) => void;
+  onFinishLesson: () => void;
+  onBackToLessons: () => void;
+}> = ({
+  previousSentences,
+  activeSentences,
+  nextSentences,
+  videoUrl,
+  videoRef,
+  lesson,
+  translations,
+  loadingTranslations,
+  isLastSentence,
+  lessonCompleted,
+  isFinishingLesson,
+  onSeek,
+  onWordClick,
+  onToggleTranslation,
+  onRetime,
+  onFinishLesson,
+  onBackToLessons,
+}) => (
+  <Box style={{ backgroundColor: 'var(--gray-1)' }}>
+    <Box
+      style={{ padding: '12px 16px', borderBottom: '1px solid var(--gray-6)' }}
+    >
+      <Heading size="3">Sentences</Heading>
+    </Box>
+    <Box style={{ padding: '12px' }}>
+      <Flex direction="column" gap="2">
+        {previousSentences.map((sentence, index) => (
+          <Box key={sentence.id}>
+            <Box
+              style={{
+                padding: '8px 12px',
+                backgroundColor: 'var(--gray-3)',
+                borderRadius: '6px',
+                opacity: 0.6 + index * 0.1,
+                cursor: sentence.start_time ? 'pointer' : 'default',
+                fontSize: '14px',
+              }}
+              onClick={() => {
+                if (sentence.start_time && videoRef.current) {
+                  onSeek(sentence.start_time);
+                }
+              }}
+            >
+              <Text size="2">{sentence.original_text}</Text>
+            </Box>
+          </Box>
+        ))}
+
+        <Box>
+          {activeSentences.length > 0 ? (
+            <Flex direction="column" gap="3">
+              {activeSentences.map(sentence => (
+                <Box
+                  key={sentence.id}
+                  style={{
+                    padding: '12px',
+                    backgroundColor: 'var(--accent-3)',
+                    borderRadius: '8px',
+                    border: '2px solid var(--accent-6)',
+                  }}
+                >
+                  <Flex direction="column" gap="3">
+                    <Box>
+                      <Box
+                        style={{
+                          lineHeight: '1.6',
+                          fontSize: 'var(--font-size-3)',
+                        }}
+                      >
+                        {sentence.split_text &&
+                        sentence.split_text.length > 0 ? (
+                          <SentenceReConstructor
+                            sentence={sentence}
+                            fontSize="16px"
+                            onWordClick={onWordClick}
+                            fallbackToOriginalText={true}
+                          />
+                        ) : (
+                          <Text size="3" style={{ lineHeight: '1.6' }}>
+                            {sentence.original_text}
+                          </Text>
+                        )}
+                      </Box>
+                    </Box>
+
+                    <Box>
+                      <Flex gap="2" wrap="wrap">
+                        <MyButton
+                          variant="soft"
+                          size="1"
+                          onClick={() => onToggleTranslation(sentence.id)}
+                          disabled={loadingTranslations[sentence.id]}
+                          style={{}}
+                        >
+                          {loadingTranslations[sentence.id]
+                            ? 'Loading...'
+                            : translations[sentence.id]
+                              ? 'Hide translation'
+                              : 'Show translation'}
+                        </MyButton>
+                        <MyButton
+                          variant="soft"
+                          size="1"
+                          onClick={() => onRetime(sentence)}
+                          disabled={!sentence.start_time || !sentence.end_time}
+                        >
+                          Retime
+                        </MyButton>
+                      </Flex>
+
+                      {translations[sentence.id] && (
+                        <Box
+                          mt="2"
+                          p="2"
+                          style={{
+                            backgroundColor: 'var(--gray-2)',
+                            borderRadius: '4px',
+                          }}
+                        >
+                          <Text size="1" color="gray" mb="1">
+                            Translation:
+                          </Text>
+                          <Text
+                            size="2"
+                            style={{
+                              fontStyle: 'italic',
+                              whiteSpace: 'pre-line',
+                            }}
+                          >
+                            {translations[sentence.id]}
+                          </Text>
+                        </Box>
+                      )}
+                    </Box>
+                  </Flex>
+                </Box>
+              ))}
+            </Flex>
+          ) : (
+            <Box
+              style={{
+                padding: '16px',
+                backgroundColor: 'var(--gray-2)',
+                borderRadius: '8px',
+                textAlign: 'center',
+              }}
+            >
+              <Text size="3" color="gray">
+                {videoUrl
+                  ? 'No sentence active at current time'
+                  : 'Select a video to see sentences'}
+              </Text>
+            </Box>
+          )}
+        </Box>
+
+        {nextSentences.map((sentence, index) => (
+          <Box key={sentence.id}>
+            <Box
+              style={{
+                padding: '8px 12px',
+                backgroundColor: 'var(--gray-3)',
+                borderRadius: '6px',
+                opacity: 0.9 - index * 0.1,
+                cursor: sentence.start_time ? 'pointer' : 'default',
+                fontSize: '14px',
+              }}
+              onClick={() => {
+                if (sentence.start_time && videoRef.current) {
+                  onSeek(sentence.start_time);
+                }
+              }}
+            >
+              <Text size="2">{sentence.original_text}</Text>
+            </Box>
+          </Box>
+        ))}
+      </Flex>
+
+      {isLastSentence &&
+        lesson?.userProgress?.status !== 'finished' &&
+        !lessonCompleted && (
+          <Box mt="4">
+            <Flex direction="column" gap="3" align="center">
+              <Heading size="3">🎉 Congratulations!</Heading>
+              <Text size="2" color="gray" style={{ textAlign: 'center' }}>
+                You've reached the last sentence of this lesson.
+              </Text>
+              <MyButton
+                size="2"
+                variant="solid"
+                color="green"
+                onClick={onFinishLesson}
+                disabled={isFinishingLesson}
+                style={{}}
+              >
+                {isFinishingLesson ? 'Finishing...' : 'Finish Lesson'}
+              </MyButton>
+            </Flex>
+          </Box>
+        )}
+
+      {lessonCompleted && (
+        <Box mt="4">
+          <Flex direction="column" gap="3" align="center">
+            <Heading size="3">✅ Lesson Completed!</Heading>
+            <Text size="2" color="green" style={{ textAlign: 'center' }}>
+              Great job! You have successfully completed this lesson. 🎉
+            </Text>
+            <MyButton size="2" variant="soft" onClick={onBackToLessons}>
+              Back to Lessons
+            </MyButton>
+          </Flex>
+        </Box>
+      )}
+    </Box>
+  </Box>
+);
+
 const LessonVideoViewPage: React.FC = () => {
   const { lessonId } = useParams<{ lessonId: string }>();
   const navigate = useNavigate();
   const { axiosInstance, isAuthenticated, isLoading: authLoading } = useAuth();
   const { getWordMark, addWords } = useWordMark();
+  const { openWordSidebar, setWordSidebarLanguage, setSidebarFooter } =
+    useWordSidebar();
 
   // Use a ref to store the current addWords function to avoid callback recreations
   const addWordsRef = useRef(addWords);
@@ -120,10 +362,6 @@ const LessonVideoViewPage: React.FC = () => {
   const [loadingTranslations, setLoadingTranslations] = useState<{
     [key: number]: boolean;
   }>({});
-
-  // Word sidebar state
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [selectedWord, setSelectedWord] = useState<string | null>(null);
 
   // Video overlay state
   const [showSentenceOverlay, setShowSentenceOverlay] = useState(true);
@@ -867,20 +1105,16 @@ const LessonVideoViewPage: React.FC = () => {
   };
 
   const handleWordClick = (word: string) => {
-    // Pause the video when a word is clicked
     if (videoRef.current && isPlaying) {
       videoRef.current.pause();
       setIsPlaying(false);
     }
-
-    setSelectedWord(word);
-    setIsSidebarOpen(true);
+    openWordSidebar(word, lesson?.languageCode);
   };
 
-  const handleCloseSidebar = () => {
-    setIsSidebarOpen(false);
-    setSelectedWord(null);
-  };
+  useEffect(() => {
+    setWordSidebarLanguage(lesson?.languageCode);
+  }, [lesson?.languageCode, setWordSidebarLanguage]);
 
   const toggleTranslation = async (sentenceId: number) => {
     // If translation is already shown, hide it
@@ -992,6 +1226,55 @@ const LessonVideoViewPage: React.FC = () => {
     // then this contains the last sentence
     return sentencesAfterCurrent.length === 0;
   }, [activeSentences, lesson, sentenceBuffer]);
+
+  useLayoutEffect(() => {
+    if (authLoading || loading || !isAuthenticated || error || !lesson) {
+      setSidebarFooter(null);
+      return;
+    }
+
+    setSidebarFooter(
+      <LessonVideoSentencesFooter
+        previousSentences={previousSentences}
+        activeSentences={activeSentences}
+        nextSentences={nextSentences}
+        videoUrl={videoUrl}
+        videoRef={videoRef}
+        lesson={lesson}
+        translations={translations}
+        loadingTranslations={loadingTranslations}
+        isLastSentence={isLastSentence}
+        lessonCompleted={lessonCompleted}
+        isFinishingLesson={isFinishingLesson}
+        onSeek={handleSeek}
+        onWordClick={handleWordClick}
+        onToggleTranslation={toggleTranslation}
+        onRetime={sentence => {
+          setSentenceToRetime(sentence);
+          setIsRetimeDialogOpen(true);
+        }}
+        onFinishLesson={handleFinishLesson}
+        onBackToLessons={() => navigate('/lessons')}
+      />
+    );
+    return () => setSidebarFooter(null);
+    // Intentionally omit handler fns (new identity each render) — data deps drive updates; latest handlers close over current scope when this runs.
+  }, [
+    authLoading,
+    loading,
+    isAuthenticated,
+    error,
+    lesson,
+    previousSentences,
+    activeSentences,
+    nextSentences,
+    videoUrl,
+    translations,
+    loadingTranslations,
+    isLastSentence,
+    lessonCompleted,
+    isFinishingLesson,
+  ]);
 
   // Format time for display
   const formatTime = (time: number): string => {
@@ -1150,12 +1433,8 @@ const LessonVideoViewPage: React.FC = () => {
   }
 
   return (
-    <Flex
-      direction="column"
-      style={{ width: '100%', minHeight: '100vh', position: 'relative' }}
-    >
-      {/* Compact Header */}
-      <Box style={{ padding: '12px 24px' }}>
+    <Flex direction="column" style={{ width: '100%', minHeight: '100vh' }}>
+      <Box style={{ padding: '12px 24px', flexShrink: 0 }}>
         <Flex direction="column" gap="2">
           <Flex align="center" justify="between">
             <MyButton
@@ -1175,567 +1454,328 @@ const LessonVideoViewPage: React.FC = () => {
         </Flex>
       </Box>
 
-      {/* Video Player - full width minus sidebar space */}
-      <Box
-        style={{
-          marginRight: '350px',
-          marginBottom: '24px',
-          padding: '0 24px',
-        }}
+      <Flex
+        direction="column"
+        style={{ flex: 1, minWidth: 0, minHeight: 0, width: '100%' }}
       >
-        <Card style={{ padding: '16px' }}>
-          <Flex direction="column" gap="4">
-            <Flex align="center" justify="between" style={{ padding: '0 8px' }}>
-              <Heading size="4">Video Player</Heading>
-              <Text size="2" color="gray">
-                {sentenceBuffer.sentences.length} / {lesson.totalSentences}{' '}
-                loaded
-              </Text>
-            </Flex>
-
-            {!videoUrl ? (
+        <Box
+          style={{
+            marginBottom: '24px',
+            padding: '0 24px',
+          }}
+        >
+          <Card style={{ padding: '16px' }}>
+            <Flex direction="column" gap="4">
               <Flex
-                direction="column"
-                gap="4"
                 align="center"
-                style={{ minHeight: '400px', padding: '0 16px' }}
+                justify="between"
+                style={{ padding: '0 8px' }}
               >
-                <Box
-                  style={{
-                    border: isDragging
-                      ? '2px solid var(--accent-9)'
-                      : '2px dashed var(--gray-7)',
-                    borderRadius: '8px',
-                    padding: '40px',
-                    textAlign: 'center',
-                    minHeight: '300px',
-                    width: '100%',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backgroundColor: isDragging
-                      ? 'var(--accent-3)'
-                      : 'transparent',
-                    transition: 'all 0.2s ease',
-                    cursor: 'pointer',
-                  }}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={handleDrop}
-                  onClick={handleVideoSelect}
-                >
-                  <Text size="4" mb="2">
-                    {isDragging ? '📁' : '🎬'}
-                  </Text>
-                  <Text size="3" color="gray" mb="3">
-                    {isDragging
-                      ? 'Drop your video file here'
-                      : 'Drag and drop a video file here, or click to select'}
-                  </Text>
-                  {!isDragging && (
-                    <MyButton onClick={handleVideoSelect}>
-                      Choose Video File
-                    </MyButton>
-                  )}
-                </Box>
+                <Heading size="4">Video Player</Heading>
+                <Text size="2" color="gray">
+                  {sentenceBuffer.sentences.length} / {lesson.totalSentences}{' '}
+                  loaded
+                </Text>
               </Flex>
-            ) : (
-              <Flex direction="column" gap="3">
-                {videoLoading && !videoError && (
+
+              {!videoUrl ? (
+                <Flex
+                  direction="column"
+                  gap="4"
+                  align="center"
+                  style={{ minHeight: '400px', padding: '0 16px' }}
+                >
                   <Box
                     style={{
+                      border: isDragging
+                        ? '2px solid var(--accent-9)'
+                        : '2px dashed var(--gray-7)',
+                      borderRadius: '8px',
                       padding: '40px',
                       textAlign: 'center',
-                      backgroundColor: 'var(--gray-2)',
-                      borderRadius: '8px',
-                      minHeight: '200px',
+                      minHeight: '300px',
+                      width: '100%',
                       display: 'flex',
+                      flexDirection: 'column',
                       alignItems: 'center',
                       justifyContent: 'center',
+                      backgroundColor: isDragging
+                        ? 'var(--accent-3)'
+                        : 'transparent',
+                      transition: 'all 0.2s ease',
+                      cursor: 'pointer',
                     }}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    onClick={handleVideoSelect}
                   >
-                    <Text size="3" color="gray">
-                      Loading video...
+                    <Text size="4" mb="2">
+                      {isDragging ? '📁' : '🎬'}
                     </Text>
-                  </Box>
-                )}
-
-                {videoError && (
-                  <Box
-                    style={{
-                      padding: '24px',
-                      backgroundColor: 'var(--red-2)',
-                      borderRadius: '8px',
-                      border: '1px solid var(--red-6)',
-                    }}
-                  >
-                    <Flex direction="column" gap="3">
-                      <Text size="3" weight="bold" color="red">
-                        ⚠️ Video Loading Error
-                      </Text>
-                      <Text size="2" color="red">
-                        {videoError}
-                      </Text>
-                      <Box style={{ marginTop: '8px' }}>
-                        <Text size="1" color="gray" weight="bold" mb="1">
-                          Troubleshooting on macOS:
-                        </Text>
-                        <Flex
-                          direction="column"
-                          gap="1"
-                          style={{ marginLeft: '8px' }}
-                        >
-                          <Text size="1" color="gray">
-                            • Check file permissions: Move file to Downloads or
-                            Desktop folder
-                          </Text>
-                          <Text size="1" color="gray">
-                            • Grant Chrome file access: System Preferences →
-                            Security & Privacy → Files and Folders → Enable
-                            Chrome
-                          </Text>
-                          <Text size="1" color="gray">
-                            • Format compatibility: Use MP4 with H.264 codec
-                            (convert MKV using HandBrake or FFmpeg)
-                          </Text>
-                          <Text size="1" color="gray">
-                            • Try a different browser: Safari may have better
-                            file access on macOS
-                          </Text>
-                        </Flex>
-                      </Box>
-                      <MyButton
-                        variant="soft"
-                        color="red"
-                        size="2"
-                        onClick={() => {
-                          setVideoUrl(null);
-                          setVideoError(null);
-                          setVideoLoading(false);
-                          setHasRestoredVideoProgress(false);
-                        }}
-                        style={{ marginTop: '8px' }}
-                      >
-                        Try Different Video
+                    <Text size="3" color="gray" mb="3">
+                      {isDragging
+                        ? 'Drop your video file here'
+                        : 'Drag and drop a video file here, or click to select'}
+                    </Text>
+                    {!isDragging && (
+                      <MyButton onClick={handleVideoSelect}>
+                        Choose Video File
                       </MyButton>
-                    </Flex>
+                    )}
                   </Box>
-                )}
-
-                {!videoError && videoElement}
-
-                {/* Custom Video Controls */}
-                <Box style={{ padding: '0 16px' }}>
-                  <Flex align="center" gap="3" wrap="wrap">
-                    <MyButton onClick={handlePlayPause}>
-                      {isPlaying ? 'Pause' : 'Play'}
-                    </MyButton>
-                    <Text size="2">
-                      {formatTime(currentTime)} / {formatTime(duration)}
-                    </Text>
-
-                    {/* Sentence Overlay Toggle */}
-                    <MyButton
-                      variant={showSentenceOverlay ? 'solid' : 'soft'}
-                      size="2"
-                      onClick={() =>
-                        setShowSentenceOverlay(!showSentenceOverlay)
-                      }
-                      style={{
-                        backgroundColor: showSentenceOverlay
-                          ? 'var(--accent-9)'
-                          : undefined,
-                      }}
-                    >
-                      {showSentenceOverlay
-                        ? '📖 Hide Subtitles'
-                        : '📖 Show Subtitles'}
-                    </MyButton>
-
-                    {/* Backend Progress Controls */}
-                    {lesson?.userProgress?.sentenceInfo?.startTime &&
-                      !hasRestoredVideoProgress && (
-                        <MyButton
-                          variant="soft"
-                          color="green"
-                          size="2"
-                          onClick={() => {
-                            if (
-                              videoRef.current &&
-                              lesson.userProgress?.sentenceInfo?.startTime
-                            ) {
-                              videoRef.current.currentTime =
-                                lesson.userProgress.sentenceInfo.startTime;
-                              setCurrentTime(
-                                lesson.userProgress.sentenceInfo.startTime
-                              );
-                              setHasRestoredVideoProgress(true);
-                            }
-                          }}
-                        >
-                          Continue from{' '}
-                          {formatTime(
-                            lesson.userProgress.sentenceInfo.startTime
-                          )}
-                        </MyButton>
-                      )}
-
-                    <MyButton
-                      variant="soft"
-                      size="2"
-                      onClick={() => {
-                        // Clean up object URL before clearing state
-                        if (videoUrl) {
-                          URL.revokeObjectURL(videoUrl);
-                        }
-                        setVideoUrl(null);
-                        setHasRestoredVideoProgress(false);
-                        setVideoError(null);
-                        setVideoLoading(false);
-                      }}
-                    >
-                      Change Video
-                    </MyButton>
-                  </Flex>
-
-                  {/* Seek Bar */}
-                  <Box
-                    style={{
-                      width: '100%',
-                      marginTop: '12px',
-                      position: 'relative',
-                    }}
-                  >
-                    <input
-                      type="range"
-                      min="0"
-                      max={duration || 0}
-                      value={currentTime}
-                      onChange={e => handleSeek(parseFloat(e.target.value))}
-                      style={{
-                        width: '100%',
-                        height: '8px',
-                        background: 'var(--gray-6)',
-                        borderRadius: '4px',
-                        outline: 'none',
-                        cursor: 'pointer',
-                        position: 'relative',
-                        zIndex: 2,
-                      }}
-                    />
-                    {/* Buffer Head Indicator - Yellow marker at latest loaded sentence end time */}
-                    {duration > 0 &&
-                      (() => {
-                        // Find the latest loaded sentence (the one with the maximum end_time)
-                        if (!sentenceBuffer.sentences?.length) return null;
-
-                        const latestLoadedSentence =
-                          sentenceBuffer.sentences[
-                            sentenceBuffer.sentences.length - 1
-                          ];
-
-                        const bufferHeadTime = latestLoadedSentence?.end_time;
-
-                        if (
-                          bufferHeadTime !== null &&
-                          bufferHeadTime !== undefined &&
-                          bufferHeadTime > 0
-                        ) {
-                          const bufferHeadPosition =
-                            (bufferHeadTime / duration) * 100;
-                          return (
-                            <Box
-                              style={{
-                                position: 'absolute',
-                                left: `${bufferHeadPosition + 0.4}%`,
-                                top: '0',
-                                width: '4px',
-                                height: '8px',
-                                backgroundColor: 'yellow',
-                                borderRadius: '2px',
-                                transform: 'translateX(-50%)',
-                                zIndex: 3,
-                                pointerEvents: 'none',
-                                boxShadow: '0 0 4px rgba(255, 255, 0, 0.6)',
-                              }}
-                            />
-                          );
-                        }
-
-                        return null;
-                      })()}
-                  </Box>
-
-                  {/* Progress Info */}
-                  {lesson?.userProgress?.sentenceInfo?.startTime && (
-                    <Text size="1" color="gray" style={{ marginTop: '8px' }}>
-                      {hasRestoredVideoProgress
-                        ? '✓ Resumed from last lesson position'
-                        : `📖 Lesson progress available at ${formatTime(lesson.userProgress.sentenceInfo.startTime)}`}
-                    </Text>
-                  )}
-                </Box>
-              </Flex>
-            )}
-          </Flex>
-        </Card>
-      </Box>
-
-      {/* Hidden file input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="video/*,.mkv"
-        style={{ display: 'none' }}
-        onChange={handleFileChange}
-      />
-
-      {/* Sentences Sidebar - Fixed position on the right, below word sidebar when open */}
-      <Box
-        style={{
-          position: 'fixed',
-          top: isSidebarOpen ? '60vh' : '0',
-          right: '0',
-          width: '350px',
-          height: isSidebarOpen ? '40vh' : '100vh',
-          backgroundColor: 'var(--color-surface)',
-          borderLeft: '1px solid var(--gray-6)',
-          borderTop: isSidebarOpen ? '1px solid var(--gray-6)' : 'none',
-          zIndex: 1100,
-          display: 'flex',
-          flexDirection: 'column',
-          transition: 'top 0.3s ease-in-out, height 0.3s ease-in-out',
-          overflow: 'auto',
-        }}
-      >
-        {/* Sentences Header */}
-        <Box
-          style={{ padding: '16px', borderBottom: '1px solid var(--gray-6)' }}
-        >
-          <Heading size="4">Sentences</Heading>
-        </Box>
-
-        {/* Sentences Content */}
-        <Box style={{ padding: '16px', flex: 1 }}>
-          <Flex direction="column" gap="2">
-            {/* Previous Sentences */}
-            {previousSentences.map((sentence, index) => (
-              <Box key={sentence.id}>
-                <Box
-                  style={{
-                    padding: '8px 12px',
-                    backgroundColor: 'var(--gray-3)',
-                    borderRadius: '6px',
-                    opacity: 0.6 + index * 0.1, // Gradually increase opacity for more recent sentences
-                    cursor: sentence.start_time ? 'pointer' : 'default',
-                    fontSize: '14px',
-                  }}
-                  onClick={() => {
-                    if (sentence.start_time && videoRef.current) {
-                      handleSeek(sentence.start_time);
-                    }
-                  }}
-                >
-                  <Text size="2">{sentence.original_text}</Text>
-                </Box>
-              </Box>
-            ))}
-
-            {/* Current Sentences */}
-            <Box>
-              {activeSentences.length > 0 ? (
+                </Flex>
+              ) : (
                 <Flex direction="column" gap="3">
-                  {activeSentences.map(sentence => (
+                  {videoLoading && !videoError && (
                     <Box
-                      key={sentence.id}
                       style={{
-                        padding: '16px',
-                        backgroundColor: 'var(--accent-3)',
+                        padding: '40px',
+                        textAlign: 'center',
+                        backgroundColor: 'var(--gray-2)',
                         borderRadius: '8px',
-                        border: '2px solid var(--accent-6)',
+                        minHeight: '200px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Text size="3" color="gray">
+                        Loading video...
+                      </Text>
+                    </Box>
+                  )}
+
+                  {videoError && (
+                    <Box
+                      style={{
+                        padding: '24px',
+                        backgroundColor: 'var(--red-2)',
+                        borderRadius: '8px',
+                        border: '1px solid var(--red-6)',
                       }}
                     >
                       <Flex direction="column" gap="3">
-                        <Box>
-                          <Box
-                            style={{
-                              lineHeight: '1.6',
-                              fontSize: 'var(--font-size-3)',
-                            }}
+                        <Text size="3" weight="bold" color="red">
+                          ⚠️ Video Loading Error
+                        </Text>
+                        <Text size="2" color="red">
+                          {videoError}
+                        </Text>
+                        <Box style={{ marginTop: '8px' }}>
+                          <Text size="1" color="gray" weight="bold" mb="1">
+                            Troubleshooting on macOS:
+                          </Text>
+                          <Flex
+                            direction="column"
+                            gap="1"
+                            style={{ marginLeft: '8px' }}
                           >
-                            {sentence.split_text &&
-                            sentence.split_text.length > 0 ? (
-                              <SentenceReConstructor
-                                sentence={sentence}
-                                fontSize="16px"
-                                onWordClick={handleWordClick}
-                                fallbackToOriginalText={true}
-                              />
-                            ) : (
-                              <Text size="3" style={{ lineHeight: '1.6' }}>
-                                {sentence.original_text}
-                              </Text>
-                            )}
-                          </Box>
-                        </Box>
-
-                        {/* Translation Section */}
-                        <Box>
-                          <Flex gap="2" wrap="wrap">
-                            <MyButton
-                              variant="soft"
-                              size="1"
-                              onClick={() => toggleTranslation(sentence.id)}
-                              disabled={loadingTranslations[sentence.id]}
-                              style={{}}
-                            >
-                              {loadingTranslations[sentence.id]
-                                ? 'Loading...'
-                                : translations[sentence.id]
-                                  ? 'Hide translation'
-                                  : 'Show translation'}
-                            </MyButton>
-                            <MyButton
-                              variant="soft"
-                              size="1"
-                              onClick={() => {
-                                setSentenceToRetime(sentence);
-                                setIsRetimeDialogOpen(true);
-                              }}
-                              disabled={
-                                !sentence.start_time || !sentence.end_time
-                              }
-                            >
-                              Retime
-                            </MyButton>
+                            <Text size="1" color="gray">
+                              • Check file permissions: Move file to Downloads
+                              or Desktop folder
+                            </Text>
+                            <Text size="1" color="gray">
+                              • Grant Chrome file access: System Preferences →
+                              Security & Privacy → Files and Folders → Enable
+                              Chrome
+                            </Text>
+                            <Text size="1" color="gray">
+                              • Format compatibility: Use MP4 with H.264 codec
+                              (convert MKV using HandBrake or FFmpeg)
+                            </Text>
+                            <Text size="1" color="gray">
+                              • Try a different browser: Safari may have better
+                              file access on macOS
+                            </Text>
                           </Flex>
-
-                          {translations[sentence.id] && (
-                            <Box
-                              mt="2"
-                              p="2"
-                              style={{
-                                backgroundColor: 'var(--gray-2)',
-                                borderRadius: '4px',
-                              }}
-                            >
-                              <Text size="1" color="gray" mb="1">
-                                Translation:
-                              </Text>
-                              <Text
-                                size="2"
-                                style={{
-                                  fontStyle: 'italic',
-                                  whiteSpace: 'pre-line',
-                                }}
-                              >
-                                {translations[sentence.id]}
-                              </Text>
-                            </Box>
-                          )}
                         </Box>
+                        <MyButton
+                          variant="soft"
+                          color="red"
+                          size="2"
+                          onClick={() => {
+                            setVideoUrl(null);
+                            setVideoError(null);
+                            setVideoLoading(false);
+                            setHasRestoredVideoProgress(false);
+                          }}
+                          style={{ marginTop: '8px' }}
+                        >
+                          Try Different Video
+                        </MyButton>
                       </Flex>
                     </Box>
-                  ))}
+                  )}
+
+                  {!videoError && videoElement}
+
+                  {/* Custom Video Controls */}
+                  <Box style={{ padding: '0 16px' }}>
+                    <Flex align="center" gap="3" wrap="wrap">
+                      <MyButton onClick={handlePlayPause}>
+                        {isPlaying ? 'Pause' : 'Play'}
+                      </MyButton>
+                      <Text size="2">
+                        {formatTime(currentTime)} / {formatTime(duration)}
+                      </Text>
+
+                      {/* Sentence Overlay Toggle */}
+                      <MyButton
+                        variant={showSentenceOverlay ? 'solid' : 'soft'}
+                        size="2"
+                        onClick={() =>
+                          setShowSentenceOverlay(!showSentenceOverlay)
+                        }
+                        style={{
+                          backgroundColor: showSentenceOverlay
+                            ? 'var(--accent-9)'
+                            : undefined,
+                        }}
+                      >
+                        {showSentenceOverlay
+                          ? '📖 Hide Subtitles'
+                          : '📖 Show Subtitles'}
+                      </MyButton>
+
+                      {/* Backend Progress Controls */}
+                      {lesson?.userProgress?.sentenceInfo?.startTime &&
+                        !hasRestoredVideoProgress && (
+                          <MyButton
+                            variant="soft"
+                            color="green"
+                            size="2"
+                            onClick={() => {
+                              if (
+                                videoRef.current &&
+                                lesson.userProgress?.sentenceInfo?.startTime
+                              ) {
+                                videoRef.current.currentTime =
+                                  lesson.userProgress.sentenceInfo.startTime;
+                                setCurrentTime(
+                                  lesson.userProgress.sentenceInfo.startTime
+                                );
+                                setHasRestoredVideoProgress(true);
+                              }
+                            }}
+                          >
+                            Continue from{' '}
+                            {formatTime(
+                              lesson.userProgress.sentenceInfo.startTime
+                            )}
+                          </MyButton>
+                        )}
+
+                      <MyButton
+                        variant="soft"
+                        size="2"
+                        onClick={() => {
+                          // Clean up object URL before clearing state
+                          if (videoUrl) {
+                            URL.revokeObjectURL(videoUrl);
+                          }
+                          setVideoUrl(null);
+                          setHasRestoredVideoProgress(false);
+                          setVideoError(null);
+                          setVideoLoading(false);
+                        }}
+                      >
+                        Change Video
+                      </MyButton>
+                    </Flex>
+
+                    {/* Seek Bar */}
+                    <Box
+                      style={{
+                        width: '100%',
+                        marginTop: '12px',
+                        position: 'relative',
+                      }}
+                    >
+                      <input
+                        type="range"
+                        min="0"
+                        max={duration || 0}
+                        value={currentTime}
+                        onChange={e => handleSeek(parseFloat(e.target.value))}
+                        style={{
+                          width: '100%',
+                          height: '8px',
+                          background: 'var(--gray-6)',
+                          borderRadius: '4px',
+                          outline: 'none',
+                          cursor: 'pointer',
+                          position: 'relative',
+                          zIndex: 2,
+                        }}
+                      />
+                      {/* Buffer Head Indicator - Yellow marker at latest loaded sentence end time */}
+                      {duration > 0 &&
+                        (() => {
+                          // Find the latest loaded sentence (the one with the maximum end_time)
+                          if (!sentenceBuffer.sentences?.length) return null;
+
+                          const latestLoadedSentence =
+                            sentenceBuffer.sentences[
+                              sentenceBuffer.sentences.length - 1
+                            ];
+
+                          const bufferHeadTime = latestLoadedSentence?.end_time;
+
+                          if (
+                            bufferHeadTime !== null &&
+                            bufferHeadTime !== undefined &&
+                            bufferHeadTime > 0
+                          ) {
+                            const bufferHeadPosition =
+                              (bufferHeadTime / duration) * 100;
+                            return (
+                              <Box
+                                style={{
+                                  position: 'absolute',
+                                  left: `${bufferHeadPosition + 0.4}%`,
+                                  top: '0',
+                                  width: '4px',
+                                  height: '8px',
+                                  backgroundColor: 'yellow',
+                                  borderRadius: '2px',
+                                  transform: 'translateX(-50%)',
+                                  zIndex: 3,
+                                  pointerEvents: 'none',
+                                  boxShadow: '0 0 4px rgba(255, 255, 0, 0.6)',
+                                }}
+                              />
+                            );
+                          }
+
+                          return null;
+                        })()}
+                    </Box>
+
+                    {/* Progress Info */}
+                    {lesson?.userProgress?.sentenceInfo?.startTime && (
+                      <Text size="1" color="gray" style={{ marginTop: '8px' }}>
+                        {hasRestoredVideoProgress
+                          ? '✓ Resumed from last lesson position'
+                          : `📖 Lesson progress available at ${formatTime(lesson.userProgress.sentenceInfo.startTime)}`}
+                      </Text>
+                    )}
+                  </Box>
                 </Flex>
-              ) : (
-                <Box
-                  style={{
-                    padding: '16px',
-                    backgroundColor: 'var(--gray-2)',
-                    borderRadius: '8px',
-                    textAlign: 'center',
-                  }}
-                >
-                  <Text size="3" color="gray">
-                    {videoUrl
-                      ? 'No sentence active at current time'
-                      : 'Select a video to see sentences'}
-                  </Text>
-                </Box>
               )}
-            </Box>
-
-            {/* Next Sentences */}
-            {nextSentences.map((sentence, index) => (
-              <Box key={sentence.id}>
-                <Box
-                  style={{
-                    padding: '8px 12px',
-                    backgroundColor: 'var(--gray-3)',
-                    borderRadius: '6px',
-                    opacity: 0.9 - index * 0.1, // Gradually decrease opacity for future sentences
-                    cursor: sentence.start_time ? 'pointer' : 'default',
-                    fontSize: '14px',
-                  }}
-                  onClick={() => {
-                    if (sentence.start_time && videoRef.current) {
-                      handleSeek(sentence.start_time);
-                    }
-                  }}
-                >
-                  <Text size="2">{sentence.original_text}</Text>
-                </Box>
-              </Box>
-            ))}
-          </Flex>
-
-          {/* Finish Lesson Button in Sidebar */}
-          {isLastSentence &&
-            lesson?.userProgress?.status !== 'finished' &&
-            !lessonCompleted && (
-              <Box mt="4">
-                <Flex direction="column" gap="3" align="center">
-                  <Heading size="3">🎉 Congratulations!</Heading>
-                  <Text size="2" color="gray" style={{ textAlign: 'center' }}>
-                    You've reached the last sentence of this lesson.
-                  </Text>
-                  <MyButton
-                    size="2"
-                    variant="solid"
-                    color="green"
-                    onClick={handleFinishLesson}
-                    disabled={isFinishingLesson}
-                    style={{}}
-                  >
-                    {isFinishingLesson ? 'Finishing...' : 'Finish Lesson'}
-                  </MyButton>
-                </Flex>
-              </Box>
-            )}
-
-          {/* Lesson Completed Message in Sidebar */}
-          {lessonCompleted && (
-            <Box mt="4">
-              <Flex direction="column" gap="3" align="center">
-                <Heading size="3">✅ Lesson Completed!</Heading>
-                <Text size="2" color="green" style={{ textAlign: 'center' }}>
-                  Great job! You have successfully completed this lesson. 🎉
-                </Text>
-                <MyButton
-                  size="2"
-                  variant="soft"
-                  onClick={() => navigate('/lessons')}
-                >
-                  Back to Lessons
-                </MyButton>
-              </Flex>
-            </Box>
-          )}
+            </Flex>
+          </Card>
         </Box>
-      </Box>
 
-      {/* Word Translation Sidebar */}
-      <WordSidebar
-        isOpen={isSidebarOpen}
-        onClose={handleCloseSidebar}
-        selectedWord={selectedWord}
-        languageCode={lesson?.languageCode}
-        targetLanguage="en"
-      />
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="video/*,.mkv"
+          style={{ display: 'none' }}
+          onChange={handleFileChange}
+        />
+      </Flex>
 
-      {/* Retime Dialog */}
       <SentenceRetimeDialog
         sentence={sentenceToRetime}
         open={isRetimeDialogOpen}

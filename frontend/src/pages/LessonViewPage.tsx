@@ -14,7 +14,7 @@ import MyButton from '../components/MyButton';
 
 import { useAuth } from '../contexts/AuthContext';
 import { useWordMark } from '../contexts/WordMarkContext';
-import WordSidebar from '../components/WordSidebar';
+import { useWordSidebar } from '../contexts/WordSidebarContext';
 import Pagination from '../components/Pagination';
 import LessonEditDialog from '../components/LessonEditDialog';
 import SentenceAudioPlayer from '../components/SentenceAudioPlayer';
@@ -78,6 +78,7 @@ const LessonViewPage: React.FC = () => {
   const navigate = useNavigate();
   const { axiosInstance, isAuthenticated, isLoading: authLoading } = useAuth();
   const { addWords } = useWordMark();
+  const { openWordSidebar, setWordSidebarLanguage } = useWordSidebar();
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -88,8 +89,6 @@ const LessonViewPage: React.FC = () => {
   const [loadingTranslations, setLoadingTranslations] = useState<{
     [key: number]: boolean;
   }>({});
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [selectedWord, setSelectedWord] = useState<string | null>(null);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [progressLoaded, setProgressLoaded] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -252,14 +251,12 @@ const LessonViewPage: React.FC = () => {
   };
 
   const handleWordClick = (word: string) => {
-    setSelectedWord(word);
-    setIsSidebarOpen(true);
+    openWordSidebar(word, lesson?.languageCode);
   };
 
-  const handleCloseSidebar = () => {
-    setIsSidebarOpen(false);
-    setSelectedWord(null);
-  };
+  useEffect(() => {
+    setWordSidebarLanguage(lesson?.languageCode);
+  }, [lesson?.languageCode, setWordSidebarLanguage]);
 
   const handleLessonUpdated = (updatedLesson?: Partial<EditableLesson>) => {
     // Update the lesson title in the current state without reloading sentences
@@ -454,7 +451,14 @@ const LessonViewPage: React.FC = () => {
   }
 
   return (
-    <Container size="4" p="4" align={isSidebarOpen ? 'left' : 'center'}>
+    <Box
+      p="4"
+      style={{
+        width: '100%',
+        minHeight: '100vh',
+        boxSizing: 'border-box',
+      }}
+    >
       {/* Header */}
       <Flex direction="column" gap="4" mb="6">
         <MyButton variant="ghost" onClick={() => navigate('/lessons')}>
@@ -707,15 +711,6 @@ const LessonViewPage: React.FC = () => {
           </Flex>
         )}
 
-      {/* Word Translation Sidebar */}
-      <WordSidebar
-        isOpen={isSidebarOpen}
-        onClose={handleCloseSidebar}
-        selectedWord={selectedWord}
-        languageCode={lesson?.languageCode}
-        targetLanguage="en"
-      />
-
       {/* Lesson Edit Dialog */}
       {lesson && (
         <LessonEditDialog
@@ -731,7 +726,7 @@ const LessonViewPage: React.FC = () => {
           onOpenChange={setIsEditDialogOpen}
         />
       )}
-    </Container>
+    </Box>
   );
 };
 

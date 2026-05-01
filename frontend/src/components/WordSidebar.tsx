@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, type ReactNode } from 'react';
 import { Box, Flex, Text, Card, Separator } from '@radix-ui/themes';
 import MyButton from './MyButton';
 import TTSPlayButton from './TTSPlayButton';
@@ -41,12 +41,15 @@ interface WordUserMark {
   };
 }
 
+export const WORD_SIDEBAR_WIDTH_PX = 350;
+
 interface WordSidebarProps {
   isOpen: boolean;
   onClose: () => void;
   selectedWord: string | null;
-  languageCode?: string;
-  targetLanguage?: string;
+  languageCode?: string | undefined;
+  targetLanguage?: string | undefined;
+  footer?: ReactNode | null;
 }
 
 const WordSidebar: React.FC<WordSidebarProps> = ({
@@ -55,6 +58,7 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
   selectedWord,
   languageCode,
   targetLanguage = 'en',
+  footer = null,
 }) => {
   const { axiosInstance } = useAuth();
   const { saveWordMark, isSaving } = useWordMark();
@@ -518,80 +522,129 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
     </Card>
   );
 
+  const w = WORD_SIDEBAR_WIDTH_PX;
+  const showColumn = isOpen || footer != null;
+
+  const outerStyle: React.CSSProperties = {
+    flex: '0 0 auto',
+    width: showColumn ? w : 0,
+    maxWidth: showColumn ? w : 0,
+    minWidth: 0,
+    overflow: 'hidden',
+    transition: 'width 0.3s ease-in-out, max-width 0.3s ease-in-out',
+    position: 'sticky',
+    top: 0,
+    alignSelf: 'flex-start',
+    minHeight: showColumn ? '100vh' : undefined,
+    maxHeight: showColumn ? '100vh' : undefined,
+    height: showColumn ? '100vh' : undefined,
+    display: 'flex',
+    flexDirection: 'column',
+    backgroundColor: 'var(--color-surface)',
+    borderLeft: showColumn ? '1px solid var(--gray-6)' : 'none',
+    boxShadow: showColumn ? '-2px 0 8px rgba(0, 0, 0, 0.1)' : 'none',
+  };
+
   return (
-    <Box
-      style={{
-        position: 'fixed',
-        top: 0,
-        right: isOpen ? 0 : '-350px',
-        width: '350px',
-        height: '100vh',
-        backgroundColor: 'var(--color-surface)',
-        borderLeft: '1px solid var(--gray-6)',
-        zIndex: 1000,
-        display: 'flex',
-        flexDirection: 'column',
-        boxShadow: '-2px 0 8px rgba(0, 0, 0, 0.1)',
-        transition: 'right 0.3s ease-in-out',
-      }}
-    >
-      {/* Header */}
-      <Flex
-        align="center"
-        justify="between"
-        p="4"
-        style={{ borderBottom: '1px solid var(--gray-6)' }}
+    <Box style={outerStyle}>
+      <Box
+        style={{
+          width: w,
+          height: '100%',
+          minHeight: 0,
+          flex: 1,
+          overflowX: 'hidden',
+          overflowY: 'auto',
+          display: 'flex',
+          flexDirection: 'column',
+          boxSizing: 'border-box',
+        }}
       >
-        <Text size="4" weight="bold">
-          Translation
-        </Text>
-        <MyButton variant="ghost" size="2" onClick={onClose}>
-          <Cross2Icon />
-        </MyButton>
-      </Flex>
+        <Flex
+          align="center"
+          justify="between"
+          p="4"
+          style={{
+            borderBottom: '1px solid var(--gray-6)',
+            flexShrink: 0,
+            backgroundColor: 'var(--color-surface)',
+          }}
+        >
+          <Text size="4" weight="bold">
+            Translation
+          </Text>
+          <MyButton variant="ghost" size="2" onClick={onClose}>
+            <Cross2Icon />
+          </MyButton>
+        </Flex>
 
-      {/* Content */}
-      <Box p="4" style={{ flex: 1, overflow: 'auto' }}>
-        {loadingTranslations || loadingPronunciations || loadingStems ? (
-          <Flex
-            direction="column"
-            align="center"
-            justify="center"
-            style={{ minHeight: '200px' }}
+        <Box
+          p="4"
+          style={{
+            flexShrink: 0,
+          }}
+        >
+          {loadingTranslations || loadingPronunciations || loadingStems ? (
+            <Flex
+              direction="column"
+              align="center"
+              justify="center"
+              style={
+                footer
+                  ? { padding: 'var(--space-4) 0' }
+                  : { minHeight: '200px' }
+              }
+            >
+              <Text size="3" color="gray">
+                Loading translation...
+              </Text>
+            </Flex>
+          ) : selectedWord ? (
+            <WordContent
+              word={selectedWord}
+              translations={selectedTranslations}
+              pronunciations={selectedPronunciations}
+              stems={selectedStems}
+              languageCode={languageCode}
+              axiosInstance={axiosInstance}
+            />
+          ) : (
+            <Flex
+              direction="column"
+              align="center"
+              justify="center"
+              style={
+                footer
+                  ? { padding: 'var(--space-3) 0' }
+                  : { minHeight: '200px' }
+              }
+            >
+              <Text size="3" color="gray" style={{ textAlign: 'center' }}>
+                Click on a word in the lesson to see its translation
+              </Text>
+            </Flex>
+          )}
+        </Box>
+
+        {footer != null && (
+          <Box
+            style={{
+              flexShrink: 0,
+              borderTop: '1px solid var(--gray-6)',
+              backgroundColor: 'var(--gray-2)',
+            }}
           >
-            <Text size="3" color="gray">
-              Loading translation...
-            </Text>
-          </Flex>
-        ) : selectedWord ? (
-          <WordContent
-            word={selectedWord}
-            translations={selectedTranslations}
-            pronunciations={selectedPronunciations}
-            stems={selectedStems}
-            languageCode={languageCode}
-            axiosInstance={axiosInstance}
-          />
-        ) : (
-          <Flex
-            direction="column"
-            align="center"
-            justify="center"
-            style={{ minHeight: '200px' }}
-          >
-            <Text size="3" color="gray" style={{ textAlign: 'center' }}>
-              Click on a word in the lesson to see its translation
-            </Text>
-          </Flex>
+            {footer}
+          </Box>
         )}
-      </Box>
 
-      <WordActionHistoryDialog
-        open={historyDialogOpen}
-        onOpenChange={setHistoryDialogOpen}
-        word={selectedWord}
-        languageCode={languageCode}
-      />
+        <WordActionHistoryDialog
+          open={historyDialogOpen}
+          onOpenChange={setHistoryDialogOpen}
+          word={selectedWord}
+          languageCode={languageCode}
+        />
+      </Box>
     </Box>
   );
 };

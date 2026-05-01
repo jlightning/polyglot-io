@@ -8,7 +8,6 @@ import {
   Separator,
   Table,
   Select,
-  Container,
   Heading,
   Card,
   Link,
@@ -28,7 +27,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import Pagination from '../components/Pagination';
-import WordSidebar from '../components/WordSidebar';
+import { useWordSidebar } from '../contexts/WordSidebarContext';
 import {
   getDifficultyLabel,
   getDifficultyColor,
@@ -105,6 +104,7 @@ const DIFFICULTY_OPTIONS = [
 const WordsPage: React.FC = () => {
   const { axiosInstance } = useAuth();
   const { selectedLanguage } = useLanguage();
+  const { openWordSidebar } = useWordSidebar();
   const navigate = useNavigate();
   const [words, setWords] = useState<WordUserMark[]>([]);
   const [loading, setLoading] = useState(true);
@@ -126,10 +126,6 @@ const WordsPage: React.FC = () => {
   const [importLoading, setImportLoading] = useState(false);
   const [importError, setImportError] = useState('');
   const [importSuccess, setImportSuccess] = useState('');
-
-  // Word sidebar state
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [selectedWord, setSelectedWord] = useState<string | null>(null);
 
   const fetchWords = async (
     page: number = 1,
@@ -323,20 +319,19 @@ const WordsPage: React.FC = () => {
     resetImportDialog();
   };
 
-  // Handle word click to open sidebar
   const handleWordClick = (wordMark: WordUserMark) => {
-    setSelectedWord(wordMark.word.word);
-    setSidebarOpen(true);
-  };
-
-  // Handle sidebar close
-  const handleSidebarClose = () => {
-    setSidebarOpen(false);
-    setSelectedWord(null);
+    openWordSidebar(wordMark.word.word, wordMark.word.language_code);
   };
 
   return (
-    <Container size="4" p="4">
+    <Box
+      p="4"
+      style={{
+        width: '100%',
+        minHeight: '100vh',
+        boxSizing: 'border-box',
+      }}
+    >
       {/* Header */}
       <Flex direction="column" gap="4" mb="6">
         <Flex align="center" justify="between">
@@ -763,16 +758,7 @@ const WordsPage: React.FC = () => {
           </Flex>
         </Dialog.Content>
       </Dialog.Root>
-
-      {/* Word Sidebar */}
-      <WordSidebar
-        isOpen={sidebarOpen}
-        onClose={handleSidebarClose}
-        selectedWord={selectedWord}
-        languageCode={selectedLanguage}
-        targetLanguage="en"
-      />
-    </Container>
+    </Box>
   );
 };
 

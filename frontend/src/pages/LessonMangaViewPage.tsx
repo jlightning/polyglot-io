@@ -11,7 +11,7 @@ import MyButton from '../components/MyButton';
 
 import { useAuth } from '../contexts/AuthContext';
 import { useWordMark } from '../contexts/WordMarkContext';
-import WordSidebar from '../components/WordSidebar';
+import { useWordSidebar } from '../contexts/WordSidebarContext';
 import SentenceReConstructor from '../components/SentenceReConstructor';
 import axios from 'axios';
 
@@ -70,6 +70,7 @@ const LessonMangaViewPage: React.FC = () => {
   const navigate = useNavigate();
   const { axiosInstance, isAuthenticated, isLoading: authLoading } = useAuth();
   const { addWords } = useWordMark();
+  const { openWordSidebar, setWordSidebarLanguage } = useWordSidebar();
 
   // Use a ref to store the current addWords function to avoid callback recreations
   const addWordsRef = useRef(addWords);
@@ -99,10 +100,6 @@ const LessonMangaViewPage: React.FC = () => {
   const [loadingTranslations, setLoadingTranslations] = useState<{
     [key: number]: boolean;
   }>({});
-
-  // Word sidebar state
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [selectedWord, setSelectedWord] = useState<string | null>(null);
 
   // OCR selection state
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -382,14 +379,12 @@ const LessonMangaViewPage: React.FC = () => {
   };
 
   const handleWordClick = (word: string) => {
-    setSelectedWord(word);
-    setIsSidebarOpen(true);
+    openWordSidebar(word, lesson?.languageCode);
   };
 
-  const handleCloseSidebar = () => {
-    setIsSidebarOpen(false);
-    setSelectedWord(null);
-  };
+  useEffect(() => {
+    setWordSidebarLanguage(lesson?.languageCode);
+  }, [lesson?.languageCode, setWordSidebarLanguage]);
 
   const toggleTranslation = async (sentenceId: number) => {
     // If translation is already shown, hide it
@@ -768,15 +763,14 @@ const LessonMangaViewPage: React.FC = () => {
           </Flex>
         </Box>
 
-        {/* Main Content - 50-50 Layout */}
+        {/* Main content */}
         <Box
           style={{
             flex: 1,
-            marginRight: '350px', // Space for word sidebar
             padding: '0 24px 24px 24px',
             overflow: 'hidden',
-            minHeight: 0, // Important for flex child to shrink
-            height: 'calc(100vh - 120px)', // Fixed height to prevent overflow
+            minHeight: 0,
+            height: 'calc(100vh - 120px)',
           }}
         >
           <Flex style={{ height: '100%' }} gap="4">
@@ -1224,15 +1218,6 @@ const LessonMangaViewPage: React.FC = () => {
             </Box>
           </Flex>
         </Box>
-
-        {/* Word Translation Sidebar */}
-        <WordSidebar
-          isOpen={isSidebarOpen}
-          onClose={handleCloseSidebar}
-          selectedWord={selectedWord}
-          languageCode={lesson?.languageCode}
-          targetLanguage="en"
-        />
       </Flex>
     </>
   );
