@@ -95,7 +95,7 @@ export const sentenceSplitterAgent = new Agent({
   }),
   modelSettings: {
     reasoning: {
-      effort: 'low',
+      effort: 'none',
     },
   },
   model: OPENAI_MODEL.GPT_54,
