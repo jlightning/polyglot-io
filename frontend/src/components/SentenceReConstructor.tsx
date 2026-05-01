@@ -115,6 +115,10 @@ const SentenceReConstructor: React.FC<SentenceReConstructorProps> = ({
     );
   };
 
+  const noneWordBadge = (input: string) => {
+    return <span style={{ color: 'gray' }}>{input}</span>;
+  };
+
   const elements: (string | JSX.Element)[] = [];
   let currentIndex = 0;
   let wordIndex = 0;
@@ -128,7 +132,7 @@ const SentenceReConstructor: React.FC<SentenceReConstructorProps> = ({
       // Add any text/punctuation/spaces before this word
       if (wordStartIndex > currentIndex) {
         const beforeWord = originalText.slice(currentIndex, wordStartIndex);
-        elements.push(beforeWord);
+        elements.push(noneWordBadge(beforeWord));
       }
 
       // Move currentIndex to after this word
@@ -142,7 +146,7 @@ const SentenceReConstructor: React.FC<SentenceReConstructorProps> = ({
 
   // Add any remaining text/punctuation after the last word
   if (currentIndex < originalText.length) {
-    elements.push(originalText.slice(currentIndex));
+    elements.push(noneWordBadge(originalText.slice(currentIndex)));
   }
 
   return <>{elements}</>;
