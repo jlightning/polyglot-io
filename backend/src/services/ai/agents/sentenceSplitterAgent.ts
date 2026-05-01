@@ -98,5 +98,5 @@ export const sentenceSplitterAgent = new Agent({
       effort: 'low',
     },
   },
-  model: OPENAI_MODEL.GPT_54_MINI,
+  model: OPENAI_MODEL.GPT_54,
 });
