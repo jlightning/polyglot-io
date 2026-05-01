@@ -10,7 +10,7 @@ export const sentenceSplitterAgent = new Agent({
     ctx: { context: BaseAgentContext & { sentence: string } },
     agent: unknown
   ) => {
-    const { languageCode, sentence } = ctx.context;
+    const { languageCode } = ctx.context;
 
     const languageRules = new LanguageRule({
       zh: [
@@ -79,7 +79,7 @@ export const sentenceSplitterAgent = new Agent({
       `The sentence is in ${languageCode}.`,
       '',
       'Your task is to:',
-      `1. Split the given sentence "${sentence}" into individual meaningful words that make sense for a language learner (excluding punctuation marks)`,
+      `1. Split the given sentence into individual meaningful words that make sense for a language learner (excluding punctuation marks)`,
       '2. Return the words as an array of strings in their original order of appearance',
       '',
       'Guidelines:',

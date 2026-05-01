@@ -79,7 +79,7 @@ export class OpenAIService {
 
     const splitResult = await runner.run(
       sentenceSplitterAgent,
-      'Split sentence now',
+      `Split this sentence: "${sentence}"`,
       {
         context: { languageCode: sourceLanguage, sentence },
       }
