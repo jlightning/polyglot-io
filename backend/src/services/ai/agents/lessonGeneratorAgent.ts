@@ -27,5 +27,8 @@ export const lessonGeneratorAgent = new Agent({
   outputType: z.object({
     text: z.string(),
   }),
-  model: OPENAI_MODEL.GPT_41_MINI,
+  modelSettings: {
+    reasoning: { effort: 'low' },
+  },
+  model: OPENAI_MODEL.GPT_54_MINI,
 });

@@ -65,5 +65,8 @@ export const wordPronunciationAgent = new Agent({
     pronunciation: z.string(),
     pronunciationType: z.enum(['hiragana', 'romanization', 'pinyin', 'ipa']),
   }),
-  model: OPENAI_MODEL.GPT_41_MINI,
+  modelSettings: {
+    reasoning: { effort: 'none' },
+  },
+  model: OPENAI_MODEL.GPT_54_MINI,
 });

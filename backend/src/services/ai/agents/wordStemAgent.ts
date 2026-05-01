@@ -54,5 +54,8 @@ export const wordStemAgent = new Agent({
   outputType: z.object({
     stems: z.array(z.string()),
   }),
-  model: OPENAI_MODEL.GPT_41_MINI,
+  modelSettings: {
+    reasoning: { effort: 'none' },
+  },
+  model: OPENAI_MODEL.GPT_54_MINI,
 });

@@ -33,5 +33,8 @@ export const wordTranslationAgent = new Agent({
     word: z.string(),
     translations: z.array(z.string()),
   }),
-  model: OPENAI_MODEL.GPT_41_MINI,
+  modelSettings: {
+    reasoning: { effort: 'none' },
+  },
+  model: OPENAI_MODEL.GPT_54_MINI,
 });
