@@ -559,7 +559,7 @@ router.post('/:lessonId/sentences', async (req: Request, res: Response) => {
   }
 });
 
-// Delete a sentence from a manual lesson
+// Delete a sentence from a manual or manga lesson
 router.delete(
   '/:lessonId/sentences/:sentenceId',
   async (req: Request, res: Response) => {

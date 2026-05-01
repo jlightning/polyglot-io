@@ -16,6 +16,7 @@ import {
   wordTranslationAgent,
 } from './agents';
 import pLimit from 'p-limit';
+import { removeWeirdSpacingAgent } from './agents/removeWeirdSpacingAgent';
 
 dotenv.config();
 
@@ -362,9 +363,14 @@ export class OpenAIService {
       throw new Error('Error while running imageTextExtractorAgent');
     }
 
-    return (result.finalOutput?.extractedTexts ?? [])
-      .map(t => t.trim())
-      .filter(t => t.length > 0);
+    const sentence = result.finalOutput?.extractedTexts?.trim();
+    if (!sentence) return [];
+
+    const result2 = await runner.run(removeWeirdSpacingAgent, sentence);
+
+    return result2.finalOutput?.trim().length
+      ? [result2.finalOutput.trim()]
+      : [];
   }
 
   /**

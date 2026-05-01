@@ -26,21 +26,20 @@ export const imageTextExtractorAgent = new Agent({
       'Your task is to:',
       '1. Extract ALL visible text from the image in reading order',
       '2. Include speech bubbles, thought bubbles, sound effects, and any other text',
-      '3. Separate different sentences or text blocks into individual array items',
-      '4. Maintain the original language and text exactly as written',
-      '5. Return the text using the structured format',
+      '3. Maintain the original language and text exactly as as written',
       '',
       'Guidelines:',
       '- Read text in the correct order for the language (left-to-right, right-to-left, top-to-bottom)',
-      '- Include punctuation and special characters as they appear',
+      '- Include punctuation and special characters as they appear, but remove spacing to let sentence be more natural',
       '- If text is unclear or partially obscured, make your best guess',
       '- Skip decorative elements that are not readable text',
-      '- Each array item should be a complete sentence or text unit',
-      '- If no text is found, return an empty array',
     ].join('\n');
   },
   outputType: z.object({
-    extractedTexts: z.array(z.string()),
+    extractedTexts: z.string(),
   }),
-  model: OPENAI_MODEL.GPT_41,
+  modelSettings: {
+    reasoning: { effort: 'low' },
+  },
+  model: OPENAI_MODEL.GPT_54_MINI,
 });

@@ -802,7 +802,7 @@ export class SentenceService {
   }
 
   /**
-   * Delete a sentence from a manual lesson. Updates or removes UserLessonProgress that point at this sentence,
+   * Delete a sentence from a manual or manga lesson. Updates or removes UserLessonProgress that point at this sentence,
    * then deletes SentenceWord, SentenceTranslation, and the Sentence.
    */
   async deleteSentenceFromLesson(
@@ -826,10 +826,10 @@ export class SentenceService {
         };
       }
 
-      if (lesson.lesson_type !== 'manual') {
+      if (lesson.lesson_type !== 'manual' && lesson.lesson_type !== 'manga') {
         return {
           success: false,
-          message: 'Only manual lessons support deleting sentences',
+          message: 'This lesson type does not support deleting sentences',
         };
       }
 

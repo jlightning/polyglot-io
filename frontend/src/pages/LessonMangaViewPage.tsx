@@ -101,6 +101,11 @@ const LessonMangaViewPage: React.FC = () => {
     [key: number]: boolean;
   }>({});
 
+  const [deletingSentenceId, setDeletingSentenceId] = useState<number | null>(
+    null
+  );
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   // OCR selection state
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [isProcessingOCR, setIsProcessingOCR] = useState(false);
@@ -385,6 +390,51 @@ const LessonMangaViewPage: React.FC = () => {
   useEffect(() => {
     setWordSidebarLanguage(lesson?.languageCode);
   }, [lesson?.languageCode, setWordSidebarLanguage]);
+
+  const handleDeleteSentence = async (sentenceId: number) => {
+    if (!lessonId || deletingSentenceId !== null) return;
+    if (!window.confirm('Delete this sentence?')) return;
+
+    setDeleteError(null);
+    setDeletingSentenceId(sentenceId);
+    try {
+      const response = await axiosInstance.delete(
+        `/api/lessons/${lessonId}/sentences/${sentenceId}`
+      );
+      if (response.data.success) {
+        setDisplaySentences(prev => prev.filter(s => s.id !== sentenceId));
+        setTranslations(prev => {
+          const next = { ...prev };
+          delete next[sentenceId];
+          return next;
+        });
+        setLoadingTranslations(prev => {
+          const next = { ...prev };
+          delete next[sentenceId];
+          return next;
+        });
+        setLesson(prev =>
+          prev
+            ? {
+                ...prev,
+                totalSentences: Math.max(0, (prev.totalSentences || 0) - 1),
+              }
+            : null
+        );
+      } else {
+        setDeleteError(response.data.message || 'Failed to delete sentence');
+      }
+    } catch (err) {
+      console.error('Delete sentence error:', err);
+      if (axios.isAxiosError(err) && err.response?.data?.message) {
+        setDeleteError(err.response.data.message);
+      } else {
+        setDeleteError('Failed to delete sentence');
+      }
+    } finally {
+      setDeletingSentenceId(null);
+    }
+  };
 
   const toggleTranslation = async (sentenceId: number) => {
     // If translation is already shown, hide it
@@ -1036,6 +1086,12 @@ const LessonMangaViewPage: React.FC = () => {
                     </Text>
                   </Flex>
 
+                  {deleteError && (
+                    <Text size="2" color="red">
+                      {deleteError}
+                    </Text>
+                  )}
+
                   {/* Sentences Content */}
                   <Flex
                     direction="column"
@@ -1109,23 +1165,47 @@ const LessonMangaViewPage: React.FC = () => {
                                   </Box>
                                 </Box>
 
-                                {/* Translation Section */}
+                                {/* Translation & actions */}
                                 <Box>
-                                  <MyButton
-                                    variant="soft"
-                                    size="1"
-                                    onClick={() =>
-                                      toggleTranslation(sentence.id)
-                                    }
-                                    disabled={loadingTranslations[sentence.id]}
-                                    style={{}}
+                                  <Flex
+                                    align="center"
+                                    justify="between"
+                                    gap="2"
+                                    wrap="wrap"
                                   >
-                                    {loadingTranslations[sentence.id]
-                                      ? 'Loading...'
-                                      : translations[sentence.id]
-                                        ? 'Hide translation'
-                                        : 'Show translation'}
-                                  </MyButton>
+                                    <MyButton
+                                      variant="soft"
+                                      size="1"
+                                      onClick={() =>
+                                        toggleTranslation(sentence.id)
+                                      }
+                                      disabled={
+                                        loadingTranslations[sentence.id]
+                                      }
+                                      style={{}}
+                                    >
+                                      {loadingTranslations[sentence.id]
+                                        ? 'Loading...'
+                                        : translations[sentence.id]
+                                          ? 'Hide translation'
+                                          : 'Show translation'}
+                                    </MyButton>
+                                    <MyButton
+                                      variant="soft"
+                                      size="1"
+                                      color="red"
+                                      onClick={() =>
+                                        handleDeleteSentence(sentence.id)
+                                      }
+                                      disabled={
+                                        deletingSentenceId === sentence.id
+                                      }
+                                    >
+                                      {deletingSentenceId === sentence.id
+                                        ? 'Deleting...'
+                                        : 'Delete'}
+                                    </MyButton>
+                                  </Flex>
 
                                   {translations[sentence.id] && (
                                     <Box
