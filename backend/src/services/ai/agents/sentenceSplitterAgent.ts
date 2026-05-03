@@ -18,11 +18,13 @@ export const sentenceSplitterAgent = new Agent({
         '- Keep conventional transliterated and loan terms from other languages—including place and personal names—as one 词 in their usual written form (characters or roman letters as printed). Split only when ordinary Chinese usage clearly treats two separate words; otherwise do not carve multi-character phonetic adaptations into lone 字 (e.g. "莫斯科" stays one segment for Moscow, likewise "威士忌", "沙发", "香奈儿").',
         '- Split Arabic numerals from the classifier, unit, or time word glued right after them (e.g. "100年" → "100" + "年", "500元" → "500" + "元").',
         '- For spelled-out Chinese numerals, split the numeral phrase from the measure/classifier that follows when they express quantity + unit together (e.g. "五百年" → "五百" + "年").',
+        '- Also provide pronunciation in pinyin',
       ],
       ko: [
         '- For Korean (Hangul), segment into recognizable learner vocabulary units respecting morphemes and natural boundaries.',
         '- Split Arabic numerals from counters, currency, measures, units, or time/counting expressions glued immediately after digits with no space (e.g. "100년" → "100" + "년", "50명" → "50" + "명", "500원" → "500" + "원", "30분" → "30" + "분").',
         '- For spelled-out numbers written as one chunk before a fused counter/unit, split quantity from unit (e.g. "오백년" → "오백" + "년"). When the numeral word and counter are separated by spacing, keep them as distinct words per the spaced form (e.g. "한 개" → "한" + "개").',
+        '- Also provide pronunciation in romanized form (romanization)',
       ],
       ja: [
         '- Keep て、た、ない、ちゃう、ば、ている/てる、ておく/とく、ます/ません/ました/ましょう、られる/れる、させる/せる、たら/なら、ないで form of word as 1 word (do not split the auxiliary from the verb stem):',
@@ -67,6 +69,7 @@ export const sentenceSplitterAgent = new Agent({
         '  - Trailing "わよ" as "わ" + "よ" (e.g. "行く" + "わ" + "よ", not one word "行くわよ")',
         '  - Name honorific suffixes "さん", "くん" as their own words (e.g. "田中" + "さん", "太郎" + "くん"; if the name has family + given parts, separate those too, then the suffix)',
         '- Keep glued numeral + classifier/unit/time as one word when they express one measured quantity (e.g. "100年", "50人", "10分", "百年").',
+        '- Also provide pronunciation in hiragana',
       ],
       other: [
         '- For languages with no spaces (like Chinese/Japanese), segment into meaningful units',
@@ -91,7 +94,19 @@ export const sentenceSplitterAgent = new Agent({
     ].join('\n');
   },
   outputType: z.object({
-    words: z.array(z.string()),
+    words: z.array(
+      z.object({
+        word: z.string(),
+        englishTranslation: z.string(),
+        pronunciation: z.string(),
+        pronunciationType: z.enum([
+          'hiragana',
+          'romanization',
+          'pinyin',
+          'ipa',
+        ]),
+      })
+    ),
   }),
   modelSettings: {
     reasoning: { effort: 'low' },

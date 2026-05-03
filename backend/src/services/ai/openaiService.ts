@@ -88,9 +88,9 @@ export class OpenAIService {
       throw new Error('Error while running sentenceSplitterAgent');
     }
 
-    const splitWords = (splitResult.finalOutput?.words ?? [])
-      .map(w => w.trim())
-      .filter(w => w.length > 0);
+    const splitWords = (splitResult.finalOutput?.words ?? []).filter(
+      w => w.word?.length
+    );
 
     const stemSupported = isStemSupportedLanguage(sourceLanguage);
 
@@ -101,21 +101,17 @@ export class OpenAIService {
           const wordRecord = await ctx.prisma.word.findUnique({
             where: {
               word_language_code: {
-                word,
+                word: word.word,
                 language_code: sourceLanguage,
               },
             },
             include: {
-              wordTranslations: {
-                where: { language_code: targetLanguage },
-              },
-              wordPronunciations: { take: 1 },
               stems: true,
             },
           });
 
           // Translation: use first DB row if any, else call agent.
-          let translation = wordRecord?.wordTranslations[0]?.translation ?? '';
+          let translation = word.englishTranslation;
           if (!translation) {
             const translationResult = await runner.run(
               wordTranslationAgent,
@@ -135,15 +131,13 @@ export class OpenAIService {
           }
 
           // Pronunciation: use existing DB row if any, else call agent.
-          const existingPronunciation = wordRecord?.wordPronunciations[0];
-          let pronunciation = existingPronunciation?.pronunciation;
-          let pronunciationType =
-            existingPronunciation?.pronunciation_type as PronunciationType;
+          let pronunciation = word.pronunciation;
+          let pronunciationType = word.pronunciationType;
 
           if (!pronunciation || !pronunciationType) {
             const generated = await this.getWordPronunciation(
               ctx,
-              word,
+              word.word,
               sourceLanguage
             );
             if (generated?.pronunciation && generated.pronunciationType) {
@@ -159,18 +153,18 @@ export class OpenAIService {
               wordStemAgent,
               'Give stems now',
               {
-                context: { languageCode: sourceLanguage, word },
+                context: { languageCode: sourceLanguage, word: word.word },
               }
             );
             stems = (stemResult?.finalOutput?.stems ?? [])
               .map(s => s.trim())
               .filter(s => s.length > 0);
 
-            if (!stems.length) stems = [word];
+            if (!stems.length) stems = [word.word];
           }
 
           return {
-            word,
+            word: word.word,
             translation,
             ...(pronunciation && { pronunciation }),
             ...(pronunciationType && { pronunciationType }),

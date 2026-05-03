@@ -37,5 +37,5 @@ export const simplifyTranslationsAgent = new Agent({
   outputType: z.object({
     simplifiedTranslations: z.array(z.string()),
   }),
-  model: OPENAI_MODEL.GPT_41_MINI,
+  model: OPENAI_MODEL.GPT_54_MINI,
 });
