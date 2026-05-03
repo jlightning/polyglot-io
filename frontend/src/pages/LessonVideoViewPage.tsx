@@ -1297,7 +1297,7 @@ const LessonVideoViewPage: React.FC = () => {
           style={{
             width: '100%',
             height: '100%',
-            maxHeight: '920px',
+            maxHeight: '1280px',
             borderRadius: '8px',
             objectFit: 'contain',
           }}
@@ -1462,6 +1462,7 @@ const LessonVideoViewPage: React.FC = () => {
           style={{
             marginBottom: '24px',
             padding: '0 24px',
+            maxHeight: '100vh',
           }}
         >
           <Card style={{ padding: '16px' }}>
