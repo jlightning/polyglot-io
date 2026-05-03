@@ -110,3 +110,5 @@ uploads/
 backups/
 
 .yarn
+
+*.tmp*
