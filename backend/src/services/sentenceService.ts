@@ -416,6 +416,12 @@ export class SentenceService {
               });
             });
 
+            const reloadedSentence = await ctx.prisma.sentence.findUnique({
+              where: {
+                id: sentence.id,
+              },
+            });
+
             return {
               id: sentence.id,
               original_text: sentence.original_text,
@@ -424,11 +430,13 @@ export class SentenceService {
               word_pronunciations: wordPronunciations,
               word_stems: wordStems,
               start_time:
-                sentence.start_time != null
-                  ? Number(sentence.start_time)
-                  : null,
+                (
+                  reloadedSentence?.start_time || sentence?.start_time
+                )?.toNumber() || null,
               end_time:
-                sentence.end_time != null ? Number(sentence.end_time) : null,
+                (
+                  reloadedSentence?.end_time || sentence?.end_time
+                )?.toNumber() || null,
             };
           }
         );
