@@ -689,7 +689,7 @@ export class SentenceService {
     userId: number,
     text: string
   ): Promise<AddSentenceResponse> {
-    const trimmedText = text?.trim();
+    let trimmedText = text?.trim();
     if (!trimmedText) {
       return {
         success: false,
@@ -728,6 +728,17 @@ export class SentenceService {
           success: false,
           message: 'Lesson has no lesson file for sentences',
         };
+      }
+
+      if (lesson.language_code === 'zh') {
+        trimmedText = trimmedText
+          .replace(/ /g, '')
+          .replace(/,/g, '，')
+          .replace(/;/g, '；');
+      } else if (lesson.language_code === 'ja') {
+        trimmedText = trimmedText.replace(/,/g, '、').replace(/;/g, '；');
+      } else if (lesson.language_code === 'ko') {
+        trimmedText = trimmedText.replace(/,/g, '，').replace(/;/g, '；');
       }
 
       const analysis = await ctx.openaiService.splitSentenceAndTranslate(
