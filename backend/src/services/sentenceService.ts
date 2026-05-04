@@ -734,11 +734,33 @@ export class SentenceService {
         trimmedText = trimmedText
           .replace(/ /g, '')
           .replace(/,/g, '，')
-          .replace(/;/g, '；');
+          .replace(/;/g, '；')
+          .replace(/\(/g, '（')
+          .replace(/\)/g, '）')
+          .replace(/\[/g, '［')
+          .replace(/\]/g, '］')
+          .replace(/\?/g, '？')
+          .replace(/"/g, '＂');
       } else if (lesson.language_code === 'ja') {
-        trimmedText = trimmedText.replace(/,/g, '、').replace(/;/g, '；');
+        trimmedText = trimmedText
+          .replace(/,/g, '、')
+          .replace(/;/g, '；')
+          .replace(/\(/g, '（')
+          .replace(/\)/g, '）')
+          .replace(/\[/g, '［')
+          .replace(/\]/g, '］')
+          .replace(/\?/g, '？')
+          .replace(/"/g, '＂');
       } else if (lesson.language_code === 'ko') {
-        trimmedText = trimmedText.replace(/,/g, '，').replace(/;/g, '；');
+        trimmedText = trimmedText
+          .replace(/,/g, '，')
+          .replace(/;/g, '；')
+          .replace(/\(/g, '（')
+          .replace(/\)/g, '）')
+          .replace(/\[/g, '［')
+          .replace(/\]/g, '］')
+          .replace(/\?/g, '？')
+          .replace(/"/g, '＂');
       }
 
       const analysis = await ctx.openaiService.splitSentenceAndTranslate(
