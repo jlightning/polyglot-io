@@ -735,6 +735,7 @@ export class SentenceService {
           .replace(/ /g, '')
           .replace(/,/g, '，')
           .replace(/;/g, '；')
+          .replace(/:/g, '：')
           .replace(/\(/g, '（')
           .replace(/\)/g, '）')
           .replace(/\[/g, '［')
@@ -745,6 +746,7 @@ export class SentenceService {
         trimmedText = trimmedText
           .replace(/,/g, '、')
           .replace(/;/g, '；')
+          .replace(/:/g, '：')
           .replace(/\(/g, '（')
           .replace(/\)/g, '）')
           .replace(/\[/g, '［')
@@ -755,6 +757,7 @@ export class SentenceService {
         trimmedText = trimmedText
           .replace(/,/g, '，')
           .replace(/;/g, '；')
+          .replace(/:/g, '：')
           .replace(/\(/g, '（')
           .replace(/\)/g, '）')
           .replace(/\[/g, '［')
