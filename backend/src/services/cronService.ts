@@ -47,7 +47,7 @@ export class CronService {
         for (let i = 0; i < words.length; i++) {
           const word = words[i]!;
           console.log(
-            `Processing word translations (${i + 1}/${words.length}) for: ${word.word} (${word.language_code}) that has ${wordIdsToProcess.find(w => w.word_id === word.id)?._count} translations`
+            `Processing word translations (${i + 1}/${words.length}) for: ${word.word} (${word.language_code}) that has ${wordIdsToProcess.find(w => w.word_id === word.id)?._count.id} translations`
           );
           await ctx.wordService.getWordTranslations(
             ctx,
