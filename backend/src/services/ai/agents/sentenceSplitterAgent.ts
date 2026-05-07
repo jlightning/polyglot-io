@@ -87,6 +87,7 @@ export const sentenceSplitterAgent = new Agent({
       '',
       'Guidelines:',
       '- Split compound words appropriately for the language',
+      '- Always split person names into first name and last name as separate words for all languages',
       languageRules.getRule(languageCode),
       '- Be consistent with word segmentation',
       '- Exclude punctuation marks from the word list',
