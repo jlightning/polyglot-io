@@ -265,6 +265,7 @@ model UserActionLog {
   user User @relation(fields: [user_id], references: [id])
 
   @@unique([is_read, user_id, word_id, sentence_id])
+  @@index([user_id, created_at])
   @@map("user_action_log")
 }
 
