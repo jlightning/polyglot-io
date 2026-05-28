@@ -73,6 +73,7 @@ export const sentenceSplitterAgent = new Agent({
         '  - Name honorific suffixes "さん", "くん" as their own words (e.g. "田中" + "さん", "太郎" + "くん"; if the name has family + given parts, separate those too, then the suffix)',
         '- Keep glued numeral + classifier/unit/time as one word when they express one measured quantity (e.g. "100年", "50人", "10分", "百年").',
         '- Also provide pronunciation in hiragana',
+        '- If a word is a dialectal form or a colloquial contraction, clearly indicate this and provide the corresponding standard Japanese in the translation.',
       ],
       other: [
         '- For languages with no spaces (like Chinese/Japanese), segment into meaningful units',
