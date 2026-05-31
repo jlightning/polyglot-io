@@ -2,7 +2,12 @@ import React, { useState, useEffect, type ReactNode } from 'react';
 import { Box, Flex, Text, Card, Separator } from '@radix-ui/themes';
 import MyButton from './MyButton';
 import TTSPlayButton from './TTSPlayButton';
-import { Cross2Icon, TrashIcon, ClockIcon } from '@radix-ui/react-icons';
+import {
+  Cross2Icon,
+  TrashIcon,
+  ClockIcon,
+  ReloadIcon,
+} from '@radix-ui/react-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { useWordMark } from '../contexts/WordMarkContext';
 import WordActionHistoryDialog from './WordActionHistoryDialog';
@@ -74,6 +79,7 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
   >([]);
   const [wordStems, setWordStems] = useState<WordStems[]>([]);
   const [loadingTranslations, setLoadingTranslations] = useState(false);
+  const [reloadingTranslations, setReloadingTranslations] = useState(false);
   const [loadingPronunciations, setLoadingPronunciations] = useState(false);
   const [loadingStems, setLoadingStems] = useState(false);
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
@@ -137,6 +143,34 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
 
     fetchWordData();
   }, [selectedWord, languageCode, targetLanguage, axiosInstance]);
+
+  const reloadTranslations = async () => {
+    if (
+      !selectedWord ||
+      !languageCode ||
+      !axiosInstance ||
+      reloadingTranslations
+    ) {
+      return;
+    }
+
+    try {
+      setReloadingTranslations(true);
+      const response = await axiosInstance.post(
+        `/api/words/translations/${encodeURIComponent(selectedWord)}/${languageCode}/${targetLanguage}/reload`
+      );
+
+      if (response.data.success) {
+        setWordTranslations(response.data.data || []);
+      } else {
+        console.error('Failed to reload translations:', response.data.message);
+      }
+    } catch (error) {
+      console.error('Error reloading translations:', error);
+    } finally {
+      setReloadingTranslations(false);
+    }
+  };
 
   const selectedTranslations = wordTranslations;
   const selectedPronunciations = wordPronunciations;
@@ -423,6 +457,8 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
     stems: WordStems[];
     languageCode?: string | undefined;
     axiosInstance: ReturnType<typeof useAuth>['axiosInstance'];
+    onReloadTranslations: () => void;
+    reloadingTranslations: boolean;
   }> = ({
     word,
     translations,
@@ -430,6 +466,8 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
     stems,
     languageCode,
     axiosInstance,
+    onReloadTranslations,
+    reloadingTranslations,
   }) => (
     <Card style={{ padding: '16px' }}>
       <Flex direction="column" gap="3">
@@ -487,10 +525,41 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
 
         {/* Translation Section */}
         <Box>
-          <Text size="2" color="gray" mb="2" as="div">
-            {translations.length > 1 ? 'Translations' : 'Translation'}
-          </Text>
-          {translations.length > 0 ? (
+          <Flex align="center" justify="between" mb="2">
+            <Text size="2" color="gray" as="div">
+              {translations.length > 1 ? 'Translations' : 'Translation'}
+            </Text>
+            {languageCode && (
+              <MyButton
+                variant="ghost"
+                size="1"
+                onClick={onReloadTranslations}
+                disabled={reloadingTranslations}
+                title="Regenerate translations"
+                style={{
+                  color: 'var(--gray-11)',
+                  fontSize: '11px',
+                  padding: '4px 6px',
+                  minHeight: 'unset',
+                }}
+              >
+                <ReloadIcon
+                  style={{
+                    marginRight: '4px',
+                    verticalAlign: 'middle',
+                    width: 12,
+                    height: 12,
+                  }}
+                />
+                {reloadingTranslations ? 'Reloading...' : 'Reload'}
+              </MyButton>
+            )}
+          </Flex>
+          {reloadingTranslations ? (
+            <Text size="3" color="gray">
+              Regenerating translations...
+            </Text>
+          ) : translations.length > 0 ? (
             <Flex direction="column" gap="2">
               {translations.map((translation, index) => (
                 <Text key={index} size="4" color="blue">
@@ -607,6 +676,8 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
               stems={selectedStems}
               languageCode={languageCode}
               axiosInstance={axiosInstance}
+              onReloadTranslations={reloadTranslations}
+              reloadingTranslations={reloadingTranslations}
             />
           ) : (
             <Flex

@@ -210,6 +210,42 @@ router.get(
   }
 );
 
+// Regenerate word translations
+router.post(
+  '/translations/:word/:sourceLanguage/:targetLanguage/reload',
+  async (req: Request, res: Response) => {
+    try {
+      const { word, sourceLanguage, targetLanguage } = req.params;
+
+      if (!word || !sourceLanguage || !targetLanguage) {
+        return res.status(400).json({
+          success: false,
+          message: 'Word, source language, and target language are required',
+        });
+      }
+
+      const result = await ctx.wordService.reloadWordTranslations(
+        ctx,
+        decodeURIComponent(word),
+        sourceLanguage,
+        targetLanguage
+      );
+
+      if (result.success) {
+        return res.json(result);
+      } else {
+        return res.status(400).json(result);
+      }
+    } catch (error) {
+      console.error('Reload word translations route error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+      });
+    }
+  }
+);
+
 // Get word pronunciations
 router.get(
   '/pronunciations/:word/:languageCode',

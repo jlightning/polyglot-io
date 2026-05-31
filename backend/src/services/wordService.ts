@@ -459,50 +459,17 @@ export class WordService {
             );
 
           if (generatedTranslations.length > 0) {
-            // Ensure the word exists in the database
-            const wordRecord = await ctx.prisma.word.upsert({
-              where: {
-                word_language_code: {
-                  word: word,
-                  language_code: sourceLanguage,
-                },
-              },
-              update: {}, // No updates needed for existing words
-              create: {
-                word: word,
-                language_code: sourceLanguage,
-              },
-            });
+            const data = await this.saveWordTranslations(
+              ctx,
+              word,
+              sourceLanguage,
+              targetLanguage,
+              generatedTranslations
+            );
 
-            // Store the translations
-            for (const translation of generatedTranslations) {
-              const trimmedTranslation = translation.trim();
-              if (trimmedTranslation) {
-                await ctx.prisma.wordTranslation.upsert({
-                  where: {
-                    word_id_language_code_translation: {
-                      word_id: wordRecord.id,
-                      language_code: targetLanguage,
-                      translation: trimmedTranslation,
-                    },
-                  },
-                  update: {},
-                  create: {
-                    word_id: wordRecord.id,
-                    language_code: targetLanguage,
-                    translation: trimmedTranslation,
-                  },
-                });
-              }
-            }
-
-            // Return the newly generated translations
             return {
               success: true,
-              data: generatedTranslations.map(translation => ({
-                word: word,
-                translation: translation,
-              })),
+              data,
               simplified: false,
             };
           }
@@ -577,6 +544,69 @@ export class WordService {
       return {
         success: false,
         message: 'Failed to get word translations',
+      };
+    }
+  }
+
+  /**
+   * Regenerate word translations using AI, replacing any existing ones
+   */
+  async reloadWordTranslations(
+    ctx: Context,
+    word: string,
+    sourceLanguage: string,
+    targetLanguage: string = 'en'
+  ) {
+    try {
+      const wordRecord = await ctx.prisma.word.findFirst({
+        where: {
+          word: word,
+          language_code: sourceLanguage,
+        },
+      });
+
+      if (wordRecord) {
+        await ctx.prisma.wordTranslation.deleteMany({
+          where: {
+            word_id: wordRecord.id,
+            language_code: targetLanguage,
+          },
+        });
+      }
+
+      const generatedTranslations = await ctx.openaiService.getWordTranslation(
+        ctx,
+        word,
+        sourceLanguage,
+        targetLanguage
+      );
+
+      if (generatedTranslations.length === 0) {
+        return {
+          success: true,
+          data: [],
+          simplified: false,
+        };
+      }
+
+      const data = await this.saveWordTranslations(
+        ctx,
+        word,
+        sourceLanguage,
+        targetLanguage,
+        generatedTranslations
+      );
+
+      return {
+        success: true,
+        data,
+        simplified: false,
+      };
+    } catch (error) {
+      console.error('Error reloading word translations:', error);
+      return {
+        success: false,
+        message: 'Failed to reload word translations',
       };
     }
   }
@@ -738,6 +768,57 @@ export class WordService {
         message: 'Failed to get word stems',
       };
     }
+  }
+
+  private async saveWordTranslations(
+    ctx: Context,
+    word: string,
+    sourceLanguage: string,
+    targetLanguage: string,
+    translations: string[]
+  ): Promise<Array<{ word: string; translation: string }>> {
+    const wordRecord = await ctx.prisma.word.upsert({
+      where: {
+        word_language_code: {
+          word: word,
+          language_code: sourceLanguage,
+        },
+      },
+      update: {},
+      create: {
+        word: word,
+        language_code: sourceLanguage,
+      },
+    });
+
+    const savedTranslations: string[] = [];
+
+    for (const translation of translations) {
+      const trimmedTranslation = translation.trim();
+      if (trimmedTranslation) {
+        await ctx.prisma.wordTranslation.upsert({
+          where: {
+            word_id_language_code_translation: {
+              word_id: wordRecord.id,
+              language_code: targetLanguage,
+              translation: trimmedTranslation,
+            },
+          },
+          update: {},
+          create: {
+            word_id: wordRecord.id,
+            language_code: targetLanguage,
+            translation: trimmedTranslation,
+          },
+        });
+        savedTranslations.push(trimmedTranslation);
+      }
+    }
+
+    return savedTranslations.map(translation => ({
+      word,
+      translation,
+    }));
   }
 
   /**
