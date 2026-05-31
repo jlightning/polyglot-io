@@ -93,6 +93,7 @@ export const sentenceSplitterAgent = new Agent({
       '- Split compound words appropriately for the language',
       `- Always split person names into first name and last name as separate words for all languages, for transliteration names, if you're not sure which part is first name or last name, do not split`,
       languageRules.getRule(languageCode),
+      `- When a word's pronunciation changes its meaning, indicate which pronunciation is for which translation that in the translation with translations (pronounced as: <pronunciation>)`,
       '- Be consistent with word segmentation',
       '- Exclude punctuation marks from the word list',
       `- When there're phrase that cannot be split to smaller word without changing the meaning, keep the phrase as 1 word`,

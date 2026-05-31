@@ -35,6 +35,7 @@ export const wordTranslationAgent = new Agent({
       '- Include different meanings or contexts if applicable',
       '- Return translations as an array of strings',
       ...languageRules.getRule(languageCode),
+      `- When a word's pronunciation changes its meaning, indicate which pronunciation is for which translation that in the translation with translations (pronounced as: <pronunciation>)`,
     ].join('\n');
   },
   outputType: z.object({
@@ -42,7 +43,7 @@ export const wordTranslationAgent = new Agent({
     translations: z.array(z.string()),
   }),
   modelSettings: {
-    reasoning: { effort: 'none' },
+    reasoning: { effort: 'high' },
   },
   model: OPENAI_MODEL.GPT_54_MINI,
 });
