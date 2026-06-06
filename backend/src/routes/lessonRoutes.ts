@@ -460,6 +460,81 @@ router.delete('/:lessonId/pin', async (req: Request, res: Response) => {
   }
 });
 
+// Split progress for a lesson (split count + in-memory job status)
+router.get(
+  '/:lessonId/split-sentences/progress',
+  async (req: Request, res: Response) => {
+    try {
+      const lessonId = parseInt(req.params['lessonId'] || '0');
+      if (isNaN(lessonId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid lesson ID',
+        });
+      }
+
+      const result = await ctx.lessonService.getSentenceSplitProgressForLesson(
+        ctx,
+        lessonId,
+        req.userId!
+      );
+
+      return res.status(result.httpStatus).json({
+        success: result.success,
+        ...(result.message && { message: result.message }),
+        ...(result.splitCount !== undefined && {
+          splitCount: result.splitCount,
+        }),
+        ...(result.totalCount !== undefined && {
+          totalCount: result.totalCount,
+        }),
+        ...(result.isSplitting !== undefined && {
+          isSplitting: result.isSplitting,
+        }),
+      });
+    } catch (error) {
+      console.error('Get split sentences progress route error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+      });
+    }
+  }
+);
+
+// Split all sentences in a lesson (background, in-memory progress)
+router.post(
+  '/:lessonId/split-sentences',
+  async (req: Request, res: Response) => {
+    try {
+      const lessonId = parseInt(req.params['lessonId'] || '0');
+      if (isNaN(lessonId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid lesson ID',
+        });
+      }
+
+      const result = await ctx.lessonService.startSplitAllLessonSentences(
+        ctx,
+        lessonId,
+        req.userId!
+      );
+
+      return res.status(result.httpStatus).json({
+        success: result.success,
+        ...(result.message && { message: result.message }),
+      });
+    } catch (error) {
+      console.error('Split all sentences route error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+      });
+    }
+  }
+);
+
 // Get sentences for a specific lesson with pagination
 router.get('/:lessonId/sentences', async (req: Request, res: Response) => {
   try {

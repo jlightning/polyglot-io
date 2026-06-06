@@ -6,6 +6,7 @@ import {
 } from '@prisma/client';
 import type { Context } from './index';
 import { wrapInTransaction } from './db';
+import { PLIMIT_CONCURRENCY } from './consts';
 
 export interface CreateLessonData {
   title: string;
@@ -70,8 +71,18 @@ export interface LessonResponse {
     createdAt: Date;
     userProgress?: any;
     createdWithPrompt?: string;
+    isSplittingSentences?: boolean;
+    hasUnsplitSentences?: boolean;
   }[];
 }
+
+export interface StartSplitAllSentencesResponse {
+  success: boolean;
+  message?: string;
+  httpStatus: number;
+}
+
+const splittingLessons = new Map<number, boolean>();
 
 export class LessonService {
   /**
@@ -710,6 +721,23 @@ export class LessonService {
       });
       const lessons = [...pinnedLessons, ...unpinnedLessons];
 
+      const lessonIds = lessons.map(l => l.id);
+      const hasUnsplitByLesson = new Map<number, boolean>(
+        lessonIds.map(id => [id, false])
+      );
+      if (lessonIds.length > 0) {
+        const sentenceRows = await ctx.prisma.sentence.findMany({
+          where: { lesson_id: { in: lessonIds } },
+          select: { lesson_id: true, split_text: true },
+        });
+        for (const row of sentenceRows) {
+          const st = row.split_text as string[] | null;
+          if (st == null || !Array.isArray(st)) {
+            hasUnsplitByLesson.set(row.lesson_id, true);
+          }
+        }
+      }
+
       const lessonsWithUrls = await Promise.all(
         lessons.map(async lesson => {
           let imageUrl = lesson.image_s3_key;
@@ -767,6 +795,8 @@ export class LessonService {
             },
           });
 
+          const splitting = this.isLessonSplitting(lesson.id);
+
           return {
             id: lesson.id,
             title: lesson.title,
@@ -787,6 +817,8 @@ export class LessonService {
             ...(lesson.created_with_prompt && {
               createdWithPrompt: lesson.created_with_prompt,
             }),
+            hasUnsplitSentences: hasUnsplitByLesson.get(lesson.id) ?? false,
+            ...(splitting ? { isSplittingSentences: true as const } : {}),
           };
         })
       );
@@ -1151,5 +1183,125 @@ export class LessonService {
         error: error instanceof Error ? error.message : 'Unknown error',
       };
     }
+  }
+
+  isLessonSplitting(lessonId: number): boolean {
+    return splittingLessons.get(lessonId) === true;
+  }
+
+  async getSentenceSplitProgressForLesson(
+    ctx: Context,
+    lessonId: number,
+    userId: number
+  ): Promise<{
+    success: boolean;
+    message?: string;
+    splitCount?: number;
+    totalCount?: number;
+    isSplitting?: boolean;
+    httpStatus: number;
+  }> {
+    const lesson = await ctx.prisma.lesson.findFirst({
+      where: { id: lessonId, created_by: userId },
+      select: { id: true },
+    });
+
+    if (!lesson) {
+      return {
+        success: false,
+        message: 'Lesson not found or access denied',
+        httpStatus: 404,
+      };
+    }
+
+    const progress = await this.getSentenceSplitProgress(ctx, lessonId);
+    return {
+      success: true,
+      splitCount: progress.splitCount,
+      totalCount: progress.totalCount,
+      isSplitting: this.isLessonSplitting(lessonId),
+      httpStatus: 200,
+    };
+  }
+
+  private async getSentenceSplitProgress(
+    ctx: Context,
+    lessonId: number
+  ): Promise<{ splitCount: number; totalCount: number }> {
+    const sentences = await ctx.prisma.sentence.findMany({
+      where: { lesson_id: lessonId },
+      select: { split_text: true },
+    });
+    const totalCount = sentences.length;
+    const splitCount = sentences.filter(s => {
+      const st = s.split_text as string[] | null;
+      return Array.isArray(st);
+    }).length;
+    return { splitCount, totalCount };
+  }
+
+  async startSplitAllLessonSentences(
+    ctx: Context,
+    lessonId: number,
+    userId: number
+  ): Promise<StartSplitAllSentencesResponse> {
+    const lesson = await ctx.prisma.lesson.findFirst({
+      where: { id: lessonId, created_by: userId },
+      select: { id: true, language_code: true },
+    });
+
+    if (!lesson) {
+      return {
+        success: false,
+        message: 'Lesson not found or access denied',
+        httpStatus: 404,
+      };
+    }
+
+    if (splittingLessons.get(lessonId)) {
+      return {
+        success: false,
+        message: 'Split already in progress',
+        httpStatus: 409,
+      };
+    }
+
+    const sentences = await ctx.prisma.sentence.findMany({
+      where: { lesson_id: lessonId },
+      select: {
+        id: true,
+        original_text: true,
+        split_text: true,
+        start_time: true,
+        end_time: true,
+      },
+      orderBy: { id: 'asc' },
+    });
+
+    const needsSplit = sentences.filter(s => {
+      const st = s.split_text as string[] | null;
+      return st == null || !Array.isArray(st);
+    });
+
+    if (needsSplit.length === 0) {
+      return { success: true, httpStatus: 200 };
+    }
+
+    const languageCode = lesson.language_code;
+    const runBatches = async () => {
+      for (let i = 0; i < needsSplit.length; i += PLIMIT_CONCURRENCY) {
+        await ctx.sentenceService.processSentenceSplitText(
+          ctx,
+          needsSplit.slice(i, i + PLIMIT_CONCURRENCY),
+          languageCode,
+          'asc'
+        );
+      }
+    };
+
+    splittingLessons.set(lessonId, true);
+    void runBatches().finally(() => splittingLessons.delete(lessonId));
+
+    return { success: true, httpStatus: 202 };
   }
 }

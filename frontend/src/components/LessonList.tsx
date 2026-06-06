@@ -40,6 +40,9 @@ interface Lesson {
     status: 'reading' | 'finished';
     readTillSentenceId: number;
   };
+  isSplittingSentences?: boolean;
+  sentenceSplitProgress?: { splitCount: number; totalCount: number };
+  hasUnsplitSentences?: boolean;
 }
 
 interface LessonListProps {
@@ -118,22 +121,82 @@ const LessonList: React.FC<LessonListProps> = ({
     }
   }, [isAuthenticated, refreshTrigger, fetchLessons]);
 
-  // Auto-refresh for pending lessons
+  // Auto-refresh for pending lesson uploads
   useEffect(() => {
     const hasPendingLessons = lessons.some(
       lesson => lesson.processingStatus === 'pending'
     );
 
-    if (hasPendingLessons) {
-      const interval = setInterval(() => {
-        fetchLessons();
-      }, 10000); // Refresh every 10 seconds if there are pending lessons
-
-      return () => clearInterval(interval);
+    if (!hasPendingLessons) {
+      return undefined;
     }
 
-    return undefined;
+    const interval = setInterval(() => {
+      fetchLessons();
+    }, 10000);
+
+    return () => clearInterval(interval);
   }, [lessons, fetchLessons]);
+
+  // Poll split progress per lesson (lightweight API)
+  const splittingLessonIds = lessons
+    .filter(lesson => lesson.isSplittingSentences)
+    .map(lesson => lesson.id)
+    .join(',');
+
+  useEffect(() => {
+    if (!splittingLessonIds) {
+      return undefined;
+    }
+
+    const lessonIds = splittingLessonIds.split(',').map(Number);
+
+    const pollSplitProgress = async () => {
+      const responses = await Promise.all(
+        lessonIds.map(id =>
+          axiosInstance.get(`/api/lessons/${id}/split-sentences/progress`)
+        )
+      );
+
+      setLessons(prev =>
+        prev.map(lesson => {
+          const index = lessonIds.indexOf(lesson.id);
+          if (index === -1) {
+            return lesson;
+          }
+
+          const data = responses[index]?.data;
+          if (!data?.success) {
+            return lesson;
+          }
+
+          if (!data.isSplitting) {
+            const { sentenceSplitProgress: _, ...rest } = lesson;
+            return {
+              ...rest,
+              isSplittingSentences: false,
+              hasUnsplitSentences: data.splitCount < data.totalCount,
+            };
+          }
+
+          return {
+            ...lesson,
+            sentenceSplitProgress: {
+              splitCount: data.splitCount,
+              totalCount: data.totalCount,
+            },
+          };
+        })
+      );
+    };
+
+    void pollSplitProgress();
+    const interval = setInterval(() => {
+      void pollSplitProgress();
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [splittingLessonIds, axiosInstance]);
 
   const handleDeleteLesson = async (lessonId: number) => {
     try {
@@ -172,6 +235,26 @@ const LessonList: React.FC<LessonListProps> = ({
     } else {
       // If no updated data provided, refetch to ensure consistency
       fetchLessons();
+    }
+  };
+
+  const handleSplitAllSentences = async (lessonId: number) => {
+    try {
+      await axiosInstance.post(`/api/lessons/${lessonId}/split-sentences`);
+      setLessons(prev =>
+        prev.map(lesson =>
+          lesson.id === lessonId
+            ? { ...lesson, isSplittingSentences: true }
+            : lesson
+        )
+      );
+    } catch (err) {
+      console.error('Error splitting sentences:', err);
+      if (axios.isAxiosError(err) && err.response?.data?.message) {
+        setError(err.response.data.message);
+      } else {
+        setError('Failed to split sentences');
+      }
     }
   };
 
@@ -278,6 +361,14 @@ const LessonList: React.FC<LessonListProps> = ({
                         lesson.lessonType.slice(1)}
                     </Badge>
                   )}
+                  {lesson.isSplittingSentences && (
+                    <Badge variant="soft" color="yellow">
+                      ⏳ Splitting sentences…
+                      {lesson.sentenceSplitProgress
+                        ? ` ${lesson.sentenceSplitProgress.splitCount} / ${lesson.sentenceSplitProgress.totalCount}`
+                        : ''}
+                    </Badge>
+                  )}
                   <Text size="2" color="gray">
                     Lesson #{lesson.id}
                   </Text>
@@ -380,6 +471,22 @@ const LessonList: React.FC<LessonListProps> = ({
                     >
                       <VideoIcon />
                       View Lesson with Video
+                    </MyButton>
+                  )}
+                  {(lesson.hasUnsplitSentences ||
+                    lesson.isSplittingSentences) && (
+                    <MyButton
+                      variant="soft"
+                      size="2"
+                      disabled={
+                        lesson.processingStatus !== 'completed' ||
+                        lesson.isSplittingSentences
+                      }
+                      onClick={() => handleSplitAllSentences(lesson.id)}
+                    >
+                      {lesson.isSplittingSentences
+                        ? 'Splitting...'
+                        : 'Split all sentences'}
                     </MyButton>
                   )}
                 </Flex>

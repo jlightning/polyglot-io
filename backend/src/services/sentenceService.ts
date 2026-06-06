@@ -245,7 +245,7 @@ export class SentenceService {
     for (const sentence of sentences) {
       const splitText = sentence.split_text as string[] | null;
 
-      if (!splitText || !Array.isArray(splitText) || splitText.length === 0) {
+      if (splitText == null || !Array.isArray(splitText)) {
         sentencesToProcess.push(sentence);
       } else {
         // Sentence already has split_text, fetch word translations from database

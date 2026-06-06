@@ -2,6 +2,7 @@ import OpenAI from 'openai';
 import dotenv from 'dotenv';
 import { OPENAI_MODEL } from './consts';
 import type { Context } from '../index';
+import { PLIMIT_CONCURRENCY } from '../consts';
 import { Runner } from '@openai/agents';
 import {
   imageTextExtractorAgent,
@@ -94,7 +95,7 @@ export class OpenAIService {
 
     const stemSupported = isStemSupportedLanguage(sourceLanguage);
 
-    const limit = pLimit(5);
+    const limit = pLimit(PLIMIT_CONCURRENCY);
     const hydratedWords: WordTranslation[] = await Promise.all(
       splitWords.map(word =>
         limit(async () => {
@@ -382,7 +383,7 @@ export class OpenAIService {
       return [];
     }
 
-    const limit = pLimit(5);
+    const limit = pLimit(PLIMIT_CONCURRENCY);
     return Promise.all(
       sentences.map(sentence =>
         limit(async () => {

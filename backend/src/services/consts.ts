@@ -1,1 +1,2 @@
 export const NUMBER_OF_TRANSLATION_TO_REDUCE = 5;
+export const PLIMIT_CONCURRENCY = 5;
