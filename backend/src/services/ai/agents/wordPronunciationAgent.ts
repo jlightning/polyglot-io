@@ -12,7 +12,7 @@ export const wordPronunciationAgent = new Agent({
     ctx: { context: BaseAgentContext & { word: string } },
     agent: unknown
   ) => {
-    const { languageCode, word } = ctx.context;
+    const { languageCode, languageName, word } = ctx.context;
 
     const getPronunciationInstructions = (language: string) => {
       const lowerLang = language.toLowerCase();
@@ -48,7 +48,7 @@ export const wordPronunciationAgent = new Agent({
     return [
       'You are a language learning assistant that provides pronunciations for words.',
       '',
-      `The word is in ${languageCode}.`,
+      `The word is in ${languageName} (language code: ${languageCode}).`,
       '',
       'Your task is to:',
       `1. Provide the pronunciation for the word "${word}"`,

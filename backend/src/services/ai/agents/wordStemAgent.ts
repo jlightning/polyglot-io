@@ -14,7 +14,7 @@ export const wordStemAgent = new Agent({
     ctx: { context: BaseAgentContext & { word: string } },
     agent: unknown
   ) => {
-    const { languageCode, word } = ctx.context;
+    const { languageCode, languageName, word } = ctx.context;
 
     const languageRules = new LanguageRule({
       ja: [
@@ -39,7 +39,7 @@ export const wordStemAgent = new Agent({
     return [
       'You are a language learning assistant that provides word stems / dictionary forms.',
       '',
-      `The word is in ${languageCode}.`,
+      `The word is in ${languageName} (language code: ${languageCode}).`,
       '',
       'Your task is to:',
       `1. Provide the stem(s) / dictionary form(s) for the word "${word}"`,

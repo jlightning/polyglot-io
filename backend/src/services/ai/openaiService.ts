@@ -5,6 +5,7 @@ import type { Context } from '../index';
 import { PLIMIT_CONCURRENCY } from '../consts';
 import { Runner } from '@openai/agents';
 import {
+  BaseAgentContext,
   imageTextExtractorAgent,
   isStemSupportedLanguage,
   lessonGeneratorAgent,
@@ -51,6 +52,14 @@ export class OpenAIService {
     });
   }
 
+  private agentContext(ctx: Context, languageCode: string): BaseAgentContext {
+    const langConfig = ctx.configService.getLanguageByCode(ctx, languageCode);
+    return {
+      languageCode,
+      languageName: langConfig?.name ?? languageCode,
+    };
+  }
+
   /**
    * Split a sentence into words and read translation/pronunciation/stems for
    * each word from the database when available; fall back to AI agents when
@@ -77,12 +86,13 @@ export class OpenAIService {
     }
 
     const runner = new Runner();
+    const baseContext = this.agentContext(ctx, sourceLanguage);
 
     const splitResult = await runner.run(
       sentenceSplitterAgent,
       `Split this sentence: "${sentence}"`,
       {
-        context: { languageCode: sourceLanguage, sentence },
+        context: { ...baseContext, sentence },
       }
     );
     if (!splitResult) {
@@ -119,7 +129,7 @@ export class OpenAIService {
               'Give translations now',
               {
                 context: {
-                  languageCode: sourceLanguage,
+                  ...baseContext,
                   word,
                   targetLanguage,
                 },
@@ -154,7 +164,7 @@ export class OpenAIService {
               wordStemAgent,
               'Give stems now',
               {
-                context: { languageCode: sourceLanguage, word: word.word },
+                context: { ...baseContext, word: word.word },
               }
             );
             stems = (stemResult?.finalOutput?.stems ?? [])
@@ -207,7 +217,7 @@ export class OpenAIService {
         wordPronunciationAgent,
         'Give pronunciation now',
         {
-          context: { languageCode, word },
+          context: { ...this.agentContext(ctx, languageCode), word },
         }
       );
       if (!pronunciationData)
@@ -271,7 +281,7 @@ export class OpenAIService {
         'Give translations now',
         {
           context: {
-            languageCode: sourceLanguage,
+            ...this.agentContext(ctx, sourceLanguage),
             word,
             targetLanguage,
           },
@@ -351,7 +361,7 @@ export class OpenAIService {
         },
       ],
       {
-        context: { languageCode: sourceLanguage },
+        context: this.agentContext(ctx, sourceLanguage),
       }
     );
     if (!result) {
@@ -407,16 +417,15 @@ export class OpenAIService {
     difficulty: string = 'Intermediate'
   ): Promise<{ text: string }> {
     const code = languageCode.trim().toLowerCase();
-    const configured = ctx.configService.getLanguageByCode(ctx, code);
-    const languageName = configured?.name ?? languageCode;
+    const baseContext = this.agentContext(ctx, code);
 
     const runner = new Runner();
 
     const result = await runner.run(
       lessonGeneratorAgent,
-      `Generate a lesson in ${languageName} at ${difficulty} level based on this request: ${prompt}`,
+      `Generate a lesson in ${baseContext.languageName} at ${difficulty} level based on this request: ${prompt}`,
       {
-        context: { languageCode, languageName, difficulty },
+        context: { ...baseContext, difficulty },
       }
     );
     if (!result) {
@@ -447,7 +456,7 @@ export class OpenAIService {
 
     const result = await runner.run(sentenceTranslatorAgent, 'Translate now', {
       context: {
-        languageCode: sourceLanguage,
+        ...this.agentContext(ctx, sourceLanguage),
         targetSentence,
         contextSentences,
       },
@@ -509,7 +518,7 @@ export class OpenAIService {
         'Simplify translations now',
         {
           context: {
-            languageCode: sourceLanguage,
+            ...this.agentContext(ctx, sourceLanguage),
             word,
             translations,
             targetLanguage,
@@ -591,9 +600,7 @@ export class OpenAIService {
     text: string,
     languageCode: string
   ): Promise<Buffer> {
-    const langConfig = ctx.configService.getLanguageByCode(ctx, languageCode);
-    const languageName = langConfig?.name ?? languageCode;
-    const instructions = `Speak in ${languageName}.`;
+    const instructions = `Speak in ${this.agentContext(ctx, languageCode).languageName}.`;
 
     const response = await this.client.audio.speech.create({
       model: 'gpt-4o-mini-tts',

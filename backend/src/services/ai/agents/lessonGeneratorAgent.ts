@@ -7,10 +7,7 @@ export const lessonGeneratorAgent = new Agent({
   name: 'LessonGeneratorAgent',
   instructions: async (
     ctx: {
-      context: BaseAgentContext & {
-        languageName: string;
-        difficulty: string;
-      };
+      context: BaseAgentContext & { difficulty: string };
     },
     agent: unknown
   ) => {

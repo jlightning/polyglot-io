@@ -11,6 +11,7 @@ export * from './lessonGeneratorAgent';
 
 export type BaseAgentContext = {
   languageCode: string;
+  languageName: string;
 };
 
 setTracingDisabled(true);

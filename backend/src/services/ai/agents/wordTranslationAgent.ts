@@ -12,7 +12,7 @@ export const wordTranslationAgent = new Agent({
     },
     agent: unknown
   ) => {
-    const { languageCode, word, targetLanguage } = ctx.context;
+    const { languageCode, languageName, word, targetLanguage } = ctx.context;
 
     const languageRules = new LanguageRule({
       ja: [
@@ -23,7 +23,7 @@ export const wordTranslationAgent = new Agent({
     return [
       'You are a language learning assistant that provides translations for words.',
       '',
-      `The word "${word}" is in ${languageCode}.`,
+      `The word "${word}" is in ${languageName} (language code: ${languageCode}).`,
       '',
       'Your task is to:',
       `1. Provide accurate ${targetLanguage} translations for the word "${word}"`,

@@ -16,7 +16,8 @@ export const simplifyTranslationsAgent = new Agent({
     },
     agent: unknown
   ) => {
-    const { languageCode, word, translations, targetLanguage } = ctx.context;
+    const { languageCode, languageName, word, translations, targetLanguage } =
+      ctx.context;
 
     const languageRules = new LanguageRule({
       ja: [
@@ -27,7 +28,7 @@ export const simplifyTranslationsAgent = new Agent({
     return [
       'You are a language expert that simplifies word translations.',
       '',
-      `The word "${word}" in ${languageCode} has ${translations.length} translations in ${targetLanguage}.`,
+      `The word "${word}" in ${languageName} (language code: ${languageCode}) has ${translations.length} translations in ${targetLanguage}.`,
       'Your task is to simplify the list to minimal list.',
       '',
       'Guidelines:',

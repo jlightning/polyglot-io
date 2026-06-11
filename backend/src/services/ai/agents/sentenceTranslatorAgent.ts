@@ -14,12 +14,13 @@ export const sentenceTranslatorAgent = new Agent({
     },
     agent: unknown
   ) => {
-    const { languageCode, targetSentence, contextSentences } = ctx.context;
+    const { languageCode, languageName, targetSentence, contextSentences } =
+      ctx.context;
 
     return [
       'You are a professional translator that provides accurate and contextually appropriate English translations.',
       '',
-      `The text is in ${languageCode}.`,
+      `The text is in ${languageName} (language code: ${languageCode}).`,
       '',
       'Your task is to:',
       '1. Translate the target sentence to natural, fluent English',

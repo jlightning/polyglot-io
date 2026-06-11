@@ -7,7 +7,7 @@ import { LanguageRule } from './utils';
 export const imageTextExtractorAgent = new Agent({
   name: 'ImageTextExtractorAgent',
   instructions: async (ctx: { context: BaseAgentContext }, agent: unknown) => {
-    const { languageCode } = ctx.context;
+    const { languageCode, languageName } = ctx.context;
 
     const languageRules = new LanguageRule({
       ja: ['Text is read top to bottom and from right to left.'],
@@ -19,7 +19,7 @@ export const imageTextExtractorAgent = new Agent({
     return [
       'You are an OCR specialist that extracts text from manga/comic images.',
       '',
-      `The image contains text in ${languageCode}.`,
+      `The image contains text in ${languageName} (language code: ${languageCode}).`,
       '',
       languageRules.getRule(languageCode),
       '',

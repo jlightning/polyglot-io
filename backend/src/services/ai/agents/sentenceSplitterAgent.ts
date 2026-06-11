@@ -10,7 +10,7 @@ export const sentenceSplitterAgent = new Agent({
     ctx: { context: BaseAgentContext & { sentence: string } },
     agent: unknown
   ) => {
-    const { languageCode } = ctx.context;
+    const { languageCode, languageName } = ctx.context;
 
     const languageRules = new LanguageRule({
       zh: [
@@ -83,7 +83,7 @@ export const sentenceSplitterAgent = new Agent({
     return [
       'You are a language learning assistant that splits sentences into individual meaningful words.',
       '',
-      `The sentence is in ${languageCode}.`,
+      `The sentence is in ${languageName} (language code: ${languageCode}).`,
       '',
       'Your task is to:',
       `1. Split the given sentence into individual meaningful words that make sense for a language learner (excluding punctuation marks)`,
@@ -97,6 +97,7 @@ export const sentenceSplitterAgent = new Agent({
       '- Be consistent with word segmentation',
       '- Exclude punctuation marks from the word list',
       `- When there're phrase that cannot be split to smaller word without changing the meaning, keep the phrase as 1 word`,
+      `- If you are highly certain that the sentence is not written in ${languageName}, return an empty array of words.`,
     ].join('\n');
   },
   outputType: z.object({
