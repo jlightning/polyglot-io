@@ -1,13 +1,60 @@
-import { Agent } from '@openai/agents';
+import { Agent, RunContext, tool } from '@openai/agents';
+import { PrismaClient } from '@prisma/client';
 import { OPENAI_MODEL } from '../consts';
 import { BaseAgentContext } from './index';
 import z from 'zod';
 import { LanguageRule } from './utils';
 
+export type SentenceSplitterContext = BaseAgentContext & {
+  sentence: string;
+  userId: number;
+  prisma: PrismaClient;
+};
+
+const checkUserWordMarksTool = tool({
+  name: 'check_user_word_marks',
+  description:
+    'Look up the current user mark (0-5) for candidate word surface forms. Pass all candidate segments in one call. Returns mark per word, or null if the user has no mark for that word. Use when segmentation is ambiguous to prefer higher-marked words.',
+  parameters: z.object({
+    words: z
+      .array(z.string())
+      .describe('Candidate word segments to look up in one batch'),
+  }),
+  execute: async (
+    { words },
+    runContext?: RunContext<SentenceSplitterContext>
+  ) => {
+    const ctx = runContext?.context;
+    if (!ctx) {
+      return {
+        results: words.map(word => ({ word, mark: null })),
+      };
+    }
+
+    const wordUserMarks = await ctx.prisma.wordUserMark.findMany({
+      where: {
+        user_id: ctx.userId,
+        word: {
+          word: { in: words },
+          language_code: ctx.languageCode,
+        },
+      },
+      include: { word: true },
+    });
+    const markByWord = new Map(wordUserMarks.map(m => [m.word.word, m.mark]));
+    return {
+      results: words.map(word => ({
+        word,
+        mark: markByWord.get(word) ?? null,
+      })),
+    };
+  },
+});
+
 export const sentenceSplitterAgent = new Agent({
   name: 'SentenceSplitterAgent',
   instructions: async (
-    ctx: { context: BaseAgentContext & { sentence: string } },
+    ctx: { context: SentenceSplitterContext },
     agent: unknown
   ) => {
     const { languageCode, languageName } = ctx.context;
@@ -98,8 +145,10 @@ export const sentenceSplitterAgent = new Agent({
       '- Exclude punctuation marks from the word list',
       `- When there're phrase that cannot be split to smaller word without changing the meaning, keep the phrase as 1 word`,
       `- If you are highly certain that the sentence is not written in ${languageName}, return an empty array of words.`,
+      '- When segmentation is ambiguous, call check_user_word_marks once with all candidate segments from the competing splits. Prefer the split that uses higher-marked words. Priority (high to low): mark 5/4 (known) > 3 > 2 > 1 > unmarked or mark 0. Do not break the language rules above for mark priority.',
     ].join('\n');
   },
+  tools: [checkUserWordMarksTool],
   outputType: z.object({
     words: z.array(
       z.object({

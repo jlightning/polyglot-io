@@ -1068,6 +1068,7 @@ export class LessonService {
     ctx: Context,
     lessonId: number,
     lessonFileId: number,
+    userId: number,
     selection: { x: number; y: number; width: number; height: number }
   ): Promise<{
     success: boolean;
@@ -1167,7 +1168,8 @@ export class LessonService {
         await ctx.sentenceService.processSentenceSplitText(
           ctx,
           newSentenceRecords,
-          lesson.language_code
+          lesson.language_code,
+          userId
         );
 
       return {
@@ -1294,7 +1296,7 @@ export class LessonService {
           ctx,
           needsSplit.slice(i, i + PLIMIT_CONCURRENCY),
           languageCode,
-          'asc'
+          userId
         );
       }
     };

@@ -79,6 +79,7 @@ export class OpenAIService {
     ctx: Context,
     sentence: string,
     sourceLanguage: string,
+    userId: number,
     targetLanguage: string = 'en'
   ): Promise<SentenceAnalysis> {
     if (!sentence || sentence.trim().length === 0) {
@@ -92,7 +93,12 @@ export class OpenAIService {
       sentenceSplitterAgent,
       `Split this sentence: "${sentence}"`,
       {
-        context: { ...baseContext, sentence },
+        context: {
+          ...baseContext,
+          sentence,
+          userId,
+          prisma: ctx.prisma,
+        },
       }
     );
     if (!splitResult) {
@@ -387,7 +393,8 @@ export class OpenAIService {
   async splitMultipleSentencesAndTranslate(
     ctx: Context,
     sentences: string[],
-    sourceLanguage: string
+    sourceLanguage: string,
+    userId: number
   ): Promise<SentenceAnalysis[]> {
     if (!sentences || sentences.length === 0) {
       return [];
@@ -397,7 +404,12 @@ export class OpenAIService {
     return Promise.all(
       sentences.map(sentence =>
         limit(async () => {
-          return this.splitSentenceAndTranslate(ctx, sentence, sourceLanguage);
+          return this.splitSentenceAndTranslate(
+            ctx,
+            sentence,
+            sourceLanguage,
+            userId
+          );
         })
       )
     );

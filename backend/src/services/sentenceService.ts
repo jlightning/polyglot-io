@@ -229,6 +229,7 @@ export class SentenceService {
       end_time: any;
     }>,
     languageCode: string,
+    userId: number,
     orderById: 'asc' | 'desc' = 'asc'
   ): Promise<SentenceWithSplitText[]> {
     // Separate sentences that need processing from those that don't
@@ -343,7 +344,8 @@ export class SentenceService {
           await ctx.openaiService.splitMultipleSentencesAndTranslate(
             ctx,
             textsToProcess,
-            languageCode
+            languageCode,
+            userId
           );
 
         // Process results and update database
@@ -581,6 +583,7 @@ export class SentenceService {
         ctx,
         sentences,
         lesson.language_code,
+        userId,
         orderDirection as 'asc' | 'desc'
       );
 
@@ -772,7 +775,8 @@ export class SentenceService {
       const analysis = await ctx.openaiService.splitSentenceAndTranslate(
         ctx,
         trimmedText,
-        lesson.language_code
+        lesson.language_code,
+        userId
       );
       const splitText = analysis.words.map(w => w.word);
 
@@ -1014,7 +1018,8 @@ export class SentenceService {
         await ctx.openaiService.splitMultipleSentencesAndTranslate(
           ctx,
           trimmed,
-          lesson.language_code
+          lesson.language_code,
+          userId
         );
 
       await wrapInTransaction(ctx, async ctx => {
@@ -1111,7 +1116,7 @@ export class SentenceService {
         ctx,
         [sentence],
         sentence.lesson.language_code,
-        'asc'
+        userId
       );
       const processedSentence = processedSentences[0];
 

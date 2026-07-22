@@ -1026,6 +1026,7 @@ router.post('/:lessonId/ocr-region', async (req: Request, res: Response) => {
       ctx,
       lessonId,
       parseInt(lessonFileId),
+      req.userId!,
       { x, y, width, height }
     );
 
