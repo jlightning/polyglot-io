@@ -10,6 +10,7 @@
   ],
   "scripts": {
     "dev": "concurrently \"yarn workspace backend dev\" \"yarn workspace frontend dev\"",
+    "tunnel-mcp": "cloudflared tunnel run polyglot-mcp-james-dev",
     "build": "yarn workspace backend build && yarn workspace frontend build",
     "start": "yarn workspace backend start",
     "clean": "yarn workspace backend clean && yarn workspace frontend clean",

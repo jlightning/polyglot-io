@@ -7,6 +7,7 @@ import {
   BookmarkIcon,
   GearIcon,
   DashboardIcon,
+  CodeIcon,
 } from '@radix-ui/react-icons';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -45,6 +46,7 @@ const Sidebar: React.FC<SidebarProps> = () => {
   const isLessonsActive = location.pathname.startsWith('/lessons');
   const isWordsActive = location.pathname === '/words';
   const isChartsActive = location.pathname === '/charts';
+  const isMcpActive = location.pathname === '/mcp';
   const isSettingsActive = location.pathname === '/settings';
 
   return (
@@ -295,6 +297,14 @@ const Sidebar: React.FC<SidebarProps> = () => {
           >
             <DashboardIcon />
             Charts
+          </MyButton>
+          <MyButton
+            variant={isMcpActive ? 'solid' : 'soft'}
+            style={{ justifyContent: 'flex-start' }}
+            onClick={() => navigate('/mcp')}
+          >
+            <CodeIcon />
+            MCP
           </MyButton>
         </Flex>
       </Box>

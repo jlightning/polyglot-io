@@ -18,6 +18,7 @@ import {
   WordsPage,
   SettingsPage,
   ChartsPage,
+  McpPage,
 } from './pages';
 import { Flex, Text } from '@radix-ui/themes';
 import Sidebar from './components/Sidebar';
@@ -81,6 +82,7 @@ const AppContent: React.FC = () => {
                     />
                     <Route path="/words" element={<WordsPage />} />
                     <Route path="/charts" element={<ChartsPage />} />
+                    <Route path="/mcp" element={<McpPage />} />
                     <Route path="/settings" element={<SettingsPage />} />
                   </Routes>
                 </WordSidebarProvider>

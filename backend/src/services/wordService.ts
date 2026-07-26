@@ -205,7 +205,8 @@ export class WordService {
     languageFilter?: string,
     searchFilter?: string,
     sortBy: string = 'updated_at',
-    sortOrder: 'asc' | 'desc' = 'desc'
+    sortOrder: 'asc' | 'desc' = 'desc',
+    words?: string[]
   ) {
     try {
       const skip = (page - 1) * limit;
@@ -217,13 +218,18 @@ export class WordService {
       }
 
       // Build word filter conditions
-      const wordConditions: any = {};
+      const wordConditions: Record<string, unknown> = {};
       if (languageFilter) {
-        wordConditions.language_code = languageFilter;
+        wordConditions['language_code'] = languageFilter;
+      }
+      if (words && words.length > 0) {
+        wordConditions['word'] = { in: words };
       }
 
-      // Add search filter for word text or user notes
-      if (searchFilter) {
+      // Exact words[] takes precedence over search; search matches word text or notes
+      if (words && words.length > 0) {
+        whereClause.word = wordConditions;
+      } else if (searchFilter) {
         const searchTerm = searchFilter.toLowerCase();
         whereClause.OR = [
           {

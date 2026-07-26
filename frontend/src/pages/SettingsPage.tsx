@@ -40,7 +40,6 @@ const SettingsPage: React.FC = () => {
         text: 'Settings saved successfully!',
         type: 'success',
       });
-      // Refetch user stats to reflect the new target
       if (selectedLanguage) {
         await fetchUserStats(selectedLanguage);
       }
@@ -60,7 +59,7 @@ const SettingsPage: React.FC = () => {
         Settings
       </Heading>
 
-      <Card style={{ padding: '24px', maxWidth: '600px' }}>
+      <Card size="3" style={{ padding: '24px', width: '100%' }}>
         {message && (
           <Box
             mb="4"

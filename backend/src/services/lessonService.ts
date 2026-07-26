@@ -74,6 +74,12 @@ export interface LessonResponse {
     isSplittingSentences?: boolean;
     hasUnsplitSentences?: boolean;
   }[];
+  pagination?: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
 }
 
 export interface StartSplitAllSentencesResponse {
@@ -655,6 +661,8 @@ export class LessonService {
       search?: string;
       status?: 'reading' | 'finished';
       type?: 'text' | 'subtitle' | 'manga' | 'manual' | 'generated';
+      page?: number;
+      limit?: number;
     }
   ): Promise<LessonResponse> {
     try {
@@ -665,6 +673,11 @@ export class LessonService {
           message: 'Language not supported or not enabled',
         };
       }
+
+      const shouldPaginate =
+        filters?.page !== undefined || filters?.limit !== undefined;
+      const page = filters?.page && filters.page >= 1 ? filters.page : 1;
+      const limit = filters?.limit && filters.limit >= 1 ? filters.limit : 100;
 
       // Build where clause with filters
       const whereClause: Prisma.LessonWhereInput = {
@@ -719,7 +732,12 @@ export class LessonService {
         include: { lessonFiles: true },
         orderBy: { id: 'desc' },
       });
-      const lessons = [...pinnedLessons, ...unpinnedLessons];
+      const allLessons = [...pinnedLessons, ...unpinnedLessons];
+      const total = allLessons.length;
+      const skip = (page - 1) * limit;
+      const lessons = shouldPaginate
+        ? allLessons.slice(skip, skip + limit)
+        : allLessons;
 
       const lessonIds = lessons.map(l => l.id);
       const hasUnsplitByLesson = new Map<number, boolean>(
@@ -827,6 +845,14 @@ export class LessonService {
         success: true,
         message: 'Lessons retrieved successfully',
         lessons: lessonsWithUrls,
+        ...(shouldPaginate && {
+          pagination: {
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit) || 0,
+          },
+        }),
       };
     } catch (error) {
       console.error('Get lessons by language error:', error);

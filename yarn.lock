@@ -1770,7 +1770,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@modelcontextprotocol/sdk@npm:^1.26.0":
+"@modelcontextprotocol/sdk@npm:^1.26.0, @modelcontextprotocol/sdk@npm:^1.29.0":
   version: 1.29.0
   resolution: "@modelcontextprotocol/sdk@npm:1.29.0"
   dependencies:
@@ -4764,6 +4764,7 @@ __metadata:
   dependencies:
     "@aws-sdk/client-s3": "npm:^3.873.0"
     "@aws-sdk/s3-request-presigner": "npm:^3.873.0"
+    "@modelcontextprotocol/sdk": "npm:^1.29.0"
     "@openai/agents": "npm:^0.8.5"
     "@prisma/client": "npm:^6.19.2"
     "@types/bcrypt": "npm:^6.0.0"

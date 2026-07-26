@@ -15,7 +15,11 @@ import userSettingRoutes from './routes/userSettingRoutes';
 import chartRoutes from './routes/chartRoutes';
 import ttsRoutes from './routes/ttsRoutes';
 import { ctx } from './routes';
-import { authenticateToken } from './middleware/auth';
+import {
+  authenticateToken,
+  authenticateMcpQueryToken,
+} from './middleware/auth';
+import mcpRoutes from './mcp/mcpRoutes';
 import { PrismaClient } from '@prisma/client';
 
 // Load environment variables
@@ -66,6 +70,9 @@ app.use('/api/user-action-log', authenticateToken, userActionLogRoutes);
 app.use('/api/user-settings', authenticateToken, userSettingRoutes);
 app.use('/api/charts', authenticateToken, chartRoutes);
 app.use('/api/tts', authenticateToken, ttsRoutes);
+
+// MCP Streamable HTTP (auth via ?token= query param)
+app.use('/mcp', authenticateMcpQueryToken, mcpRoutes);
 
 // Error handling middleware
 app.use(
