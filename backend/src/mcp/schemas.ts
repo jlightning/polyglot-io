@@ -48,10 +48,13 @@ export const CreateLessonOutputSchema = z.object({
 
 export const AddSentenceInputSchema = z.object({
   lessonId: z.number().int().positive(),
-  text: z.string().min(1),
+  sentences: z.array(z.string().min(1)).min(1),
 });
 
-export const AddSentenceOutputSchema = AddSentenceResponseSchema;
+export const AddSentenceOutputSchema = z.object({
+  success: z.boolean(),
+  results: z.array(AddSentenceResponseSchema),
+});
 
 export const MarkWordInputSchema = z.object({
   words: z

@@ -20,7 +20,7 @@ const MCP_TOOLS = [
   },
   {
     name: 'add_sentence',
-    description: 'Add a sentence to a manual lesson',
+    description: 'Add one or more sentences to a manual lesson',
   },
   {
     name: 'mark_word',

@@ -1,5 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import pLimit from 'p-limit';
 import type { Context } from '../services';
+import { PLIMIT_CONCURRENCY } from '../services/consts';
 import {
   AddSentenceInputSchema,
   AddSentenceOutputSchema,
@@ -58,7 +60,7 @@ export function createPolyglotMcpServer(
         '',
         'Sentences:',
         '- list_sentences returns paginated sentences for a lesson (may trigger server-side splitting).',
-        '- add_sentence works only on manual lessons.',
+        '- add_sentence accepts sentences[] on manual lessons only.',
         '',
         'Words:',
         '- mark_word sets difficulty 0–5:',
@@ -104,7 +106,7 @@ export function createPolyglotMcpServer(
     'add_sentence',
     {
       description: [
-        'Add a sentence to an existing manual lesson.',
+        'Add one or more sentences to an existing manual lesson (sentences[]).',
         'Word-splitting is performed server-side.',
         'After success, always show the returned words as a numbered list for marking.',
         'Skip words already marked 5.',
@@ -116,14 +118,19 @@ export function createPolyglotMcpServer(
       inputSchema: AddSentenceInputSchema,
       outputSchema: AddSentenceOutputSchema,
     },
-    async ({ lessonId, text }) => {
-      const result = await ctx.sentenceService.addSentenceToLesson(
-        ctx,
-        lessonId,
-        userId,
-        text
+    async ({ lessonId, sentences }) => {
+      const limit = pLimit(PLIMIT_CONCURRENCY);
+      const results = await Promise.all(
+        sentences.map(text =>
+          limit(() =>
+            ctx.sentenceService.addSentenceToLesson(ctx, lessonId, userId, text)
+          )
+        )
       );
-      return toolResult(result);
+      return toolResult({
+        success: results.every(r => r.success),
+        results,
+      });
     }
   );
 
