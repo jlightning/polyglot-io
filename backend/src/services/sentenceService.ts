@@ -165,7 +165,7 @@ export class SentenceService {
           }
         }
 
-        // Store word stems if provided (skip if stem is same as original word)
+        // Store word stems if provided
         if (
           wordObj.stems &&
           Array.isArray(wordObj.stems) &&
@@ -173,8 +173,7 @@ export class SentenceService {
         ) {
           for (const stem of wordObj.stems) {
             const trimmedStem = stem.trim();
-            // Skip storing if stem is the same as the original word
-            if (trimmedStem && trimmedStem !== trimmedWord) {
+            if (trimmedStem) {
               await ctx.prisma.wordStem.upsert({
                 where: {
                   word_id_stem: {
