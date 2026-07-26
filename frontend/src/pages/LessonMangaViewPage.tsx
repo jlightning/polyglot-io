@@ -15,23 +15,17 @@ import { useWordSidebar } from '../contexts/WordSidebarContext';
 import SentenceReConstructor from '../components/SentenceReConstructor';
 import axios from 'axios';
 
-interface WordTranslation {
-  word: string;
-  translation: string;
-}
-
-interface WordPronunciation {
-  word: string;
-  pronunciation: string;
-  pronunciationType: string;
-}
-
 interface Sentence {
   id: number;
   original_text: string;
   split_text: string[] | null;
-  word_translations?: WordTranslation[] | null;
-  word_pronunciations?: WordPronunciation[] | null;
+  words: {
+    word: string;
+    translations: string[];
+    pronunciations: string[];
+    stems: string[];
+    mark: number | null;
+  }[];
   start_time: number | null;
   end_time: number | null;
 }
@@ -69,12 +63,11 @@ const LessonMangaViewPage: React.FC = () => {
   const { lessonId } = useParams<{ lessonId: string }>();
   const navigate = useNavigate();
   const { axiosInstance, isAuthenticated, isLoading: authLoading } = useAuth();
-  const { addWords } = useWordMark();
+  const { seedWordMarks } = useWordMark();
   const { openWordSidebar, setWordSidebarLanguage } = useWordSidebar();
 
-  // Use a ref to store the current addWords function to avoid callback recreations
-  const addWordsRef = useRef(addWords);
-  addWordsRef.current = addWords;
+  const seedWordMarksRef = useRef(seedWordMarks);
+  seedWordMarksRef.current = seedWordMarks;
 
   // Manga page state
   const [currentMangaPageIndex, setCurrentMangaPageIndex] = useState(0);
@@ -238,28 +231,11 @@ const LessonMangaViewPage: React.FC = () => {
           const sentences = response.data.lesson.sentences;
           setDisplaySentences(sentences);
 
-          // Collect all unique words and add them to word context asynchronously
           if (lesson?.languageCode) {
-            setTimeout(async () => {
-              const allWords = new Set<string>();
-              sentences.forEach((sentence: Sentence) => {
-                if (sentence.split_text) {
-                  sentence.split_text.forEach((word: string) =>
-                    allWords.add(word)
-                  );
-                }
-              });
-
-              if (allWords.size > 0) {
-                try {
-                  await addWordsRef.current(
-                    Array.from(allWords),
-                    lesson.languageCode
-                  );
-                } catch (err) {
-                  console.error('Error adding words to context:', err);
-                }
-              }
+            setTimeout(() => {
+              seedWordMarksRef.current(
+                sentences.flatMap((sentence: Sentence) => sentence.words)
+              );
             }, 0);
           }
         }

@@ -1,13 +1,31 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import z from 'zod';
 import type { Context } from '../services';
+import {
+  AddSentenceInputSchema,
+  AddSentenceOutputSchema,
+  CreateLessonInputSchema,
+  CreateLessonOutputSchema,
+  ListLessonsInputSchema,
+  ListLessonsOutputSchema,
+  ListSentencesInputSchema,
+  ListSentencesOutputSchema,
+  ListWordsInputSchema,
+  ListWordsOutputSchema,
+  MarkWordInputSchema,
+  MarkWordOutputSchema,
+} from './schemas';
 
-function textResult(data: unknown) {
+function toolResult(data: unknown) {
+  const structuredContent = JSON.parse(JSON.stringify(data)) as Record<
+    string,
+    unknown
+  >;
   return {
+    structuredContent,
     content: [
       {
         type: 'text' as const,
-        text: JSON.stringify(data, null, 2),
+        text: JSON.stringify(structuredContent, null, 2),
       },
     ],
   };
@@ -45,11 +63,8 @@ export function createPolyglotMcpServer(
     {
       description:
         'Create a manual lesson. Optionally include sentences (word-splitting is server-side). Omitting sentences creates an empty manual lesson.',
-      inputSchema: {
-        title: z.string().min(1),
-        languageCode: z.string().min(1),
-        sentences: z.array(z.string().min(1)).optional(),
-      },
+      inputSchema: CreateLessonInputSchema,
+      outputSchema: CreateLessonOutputSchema,
     },
     async ({ title, languageCode, sentences }) => {
       const result = await ctx.lessonService.createManualLesson(ctx, userId, {
@@ -57,7 +72,7 @@ export function createPolyglotMcpServer(
         languageCode,
         ...(sentences && sentences.length > 0 ? { sentences } : {}),
       });
-      return textResult(result);
+      return toolResult(result);
     }
   );
 
@@ -66,10 +81,8 @@ export function createPolyglotMcpServer(
     {
       description:
         'Add a sentence to an existing manual lesson. Word-splitting is performed server-side.',
-      inputSchema: {
-        lessonId: z.number().int().positive(),
-        text: z.string().min(1),
-      },
+      inputSchema: AddSentenceInputSchema,
+      outputSchema: AddSentenceOutputSchema,
     },
     async ({ lessonId, text }) => {
       const result = await ctx.sentenceService.addSentenceToLesson(
@@ -78,7 +91,7 @@ export function createPolyglotMcpServer(
         userId,
         text
       );
-      return textResult(result);
+      return toolResult(result);
     }
   );
 
@@ -87,19 +100,8 @@ export function createPolyglotMcpServer(
     {
       description:
         "Create or update a word mark. Scale: 0=Ignore, 1=Don't remember, 2=Hard to remember, 3=Remembered, 4=Easy to remember, 5=No problem.",
-      inputSchema: {
-        word: z.string().min(1),
-        languageCode: z.string().min(1),
-        mark: z
-          .number()
-          .int()
-          .min(0)
-          .max(5)
-          .describe(
-            "0=Ignore, 1=Don't remember, 2=Hard to remember, 3=Remembered, 4=Easy to remember, 5=No problem"
-          ),
-        note: z.string().optional(),
-      },
+      inputSchema: MarkWordInputSchema,
+      outputSchema: MarkWordOutputSchema,
     },
     async ({ word, languageCode, mark, note }) => {
       const result = await ctx.wordService.createOrUpdateWordUserMark(
@@ -112,7 +114,7 @@ export function createPolyglotMcpServer(
           note: note ?? '',
         }
       );
-      return textResult(result);
+      return toolResult(result);
     }
   );
 
@@ -121,16 +123,8 @@ export function createPolyglotMcpServer(
     {
       description:
         'List lessons for a language with optional search/status/type filters. Paginated (default limit 100).',
-      inputSchema: {
-        languageCode: z.string().min(1),
-        search: z.string().optional(),
-        status: z.enum(['reading', 'finished']).optional(),
-        type: z
-          .enum(['text', 'subtitle', 'manga', 'manual', 'generated'])
-          .optional(),
-        page: z.number().int().positive().optional(),
-        limit: z.number().int().positive().max(1000).optional(),
-      },
+      inputSchema: ListLessonsInputSchema,
+      outputSchema: ListLessonsOutputSchema,
     },
     async ({ languageCode, search, status, type, page, limit }) => {
       const result = await ctx.lessonService.getLessonsByLanguage(
@@ -145,7 +139,7 @@ export function createPolyglotMcpServer(
           ...(type ? { type } : {}),
         }
       );
-      return textResult(result);
+      return toolResult(result);
     }
   );
 
@@ -154,11 +148,8 @@ export function createPolyglotMcpServer(
     {
       description:
         'List sentences for a lesson (paginated, default limit 100). May trigger server-side word-splitting for unsplit sentences.',
-      inputSchema: {
-        lessonId: z.number().int().positive(),
-        page: z.number().int().positive().optional(),
-        limit: z.number().int().positive().max(1000).optional(),
-      },
+      inputSchema: ListSentencesInputSchema,
+      outputSchema: ListSentencesOutputSchema,
     },
     async ({ lessonId, page, limit }) => {
       const result = await ctx.sentenceService.getLessonSentences(
@@ -168,7 +159,7 @@ export function createPolyglotMcpServer(
         page ?? 1,
         limit ?? 100
       );
-      return textResult(result);
+      return toolResult(result);
     }
   );
 
@@ -177,21 +168,8 @@ export function createPolyglotMcpServer(
     {
       description:
         'List marked words with pagination (default limit 100). No search. Optional exact-match words list, language, and mark filter.',
-      inputSchema: {
-        page: z.number().int().positive().optional(),
-        limit: z.number().int().positive().max(1000).optional(),
-        languageCode: z.string().optional(),
-        mark: z
-          .number()
-          .int()
-          .min(0)
-          .max(5)
-          .optional()
-          .describe(
-            "Filter by mark: 0=Ignore, 1=Don't remember, 2=Hard to remember, 3=Remembered, 4=Easy to remember, 5=No problem"
-          ),
-        words: z.array(z.string().min(1)).optional(),
-      },
+      inputSchema: ListWordsInputSchema,
+      outputSchema: ListWordsOutputSchema,
     },
     async ({ page, limit, languageCode, mark, words }) => {
       const result = await ctx.wordService.getUserWordMarksWithDetails(
@@ -206,7 +184,7 @@ export function createPolyglotMcpServer(
         'desc',
         words
       );
-      return textResult(result);
+      return toolResult(result);
     }
   );
 

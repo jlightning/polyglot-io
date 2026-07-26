@@ -1,66 +1,74 @@
+import z from 'zod';
 import type { Context } from './index';
 import { wrapInTransaction } from './db';
 
-export interface WordWithTranslation {
-  word: string;
-  translation: string;
-}
+export const SentenceWordSchema = z.object({
+  word: z.string(),
+  translations: z.array(z.string()),
+  pronunciations: z.array(z.string()),
+  stems: z.array(z.string()),
+  mark: z.number().nullable(),
+});
 
-export interface WordWithPronunciation {
-  word: string;
-  pronunciation: string;
-  pronunciationType: string;
-}
+export const SentenceWithSplitTextSchema = z.object({
+  id: z.number(),
+  original_text: z.string(),
+  split_text: z.array(z.string()).nullable(),
+  words: z.array(SentenceWordSchema),
+  start_time: z.number().nullable(),
+  end_time: z.number().nullable(),
+  translation: z.string().nullable().optional(),
+});
 
-export interface WordWithStems {
-  word: string;
-  stems: string[];
-}
+export type SentenceWithSplitText = z.infer<typeof SentenceWithSplitTextSchema>;
+export type SentenceWord = z.infer<typeof SentenceWordSchema>;
 
-export interface SentenceWithSplitText {
-  id: number;
-  original_text: string;
-  split_text: string[] | null;
-  word_translations?: WordWithTranslation[] | null;
-  word_pronunciations?: WordWithPronunciation[] | null;
-  word_stems?: WordWithStems[] | null;
-  start_time: number | null;
-  end_time: number | null;
-  translation?: string | null;
-}
+export const LessonWithSentencesSchema = z.object({
+  id: z.number(),
+  title: z.string(),
+  languageCode: z.string(),
+  lessonType: z.string(),
+  sentences: z.array(SentenceWithSplitTextSchema),
+  totalSentences: z.number(),
+  audioUrl: z.string().optional(),
+  lessonFiles: z
+    .array(
+      z.object({
+        id: z.number(),
+        fileS3Key: z.string().nullable(),
+        imageUrl: z.string().optional(),
+      })
+    )
+    .optional(),
+  userProgress: z
+    .object({
+      status: z.string(),
+      readTillSentenceId: z.number(),
+      shouldNavigateToPage: z.number(),
+    })
+    .nullable()
+    .optional(),
+  createdWithPrompt: z.string().optional(),
+});
 
-export interface LessonWithSentences {
-  id: number;
-  title: string;
-  languageCode: string;
-  lessonType: string;
-  sentences: SentenceWithSplitText[];
-  totalSentences: number;
-  audioUrl?: string;
-  lessonFiles?: {
-    id: number;
-    fileS3Key: string;
-    imageUrl?: string;
-  }[];
-  userProgress?: {
-    status: string;
-    readTillSentenceId: number;
-    shouldNavigateToPage: number;
-  } | null;
-}
+export type LessonWithSentences = z.infer<typeof LessonWithSentencesSchema>;
 
-export interface GetSentencesResponse {
-  success: boolean;
-  message?: string;
-  lesson?: LessonWithSentences;
-}
+export const GetSentencesResponseSchema = z.object({
+  success: z.boolean(),
+  message: z.string().optional(),
+  lesson: LessonWithSentencesSchema.optional(),
+});
 
-export interface AddSentenceResponse {
-  success: boolean;
-  message?: string;
-  sentence?: SentenceWithSplitText;
-  totalSentences?: number;
-}
+export type GetSentencesResponse = z.infer<typeof GetSentencesResponseSchema>;
+
+export const AddSentenceResponseSchema = z.object({
+  success: z.boolean(),
+  message: z.string().optional(),
+  sentence: SentenceWithSplitTextSchema.optional(),
+  totalSentences: z.number().optional(),
+});
+
+export type AddSentenceResponse = z.infer<typeof AddSentenceResponseSchema>;
 
 export interface DeleteSentenceResponse {
   success: boolean;
@@ -232,7 +240,6 @@ export class SentenceService {
     userId: number,
     orderById: 'asc' | 'desc' = 'asc'
   ): Promise<SentenceWithSplitText[]> {
-    // Separate sentences that need processing from those that don't
     const sentencesToProcess: Array<{
       id: number;
       original_text: string;
@@ -242,28 +249,21 @@ export class SentenceService {
     }> = [];
     const processedResults: SentenceWithSplitText[] = [];
 
-    // First pass: identify sentences that need processing
     for (const sentence of sentences) {
       const splitText = sentence.split_text as string[] | null;
 
       if (splitText == null || !Array.isArray(splitText)) {
         sentencesToProcess.push(sentence);
       } else {
-        // Sentence already has split_text, fetch word translations from database
         console.log(
-          `Sentence ${sentence.id} already has split_text, fetching word translations`
+          `Sentence ${sentence.id} already has split_text, fetching word details`
         );
 
-        // Fetch word translations, pronunciations, and stems for existing split_text
-        const wordTranslations: WordWithTranslation[] = [];
-        const wordPronunciations: WordWithPronunciation[] = [];
-        const wordStems: WordWithStems[] = [];
-
+        const words: SentenceWithSplitText['words'] = [];
         for (const word of splitText) {
           const trimmedWord = word.trim();
           if (!trimmedWord) continue;
 
-          // Find the word translation in the database
           const wordRecord = await ctx.prisma.word.findFirst({
             where: {
               word: trimmedWord,
@@ -272,55 +272,56 @@ export class SentenceService {
             include: {
               wordTranslations: {
                 where: {
-                  language_code: 'en', // English translations
+                  language_code: 'en',
                 },
               },
-              wordPronunciations: true, // Include all pronunciations
-              stems: true, // Include all stems
+              wordPronunciations: true,
+              stems: true,
             },
           });
 
-          if (wordRecord && wordRecord.wordTranslations.length > 0) {
-            wordTranslations.push({
-              word: trimmedWord,
-              translation: wordRecord.wordTranslations[0]?.translation || '',
-            });
-          } else {
-            wordTranslations.push({
-              word: trimmedWord,
-              translation: '', // Empty translation indicates not found
-            });
-          }
+          const translations = wordRecord
+            ? [
+                ...new Set(
+                  wordRecord.wordTranslations
+                    .map(t => t.translation.trim())
+                    .filter(t => t.length > 0)
+                ),
+              ]
+            : [];
+          const pronunciations = wordRecord
+            ? [
+                ...new Set(
+                  wordRecord.wordPronunciations
+                    .map(p => p.pronunciation.trim())
+                    .filter(p => p.length > 0)
+                ),
+              ]
+            : [];
+          const stems = wordRecord
+            ? [
+                ...new Set(
+                  wordRecord.stems
+                    .map(s => s.stem.trim())
+                    .filter(s => s.length > 0)
+                ),
+              ]
+            : [];
 
-          // Add pronunciations separately
-          if (wordRecord && wordRecord.wordPronunciations.length > 0) {
-            wordRecord.wordPronunciations.forEach(pronunciation => {
-              wordPronunciations.push({
-                word: trimmedWord,
-                pronunciation: pronunciation.pronunciation,
-                pronunciationType:
-                  pronunciation.pronunciation_type || 'unknown',
-              });
-            });
-          }
-
-          // Add stems separately
-          if (wordRecord && wordRecord.stems.length > 0) {
-            const stems = wordRecord.stems.map(stem => stem.stem);
-            wordStems.push({
-              word: trimmedWord,
-              stems: stems,
-            });
-          }
+          words.push({
+            word: trimmedWord,
+            translations,
+            pronunciations,
+            stems,
+            mark: null,
+          });
         }
 
         processedResults.push({
           id: sentence.id,
           original_text: sentence.original_text,
           split_text: splitText,
-          word_translations: wordTranslations,
-          word_pronunciations: wordPronunciations,
-          word_stems: wordStems,
+          words,
           start_time:
             sentence.start_time != null ? Number(sentence.start_time) : null,
           end_time:
@@ -329,17 +330,13 @@ export class SentenceService {
       }
     }
 
-    // Process sentences that need split_text in batch
     if (sentencesToProcess.length > 0) {
       try {
         console.log(
           `Processing ${sentencesToProcess.length} sentences for split_text in batch`
         );
 
-        // Extract text for batch processing
         const textsToProcess = sentencesToProcess.map(s => s.original_text);
-
-        // Use batch processing for better performance
         const analyses =
           await ctx.openaiService.splitMultipleSentencesAndTranslate(
             ctx,
@@ -348,7 +345,6 @@ export class SentenceService {
             userId
           );
 
-        // Process results and update database
         const updatePromises = sentencesToProcess.map(
           async (sentence, index) => {
             const analysis = analyses[index];
@@ -358,7 +354,7 @@ export class SentenceService {
                 id: sentence.id,
                 original_text: sentence.original_text,
                 split_text: null,
-                word_translations: null,
+                words: [] as SentenceWithSplitText['words'],
                 start_time:
                   sentence.start_time != null
                     ? Number(sentence.start_time)
@@ -368,42 +364,30 @@ export class SentenceService {
               };
             }
 
-            // Extract just the words (not translations) for split_text
             const splitText = analysis.words.map(wordObj => wordObj.word);
-
-            // Create word translations array from analysis
-            const wordTranslations: WordWithTranslation[] = analysis.words.map(
+            const words: SentenceWithSplitText['words'] = analysis.words.map(
               wordObj => ({
                 word: wordObj.word,
-                translation: wordObj.translation,
+                translations: wordObj.translation?.trim()
+                  ? [wordObj.translation.trim()]
+                  : [],
+                pronunciations: wordObj.pronunciation?.trim()
+                  ? [wordObj.pronunciation.trim()]
+                  : [],
+                stems:
+                  wordObj.stems && Array.isArray(wordObj.stems)
+                    ? [
+                        ...new Set(
+                          wordObj.stems
+                            .map(s => s.trim())
+                            .filter(s => s.length > 0)
+                        ),
+                      ]
+                    : [],
+                mark: null,
               })
             );
 
-            // Create word pronunciations array from analysis
-            const wordPronunciations: WordWithPronunciation[] = analysis.words
-              .filter(
-                wordObj => wordObj.pronunciation && wordObj.pronunciationType
-              )
-              .map(wordObj => ({
-                word: wordObj.word,
-                pronunciation: wordObj.pronunciation!,
-                pronunciationType: wordObj.pronunciationType!,
-              }));
-
-            // Create word stems array from analysis
-            const wordStems: WordWithStems[] = analysis.words
-              .filter(
-                wordObj =>
-                  wordObj.stems &&
-                  Array.isArray(wordObj.stems) &&
-                  wordObj.stems.length > 0
-              )
-              .map(wordObj => ({
-                word: wordObj.word,
-                stems: wordObj.stems!,
-              }));
-
-            // Store words and translations in the database (inside transaction)
             await wrapInTransaction(ctx, async ctx => {
               await this.storeWordTranslations(
                 ctx,
@@ -428,9 +412,7 @@ export class SentenceService {
               id: sentence.id,
               original_text: sentence.original_text,
               split_text: splitText,
-              word_translations: wordTranslations,
-              word_pronunciations: wordPronunciations,
-              word_stems: wordStems,
+              words,
               start_time:
                 (
                   reloadedSentence?.start_time || sentence?.start_time
@@ -447,14 +429,11 @@ export class SentenceService {
         processedResults.push(...batchResults);
       } catch (error) {
         console.error(`Error processing sentences in batch:`, error);
-        // Fallback: add sentences with null split_text if batch processing fails
         const fallbackResults = sentencesToProcess.map(sentence => ({
           id: sentence.id,
           original_text: sentence.original_text,
           split_text: null as string[] | null,
-          word_translations: null as WordWithTranslation[] | null,
-          word_pronunciations: null as WordWithPronunciation[] | null,
-          word_stems: null as WordWithStems[] | null,
+          words: [] as SentenceWithSplitText['words'],
           start_time:
             sentence.start_time != null ? Number(sentence.start_time) : null,
           end_time:
@@ -464,51 +443,36 @@ export class SentenceService {
       }
     }
 
-    // Sort results by id in requested order
     processedResults.sort((a, b) =>
       orderById === 'desc' ? b.id - a.id : a.id - b.id
     );
 
-    // Deduplicate word_translations, word_pronunciations, and word_stems for each sentence
-    processedResults.forEach(sentence => {
-      if (sentence.word_translations) {
-        // Deduplicate translations by word + translation combination
-        const uniqueTranslations = new Map<string, WordWithTranslation>();
-        sentence.word_translations.forEach(translation => {
-          const key = `${translation.word}|${translation.translation}`;
-          if (!uniqueTranslations.has(key)) {
-            uniqueTranslations.set(key, translation);
-          }
-        });
-        sentence.word_translations = Array.from(uniqueTranslations.values());
+    const allWords = [
+      ...new Set(
+        processedResults.flatMap(sentence =>
+          sentence.words.map(word => word.word)
+        )
+      ),
+    ];
+    const markByWord = new Map<string, number>();
+    if (allWords.length > 0) {
+      const marksResult = await ctx.wordService.getBulkWordUserMarks(
+        ctx,
+        userId,
+        allWords,
+        languageCode
+      );
+      if (marksResult.success && marksResult.data) {
+        for (const entry of marksResult.data) {
+          markByWord.set(entry.word, entry.mark);
+        }
       }
-
-      if (sentence.word_pronunciations) {
-        // Deduplicate pronunciations by word + pronunciation combination
-        const uniquePronunciations = new Map<string, WordWithPronunciation>();
-        sentence.word_pronunciations.forEach(pronunciation => {
-          const key = `${pronunciation.word}|${pronunciation.pronunciation}`;
-          if (!uniquePronunciations.has(key)) {
-            uniquePronunciations.set(key, pronunciation);
-          }
-        });
-        sentence.word_pronunciations = Array.from(
-          uniquePronunciations.values()
-        );
+    }
+    for (const sentence of processedResults) {
+      for (const word of sentence.words) {
+        word.mark = markByWord.get(word.word) ?? null;
       }
-
-      if (sentence.word_stems) {
-        // Deduplicate stems by word + stems combination
-        const uniqueStems = new Map<string, WordWithStems>();
-        sentence.word_stems.forEach(stemObj => {
-          const key = `${stemObj.word}|${stemObj.stems.sort().join(',')}`;
-          if (!uniqueStems.has(key)) {
-            uniqueStems.set(key, stemObj);
-          }
-        });
-        sentence.word_stems = Array.from(uniqueStems.values());
-      }
-    });
+    }
 
     return processedResults;
   }
@@ -807,36 +771,38 @@ export class SentenceService {
         return { sentence, totalSentences };
       });
 
+      const words: SentenceWithSplitText['words'] = analysis.words.map(w => ({
+        word: w.word,
+        translations: w.translation?.trim() ? [w.translation.trim()] : [],
+        pronunciations: w.pronunciation?.trim() ? [w.pronunciation.trim()] : [],
+        stems:
+          w.stems && Array.isArray(w.stems)
+            ? [...new Set(w.stems.map(s => s.trim()).filter(s => s.length > 0))]
+            : [],
+        mark: null,
+      }));
+      const marksResult = await ctx.wordService.getBulkWordUserMarks(
+        ctx,
+        userId,
+        words.map(w => w.word),
+        lesson.language_code
+      );
+      if (marksResult.success && marksResult.data) {
+        const markByWord = new Map(
+          marksResult.data.map(entry => [entry.word, entry.mark])
+        );
+        for (const word of words) {
+          word.mark = markByWord.get(word.word) ?? null;
+        }
+      }
+
       return {
         success: true,
         sentence: {
           id: result.sentence.id,
           original_text: result.sentence.original_text,
           split_text: result.sentence.split_text as string[] | null,
-          word_translations: analysis.words.map(w => ({
-            word: w.word,
-            translation: w.translation,
-          })),
-          word_pronunciations: analysis.words
-            .filter(
-              (
-                w
-              ): w is typeof w & {
-                pronunciation: string;
-                pronunciationType: string;
-              } => !!w.pronunciation && !!w.pronunciationType
-            )
-            .map(w => ({
-              word: w.word,
-              pronunciation: w.pronunciation,
-              pronunciationType: w.pronunciationType,
-            })),
-          word_stems: analysis.words
-            .filter(
-              (w): w is typeof w & { stems: string[] } =>
-                !!w.stems && Array.isArray(w.stems) && w.stems.length > 0
-            )
-            .map(w => ({ word: w.word, stems: w.stems })),
+          words,
           start_time: null,
           end_time: null,
         },

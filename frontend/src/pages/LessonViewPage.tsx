@@ -22,23 +22,17 @@ import SentenceReConstructor from '../components/SentenceReConstructor';
 import TTSPlayButton from '../components/TTSPlayButton';
 import axios from 'axios';
 
-interface WordTranslation {
-  word: string;
-  translation: string;
-}
-
-interface WordPronunciation {
-  word: string;
-  pronunciation: string;
-  pronunciationType: string;
-}
-
 interface Sentence {
   id: number;
   original_text: string;
   split_text: string[] | null;
-  word_translations?: WordTranslation[] | null;
-  word_pronunciations?: WordPronunciation[] | null;
+  words: {
+    word: string;
+    translations: string[];
+    pronunciations: string[];
+    stems: string[];
+    mark: number | null;
+  }[];
   start_time: number | null;
   end_time: number | null;
 }
@@ -77,7 +71,7 @@ const LessonViewPage: React.FC = () => {
 
   const navigate = useNavigate();
   const { axiosInstance, isAuthenticated, isLoading: authLoading } = useAuth();
-  const { addWords } = useWordMark();
+  const { seedWordMarks } = useWordMark();
   const { openWordSidebar, setWordSidebarLanguage } = useWordSidebar();
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [loading, setLoading] = useState(true);
@@ -172,18 +166,9 @@ const LessonViewPage: React.FC = () => {
           const lessonData = response.data.lesson;
           setLesson(lessonData);
 
-          // Collect all unique words from the lesson sentences
-          const allWords = new Set<string>();
-          lessonData.sentences.forEach((sentence: Sentence) => {
-            if (sentence.split_text) {
-              sentence.split_text.forEach((word: string) => allWords.add(word));
-            }
-          });
-
-          // Add words to context - it will automatically fetch marks for unfetched words
-          if (allWords.size > 0 && lessonData.languageCode) {
-            await addWords(Array.from(allWords), lessonData.languageCode);
-          }
+          seedWordMarks(
+            lessonData.sentences.flatMap((sentence: Sentence) => sentence.words)
+          );
         } else {
           setError(response.data.message || 'Failed to load lesson');
         }

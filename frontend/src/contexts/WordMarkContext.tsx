@@ -49,6 +49,8 @@ interface WordMarkContextType {
   ) => Promise<boolean>;
   // Add new words to track - context will automatically fetch marks for unfetched words
   addWords: (words: string[], languageCode: string) => Promise<void>;
+  // Seed marks from sentence.words (skips bulk fetch for those words)
+  seedWordMarks: (words: { word: string; mark: number | null }[]) => void;
   // Clear all word marks (useful when switching languages/users)
   clearWordMarks: () => void;
   // Check if we're currently fetching word marks
@@ -185,6 +187,30 @@ export const WordMarkProvider: React.FC<WordMarkProviderProps> = ({
     [axiosInstance, fetchedWords]
   );
 
+  const seedWordMarks = useCallback(
+    (words: { word: string; mark: number | null }[]) => {
+      if (words.length === 0) return;
+
+      setWordMarks(prev => {
+        const next = new Map(prev);
+        for (const { word, mark } of words) {
+          if (mark !== null) {
+            next.set(word, mark);
+          }
+        }
+        return next;
+      });
+      setFetchedWords(prev => {
+        const next = new Set(prev);
+        for (const { word } of words) {
+          next.add(word);
+        }
+        return next;
+      });
+    },
+    []
+  );
+
   const clearWordMarks = useCallback(() => {
     setWordMarks(new Map());
     setFetchedWords(new Set());
@@ -194,6 +220,7 @@ export const WordMarkProvider: React.FC<WordMarkProviderProps> = ({
     getWordMark,
     saveWordMark,
     addWords,
+    seedWordMarks,
     clearWordMarks,
     isFetching,
     isSaving,

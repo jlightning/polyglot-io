@@ -10,23 +10,17 @@ import dayjs from 'dayjs';
 const lastLoggedWords: Record<string, number> = {};
 const lastLoggedWordSentence: Record<string, number> = {};
 
-interface WordTranslation {
-  word: string;
-  translation: string;
-}
-
-interface WordPronunciation {
-  word: string;
-  pronunciation: string;
-  pronunciationType: string;
-}
-
 interface Sentence {
   id: number;
   original_text: string;
   split_text: string[] | null;
-  word_translations?: WordTranslation[] | null;
-  word_pronunciations?: WordPronunciation[] | null;
+  words: {
+    word: string;
+    translations: string[];
+    pronunciations: string[];
+    stems: string[];
+    mark: number | null;
+  }[];
   start_time: number | null;
   end_time: number | null;
 }

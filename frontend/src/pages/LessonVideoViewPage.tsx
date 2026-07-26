@@ -17,23 +17,17 @@ import SentenceReConstructor from '../components/SentenceReConstructor';
 import SentenceRetimeDialog from '../components/SentenceRetimeDialog';
 import axios from 'axios';
 
-interface WordTranslation {
-  word: string;
-  translation: string;
-}
-
-interface WordPronunciation {
-  word: string;
-  pronunciation: string;
-  pronunciationType: string;
-}
-
 interface Sentence {
   id: number;
   original_text: string;
   split_text: string[] | null;
-  word_translations?: WordTranslation[] | null;
-  word_pronunciations?: WordPronunciation[] | null;
+  words: {
+    word: string;
+    translations: string[];
+    pronunciations: string[];
+    stems: string[];
+    mark: number | null;
+  }[];
   start_time: number | null;
   end_time: number | null;
 }
@@ -312,13 +306,12 @@ const LessonVideoViewPage: React.FC = () => {
   const { lessonId } = useParams<{ lessonId: string }>();
   const navigate = useNavigate();
   const { axiosInstance, isAuthenticated, isLoading: authLoading } = useAuth();
-  const { getWordMark, addWords } = useWordMark();
+  const { getWordMark, seedWordMarks } = useWordMark();
   const { openWordSidebar, setWordSidebarLanguage, setSidebarFooter } =
     useWordSidebar();
 
-  // Use a ref to store the current addWords function to avoid callback recreations
-  const addWordsRef = useRef(addWords);
-  addWordsRef.current = addWords;
+  const seedWordMarksRef = useRef(seedWordMarks);
+  seedWordMarksRef.current = seedWordMarks;
 
   // Video and lesson state
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -428,28 +421,13 @@ const LessonVideoViewPage: React.FC = () => {
             loadedPages: new Set([1]),
           }));
 
-          // Collect all unique words and add them to word context asynchronously
           if (lessonData.languageCode) {
-            setTimeout(async () => {
-              const allWords = new Set<string>();
-              lessonData.sentences.forEach((sentence: Sentence) => {
-                if (sentence.split_text) {
-                  sentence.split_text.forEach((word: string) =>
-                    allWords.add(word)
-                  );
-                }
-              });
-
-              if (allWords.size > 0) {
-                try {
-                  await addWordsRef.current(
-                    Array.from(allWords),
-                    lessonData.languageCode
-                  );
-                } catch (err) {
-                  console.error('Error adding words to context:', err);
-                }
-              }
+            setTimeout(() => {
+              seedWordMarksRef.current(
+                lessonData.sentences.flatMap(
+                  (sentence: Sentence) => sentence.words
+                )
+              );
             }, 0);
           }
         } else {
@@ -523,29 +501,11 @@ const LessonVideoViewPage: React.FC = () => {
             };
           });
 
-          // Collect all unique words and add them to word context asynchronously
-          // Use setTimeout to defer the addWords call and prevent blocking the UI
           if (lesson?.languageCode) {
-            setTimeout(async () => {
-              const allWords = new Set<string>();
-              newSentences.forEach((sentence: Sentence) => {
-                if (sentence.split_text) {
-                  sentence.split_text.forEach((word: string) =>
-                    allWords.add(word)
-                  );
-                }
-              });
-
-              if (allWords.size > 0) {
-                try {
-                  await addWordsRef.current(
-                    Array.from(allWords),
-                    lesson.languageCode
-                  );
-                } catch (err) {
-                  console.error('Error adding words to context:', err);
-                }
-              }
+            setTimeout(() => {
+              seedWordMarksRef.current(
+                newSentences.flatMap((sentence: Sentence) => sentence.words)
+              );
             }, 0);
           }
         }
