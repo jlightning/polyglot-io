@@ -53,6 +53,7 @@ export function createPolyglotMcpServer(
         'Lessons: create_lesson always creates a manual lesson. Pass optional sentences[] to seed content (server word-splits each sentence). Omit sentences for an empty shell, then use add_sentence. Manga/file/generated lesson creation is not supported here.',
         'Sentences: list_sentences returns paginated sentences for a lesson (may trigger server-side splitting). add_sentence works only on manual lessons.',
         "Words: mark_word sets difficulty 0–5 (0=Ignore, 1=Don't remember, 2=Hard to remember, 3=Remembered, 4=Easy to remember, 5=No problem). list_words is paginated, supports exact words[] match and mark/language filters — no free-text search.",
+        'After add_sentence (or create_lesson with sentences): always show the returned words as a numbered list with each word’s current mark (null = unmarked). Ask which marks to change, then call mark_word for each update. Example: 1. 食べる — mark 2; 2. 昨日 — unmarked.',
         `List tools default to limit 100. languageCode must be one of the enabled languages: ${languageCodeList}.`,
       ].join('\n'),
     }
@@ -80,7 +81,7 @@ export function createPolyglotMcpServer(
     'add_sentence',
     {
       description:
-        'Add a sentence to an existing manual lesson. Word-splitting is performed server-side.',
+        'Add a sentence to an existing manual lesson. Word-splitting is performed server-side. After success, always show the returned words as a numbered list with each word’s current mark (null = unmarked), ask which marks to change, then call mark_word for each update.',
       inputSchema: AddSentenceInputSchema,
       outputSchema: AddSentenceOutputSchema,
     },
