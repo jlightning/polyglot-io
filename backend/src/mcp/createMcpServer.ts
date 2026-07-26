@@ -74,7 +74,7 @@ export function createPolyglotMcpServer(
         '  (null = unmarked). Format: 食べる（たべる） — mark 2.',
         '- Prefer hiragana from pronunciations[] when present;',
         '  if missing, infer hiragana yourself (do not leave it blank).',
-        '- Ask which marks to change, then call mark_word for each update.',
+        '- Ask which marks to change, then call mark_word once with words[].',
         '',
         `List tools default to limit 100.`,
         `languageCode must be one of: ${languageCodeList}.`,
@@ -111,7 +111,7 @@ export function createPolyglotMcpServer(
         'For each shown word: surface form + hiragana + current mark (null = unmarked).',
         'Format example: 食べる（たべる） — mark 2.',
         'Prefer hiragana from pronunciations[]; if missing, infer it yourself.',
-        'Ask which marks to change, then call mark_word for each update.',
+        'Ask which marks to change, then call mark_word once with words[].',
       ].join('\n'),
       inputSchema: AddSentenceInputSchema,
       outputSchema: AddSentenceOutputSchema,
@@ -131,22 +131,30 @@ export function createPolyglotMcpServer(
     'mark_word',
     {
       description:
-        "Create or update a word mark. Scale: 0=Ignore, 1=Don't remember, 2=Hard to remember, 3=Remembered, 4=Easy to remember, 5=No problem.",
+        "Create or update word marks (one or many). Scale: 0=Ignore, 1=Don't remember, 2=Hard to remember, 3=Remembered, 4=Easy to remember, 5=No problem.",
       inputSchema: MarkWordInputSchema,
       outputSchema: MarkWordOutputSchema,
     },
-    async ({ word, languageCode, mark, note }) => {
-      const result = await ctx.wordService.createOrUpdateWordUserMark(
-        ctx,
-        userId,
-        {
-          word,
-          languageCode,
-          mark,
-          note: note ?? '',
-        }
-      );
-      return toolResult(result);
+    async ({ words }) => {
+      const results: Array<{
+        success: boolean;
+        message?: string;
+        data?: Record<string, unknown>;
+      }> = [];
+      for (const item of words) {
+        results.push(
+          await ctx.wordService.createOrUpdateWordUserMark(ctx, userId, {
+            word: item.word,
+            languageCode: item.languageCode,
+            mark: item.mark,
+            note: item.note ?? '',
+          })
+        );
+      }
+      return toolResult({
+        success: results.every(r => r.success),
+        results,
+      });
     }
   );
 

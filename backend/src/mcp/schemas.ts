@@ -54,36 +54,47 @@ export const AddSentenceInputSchema = z.object({
 export const AddSentenceOutputSchema = AddSentenceResponseSchema;
 
 export const MarkWordInputSchema = z.object({
-  word: z.string().min(1),
-  languageCode: z.string().min(1),
-  mark: MarkSchema,
-  note: z.string().optional(),
+  words: z
+    .array(
+      z.object({
+        word: z.string().min(1),
+        languageCode: z.string().min(1),
+        mark: MarkSchema,
+        note: z.string().optional(),
+      })
+    )
+    .min(1),
 });
 
 export const MarkWordOutputSchema = z.object({
   success: z.boolean(),
-  message: z.string().optional(),
-  data: z
-    .object({
-      id: z.number(),
-      user_id: z.number(),
-      word_id: z.number(),
-      note: z.string(),
-      mark: z.number(),
-      source: z.string().optional(),
-      created_at: z.string(),
-      updated_at: z.string(),
-      word: z
+  results: z.array(
+    z.object({
+      success: z.boolean(),
+      message: z.string().optional(),
+      data: z
         .object({
           id: z.number(),
-          word: z.string(),
-          language_code: z.string(),
+          user_id: z.number(),
+          word_id: z.number(),
+          note: z.string(),
+          mark: z.number(),
+          source: z.string().optional(),
+          created_at: z.string(),
+          updated_at: z.string(),
+          word: z
+            .object({
+              id: z.number(),
+              word: z.string(),
+              language_code: z.string(),
+            })
+            .passthrough()
+            .optional(),
         })
         .passthrough()
         .optional(),
     })
-    .passthrough()
-    .optional(),
+  ),
 });
 
 export const ListLessonsInputSchema = z.object({

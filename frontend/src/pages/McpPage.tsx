@@ -25,7 +25,7 @@ const MCP_TOOLS = [
   {
     name: 'mark_word',
     description:
-      "Mark a word: 0=Ignore, 1=Don't remember, 2=Hard to remember, 3=Remembered, 4=Easy to remember, 5=No problem",
+      "Mark one or more words: 0=Ignore, 1=Don't remember, 2=Hard to remember, 3=Remembered, 4=Easy to remember, 5=No problem",
   },
   {
     name: 'list_lessons',
