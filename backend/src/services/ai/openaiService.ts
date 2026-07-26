@@ -426,6 +426,7 @@ export class OpenAIService {
     ctx: Context,
     prompt: string,
     languageCode: string,
+    userId: number,
     difficulty: string = 'Intermediate'
   ): Promise<{ text: string }> {
     const code = languageCode.trim().toLowerCase();
@@ -437,7 +438,12 @@ export class OpenAIService {
       lessonGeneratorAgent,
       `Generate a lesson in ${baseContext.languageName} at ${difficulty} level based on this request: ${prompt}`,
       {
-        context: { ...baseContext, difficulty },
+        context: {
+          ...baseContext,
+          difficulty,
+          userId,
+          prisma: ctx.prisma,
+        },
       }
     );
     if (!result) {

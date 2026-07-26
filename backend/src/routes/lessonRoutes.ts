@@ -179,6 +179,7 @@ router.post('/generate', async (req: Request, res: Response) => {
       ctx,
       prompt.trim(),
       languageCode.trim(),
+      req.userId!,
       difficultyValue
     );
 
