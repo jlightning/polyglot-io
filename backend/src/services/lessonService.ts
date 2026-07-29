@@ -712,9 +712,12 @@ export class LessonService {
         language_code: languageCode,
       };
 
-      // Add full-text search on title (case-insensitive, uses FULLTEXT index)
+      // Full-text search, with contains fallback for short/partial queries
       if (filters?.search) {
-        whereClause.title = { search: filters.search };
+        whereClause.OR = [
+          { title: { search: filters.search } },
+          { title: { contains: filters.search } },
+        ];
       }
 
       // Add lesson type filter
