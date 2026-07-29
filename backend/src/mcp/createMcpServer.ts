@@ -7,6 +7,8 @@ import {
   AddSentenceOutputSchema,
   CreateLessonInputSchema,
   CreateLessonOutputSchema,
+  DeleteSentenceInputSchema,
+  DeleteSentenceOutputSchema,
   ListLessonsInputSchema,
   ListLessonsOutputSchema,
   ListSentencesInputSchema,
@@ -53,14 +55,17 @@ export function createPolyglotMcpServer(
         "This MCP server lets you manage the authenticated user's lessons, sentences, and word marks.",
         '',
         'Lessons:',
-        '- create_lesson always creates a manual lesson.',
-        '- Pass optional sentences[] to seed content (server word-splits each sentence).',
-        '- Omit sentences for an empty shell, then use add_sentence.',
-        '- Manga/file/generated lesson creation is not supported here.',
+        '- create_lesson requires type: "manual" | "text" | "subtitle".',
+        '- type=manual → createManualLesson (empty shell only):',
+        '  - Do not send sentences[]; add content later with add_sentence.',
+        '- type=text|subtitle → createLesson with that lesson_type:',
+        '  - sentences[] required (raw sentence strings).',
+        '- Manga/file upload is not supported here.',
         '',
         'Sentences:',
         '- list_sentences returns paginated sentences for a lesson (may trigger server-side splitting).',
         '- add_sentence accepts sentences[] on manual lessons only.',
+        '- delete_sentence removes sentenceIds[] from a lesson (manual/manga only).',
         '',
         'Words:',
         '- mark_word sets difficulty 0–5:',
@@ -69,7 +74,7 @@ export function createPolyglotMcpServer(
         '- list_words is paginated; supports exact words[] match and mark/language filters.',
         '- No free-text search on list_words.',
         '',
-        'After add_sentence (or create_lesson with sentences):',
+        'After add_sentence:',
         '- Always show the returned words as a numbered list for marking.',
         '- Skip words already marked 5.',
         '- For each shown word display: surface form + hiragana + current mark',
@@ -87,16 +92,44 @@ export function createPolyglotMcpServer(
   server.registerTool(
     'create_lesson',
     {
-      description:
-        'Create a manual lesson. Optionally include sentences (word-splitting is server-side). Omitting sentences creates an empty manual lesson.',
+      description: [
+        'Create a lesson. Requires type: "manual" | "text" | "subtitle".',
+        'manual → createManualLesson empty shell; do not send sentences[] (use add_sentence).',
+        'text|subtitle → createLesson with that lesson_type; sentences[] required.',
+        'Manga/file upload not supported.',
+      ].join(' '),
       inputSchema: CreateLessonInputSchema,
       outputSchema: CreateLessonOutputSchema,
     },
-    async ({ title, languageCode, sentences }) => {
+    async ({ title, languageCode, type, sentences }) => {
+      if (type === 'text' || type === 'subtitle') {
+        if (!sentences || sentences.length === 0) {
+          return toolResult({
+            success: false,
+            message: `sentences[] is required when type is ${type}`,
+          });
+        }
+
+        const result = await ctx.lessonService.createLesson(ctx, userId, {
+          title,
+          languageCode,
+          sentences,
+          lessonType: type,
+        });
+        return toolResult(result);
+      }
+
+      if (sentences?.length) {
+        return toolResult({
+          success: false,
+          message:
+            'sentences[] is not allowed for type=manual; create empty shell then use add_sentence',
+        });
+      }
+
       const result = await ctx.lessonService.createManualLesson(ctx, userId, {
         title,
         languageCode,
-        ...(sentences && sentences.length > 0 ? { sentences } : {}),
       });
       return toolResult(result);
     }
@@ -127,6 +160,32 @@ export function createPolyglotMcpServer(
           )
         )
       );
+      return toolResult({
+        success: results.every(r => r.success),
+        results,
+      });
+    }
+  );
+
+  server.registerTool(
+    'delete_sentence',
+    {
+      description:
+        'Delete one or more sentences from a lesson by sentenceIds[]. Supported for manual and manga lessons only.',
+      inputSchema: DeleteSentenceInputSchema,
+      outputSchema: DeleteSentenceOutputSchema,
+    },
+    async ({ lessonId, sentenceIds }) => {
+      const results = [];
+      for (const sentenceId of sentenceIds) {
+        const result = await ctx.sentenceService.deleteSentenceFromLesson(
+          ctx,
+          lessonId,
+          sentenceId,
+          userId
+        );
+        results.push({ sentenceId, ...result });
+      }
       return toolResult({
         success: results.every(r => r.success),
         results,

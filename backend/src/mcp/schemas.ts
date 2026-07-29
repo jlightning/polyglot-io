@@ -26,7 +26,17 @@ const MarkSchema = z
 export const CreateLessonInputSchema = z.object({
   title: z.string().min(1),
   languageCode: z.string().min(1),
-  sentences: z.array(z.string().min(1)).optional(),
+  type: z
+    .enum(['manual', 'text', 'subtitle'])
+    .describe(
+      'manual → createManualLesson; text|subtitle → createLesson with that lesson_type'
+    ),
+  sentences: z
+    .array(z.string().min(1))
+    .optional()
+    .describe(
+      'Required for text|subtitle. Do not send for manual (use add_sentence after create).'
+    ),
 });
 
 export const CreateLessonOutputSchema = z.object({
@@ -54,6 +64,22 @@ export const AddSentenceInputSchema = z.object({
 export const AddSentenceOutputSchema = z.object({
   success: z.boolean(),
   results: z.array(AddSentenceResponseSchema),
+});
+
+export const DeleteSentenceInputSchema = z.object({
+  lessonId: z.number().int().positive(),
+  sentenceIds: z.array(z.number().int().positive()).min(1),
+});
+
+export const DeleteSentenceOutputSchema = z.object({
+  success: z.boolean(),
+  results: z.array(
+    z.object({
+      sentenceId: z.number(),
+      success: z.boolean(),
+      message: z.string().optional(),
+    })
+  ),
 });
 
 export const MarkWordInputSchema = z.object({

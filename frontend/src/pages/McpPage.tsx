@@ -16,11 +16,15 @@ const MCP_TOOLS = [
   {
     name: 'create_lesson',
     description:
-      'Create a manual lesson; optional sentences (server-side word-split)',
+      'Create lesson (type: manual|text|subtitle); manual = empty shell, sentences required for text/subtitle',
   },
   {
     name: 'add_sentence',
     description: 'Add one or more sentences to a manual lesson',
+  },
+  {
+    name: 'delete_sentence',
+    description: 'Delete sentences from a manual/manga lesson by sentenceIds[]',
   },
   {
     name: 'mark_word',

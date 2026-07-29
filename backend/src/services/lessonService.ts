@@ -14,6 +14,8 @@ export interface CreateLessonData {
   imageKey?: string;
   fileKey?: string;
   audioKey?: string;
+  sentences?: string[];
+  lessonType?: 'text' | 'subtitle';
 }
 
 export interface UpdateLessonData {
@@ -108,10 +110,13 @@ export class LessonService {
         };
       }
 
-      // Determine lesson type based on file if provided
-      let lessonType: LessonType = LessonType.text; // default to text
+      // Explicit lessonType, else detect from file, else default text
+      let lessonType: LessonType =
+        lessonData.lessonType === 'subtitle'
+          ? LessonType.subtitle
+          : LessonType.text;
 
-      if (lessonData.fileKey) {
+      if (!lessonData.lessonType && lessonData.fileKey) {
         try {
           // Download file content to determine type
           const fileContent = await ctx.s3Service.getFileContent(
@@ -157,6 +162,28 @@ export class LessonService {
         // Process lesson file if provided
         if (lessonData.fileKey) {
           await this.processLessonFile(ctx, lesson.id, lessonData.fileKey);
+        } else if (lessonData.sentences && lessonData.sentences.length > 0) {
+          const lessonFile = await ctx.prisma.lessonFile.create({
+            data: {
+              lesson_id: lesson.id,
+              file_s3_key: null,
+            },
+          });
+          const trimmed = lessonData.sentences
+            .map(s => s.trim())
+            .filter(s => s.length > 0);
+          if (trimmed.length > 0) {
+            await ctx.prisma.sentence.createMany({
+              data: trimmed.map(text => ({
+                lesson_id: lesson.id,
+                lesson_file_id: lessonFile.id,
+                original_text: text,
+                split_text: Prisma.JsonNull,
+                start_time: null,
+                end_time: null,
+              })),
+            });
+          }
         }
 
         return lesson;
