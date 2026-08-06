@@ -13,7 +13,7 @@ export const removeWeirdSpacingAgent = new Agent({
     ].join('\n');
   },
   modelSettings: {
-    reasoning: { effort: 'low' },
+    reasoning: { effort: 'medium' },
   },
-  model: OPENAI_MODEL.GPT_54_MINI,
+  model: OPENAI_MODEL.GPT_56_LUNA,
 });

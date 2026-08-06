@@ -45,5 +45,5 @@ export const sentenceTranslatorAgent = new Agent({
   modelSettings: {
     reasoning: { effort: 'medium' },
   },
-  model: OPENAI_MODEL.GPT_54_MINI,
+  model: OPENAI_MODEL.GPT_56_LUNA,
 });
