@@ -23,9 +23,9 @@ export const checkUserWordMarksTool = tool({
   ) => {
     const ctx = runContext?.context;
     if (!ctx) {
-      return {
-        results: words.map(word => ({ word, mark: null })),
-      };
+      const results = words.map(word => ({ word, mark: null }));
+      console.log('check_user_word_marks', { missingContext: true, results });
+      return { results };
     }
 
     const wordUserMarks = await ctx.prisma.wordUserMark.findMany({
@@ -39,11 +39,17 @@ export const checkUserWordMarksTool = tool({
       include: { word: true },
     });
     const markByWord = new Map(wordUserMarks.map(m => [m.word.word, m.mark]));
-    return {
-      results: words.map(word => ({
-        word,
-        mark: markByWord.get(word) ?? null,
-      })),
-    };
+    const results = words.map(word => ({
+      word,
+      mark: markByWord.get(word) ?? null,
+    }));
+
+    console.log('check_user_word_marks', {
+      userId: ctx.userId,
+      languageCode: ctx.languageCode,
+      results,
+    });
+
+    return { results };
   },
 });
