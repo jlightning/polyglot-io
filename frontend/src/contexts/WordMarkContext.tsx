@@ -8,20 +8,31 @@ import React, {
 import { useAuth } from './AuthContext';
 import { useLanguage } from './LanguageContext';
 
-/** Full-width digit characters (U+FF10–U+FF19) for display */
-const FULL_WIDTH_DIGITS = '０１２３４５６７８９';
-
 /**
- * Converts ASCII digits (0-9) in a word string to full-width Japanese numerals.
- * Use when displaying words so that e.g. "1年" is shown as "１年".
+ * Converts ASCII digits/letters to full-width so marks stored under "１年"/"Ｈカップ"
+ * match lookup "1年"/"Hカップ".
  */
 export function wordWithFullWidthDigits(word: string): string {
   if (!word) return word;
-  return word.replace(/[0-9]/g, d => FULL_WIDTH_DIGITS[parseInt(d, 10)] ?? d);
+  let out = '';
+  for (const ch of word) {
+    const c = ch.codePointAt(0)!;
+    if (c >= 0x30 && c <= 0x39) {
+      out += String.fromCodePoint(c - 0x30 + 0xff10);
+    } else if (c >= 0x41 && c <= 0x5a) {
+      out += String.fromCodePoint(c - 0x41 + 0xff21);
+    } else if (c >= 0x61 && c <= 0x7a) {
+      out += String.fromCodePoint(c - 0x61 + 0xff41);
+    } else {
+      out += ch;
+    }
+  }
+  return out;
 }
 
 /**
- * Converts full-width digits (０–９) to ASCII so marks stored under "1体" match lookup "１体".
+ * Converts full-width digits/letters to ASCII so marks stored under "1体"/"Hカップ"
+ * match lookup "１体"/"Ｈカップ".
  */
 export function wordWithAsciiDigits(word: string): string {
   if (!word) return word;
@@ -30,6 +41,10 @@ export function wordWithAsciiDigits(word: string): string {
     const c = ch.codePointAt(0)!;
     if (c >= 0xff10 && c <= 0xff19) {
       out += String.fromCodePoint(c - 0xff10 + 0x30);
+    } else if (c >= 0xff21 && c <= 0xff3a) {
+      out += String.fromCodePoint(c - 0xff21 + 0x41);
+    } else if (c >= 0xff41 && c <= 0xff5a) {
+      out += String.fromCodePoint(c - 0xff41 + 0x61);
     } else {
       out += ch;
     }
@@ -115,11 +130,16 @@ export const WordMarkProvider: React.FC<WordMarkProviderProps> = ({
         });
 
         if (response.data.success) {
-          // Update local state
-          setWordMarks(prev => new Map(prev).set(word, mark));
-          // Mark this word as fetched since we now have its data
-          setFetchedWords(prev => new Set([...prev, word]));
-          // Update user stats after successfully saving word mark
+          const ascii = wordWithAsciiDigits(word);
+          const fullWidth = wordWithFullWidthDigits(word);
+          setWordMarks(prev => {
+            const next = new Map(prev);
+            next.set(word, mark);
+            next.set(ascii, mark);
+            next.set(fullWidth, mark);
+            return next;
+          });
+          setFetchedWords(prev => new Set([...prev, word, ascii, fullWidth]));
           fetchUserStats(selectedLanguage);
           return true;
         }
@@ -156,16 +176,18 @@ export const WordMarkProvider: React.FC<WordMarkProviderProps> = ({
           const marks = response.data.data ?? [];
 
           const newFetchedWords = new Set([...fetchedWords, ...wordsToFetch]);
-          setWordMarks(
-            prev =>
-              new Map([
-                ...prev,
-                ...marks.map((m: { word: string; mark: number }) => [
-                  m.word,
-                  m.mark,
-                ]),
-              ])
-          );
+          setWordMarks(prev => {
+            const next = new Map(prev);
+            for (const m of marks) {
+              const { word, mark }: { word: string; mark: number } = m;
+              next.set(word, mark);
+              next.set(wordWithAsciiDigits(word), mark);
+              next.set(wordWithFullWidthDigits(word), mark);
+              newFetchedWords.add(wordWithAsciiDigits(word));
+              newFetchedWords.add(wordWithFullWidthDigits(word));
+            }
+            return next;
+          });
           setFetchedWords(newFetchedWords);
         } else {
           console.error('Error fetching word marks:', response.data.message);
@@ -196,19 +218,42 @@ export const WordMarkProvider: React.FC<WordMarkProviderProps> = ({
         for (const { word, mark } of words) {
           if (mark !== null) {
             next.set(word, mark);
+            next.set(wordWithAsciiDigits(word), mark);
+            next.set(wordWithFullWidthDigits(word), mark);
           }
         }
         return next;
       });
       setFetchedWords(prev => {
         const next = new Set(prev);
-        for (const { word } of words) {
+        for (const { word, mark } of words) {
           next.add(word);
+          if (mark !== null) {
+            next.add(wordWithAsciiDigits(word));
+            next.add(wordWithFullWidthDigits(word));
+          }
         }
         return next;
       });
+
+      // Exact seed miss (e.g. mark under Ｈカップ, sentence has Hカップ) — fetch aliases
+      if (!selectedLanguage) return;
+      const aliases = [
+        ...new Set(
+          words.flatMap(({ word, mark }) => {
+            if (mark !== null) return [];
+            return [
+              wordWithAsciiDigits(word),
+              wordWithFullWidthDigits(word),
+            ].filter(v => v !== word);
+          })
+        ),
+      ];
+      if (aliases.length > 0) {
+        void addWords(aliases, selectedLanguage);
+      }
     },
-    []
+    [addWords, selectedLanguage]
   );
 
   const clearWordMarks = useCallback(() => {
