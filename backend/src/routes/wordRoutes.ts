@@ -133,6 +133,13 @@ router.get('/marks/details', async (req: Request, res: Response) => {
     const sortBy = (req.query['sortBy'] as string) || 'updated_at';
     const sortOrder = (req.query['sortOrder'] as 'asc' | 'desc') || 'desc';
 
+    if (!languageFilter) {
+      return res.status(400).json({
+        success: false,
+        message: 'language query parameter is required',
+      });
+    }
+
     if (page < 1 || limit < 1 || limit > 100) {
       return res.status(400).json({
         success: false,

@@ -178,7 +178,7 @@ export const ListSentencesOutputSchema = GetSentencesResponseSchema;
 export const ListWordsInputSchema = z.object({
   page: z.number().int().positive().optional(),
   limit: z.number().int().positive().max(1000).optional(),
-  languageCode: z.string().optional(),
+  languageCode: z.string().min(1),
   mark: MarkSchema.optional(),
   words: z.array(z.string().min(1)).optional(),
 });

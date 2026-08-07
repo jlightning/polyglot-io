@@ -273,7 +273,7 @@ export function createPolyglotMcpServer(
     'list_words',
     {
       description:
-        'List marked words with pagination (default limit 100). No search. Optional exact-match words list, language, and mark filter.',
+        'List marked words with pagination (default limit 100). No search. languageCode required. Optional exact-match words list and mark filter.',
       inputSchema: ListWordsInputSchema,
       outputSchema: ListWordsOutputSchema,
     },

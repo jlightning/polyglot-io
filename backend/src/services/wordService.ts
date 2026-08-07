@@ -1,7 +1,8 @@
 import { WordUserMarkSource } from '@prisma/client';
 
-import type { Context } from './index';
+import { withKysely, type Context } from './index';
 import { NUMBER_OF_TRANSLATION_TO_REDUCE } from './consts';
+import { join } from '@prisma/client/runtime/binary';
 
 interface CreateWordUserMarkData {
   word: string;
@@ -201,103 +202,90 @@ export class WordService {
     userId: number,
     page: number = 1,
     limit: number = 50,
-    markFilter?: number,
-    languageFilter?: string,
+    markFilter: number | undefined,
+    languageFilter: string,
     searchFilter?: string,
     sortBy: string = 'updated_at',
     sortOrder: 'asc' | 'desc' = 'desc',
     words?: string[]
   ) {
+    if (!languageFilter) {
+      throw new Error('languageFilter is required');
+    }
+
     try {
+      let query = withKysely(ctx)
+        .selectFrom('word_user_mark as wum')
+        .innerJoin('word as w', 'w.id', 'wum.word_id')
+        .innerJoin(
+          eb =>
+            eb
+              .selectFrom('sentence_word')
+              .innerJoin('sentence', 'sentence.id', 'sentence_word.sentence_id')
+              .select('word_id')
+              .select(eb =>
+                eb.fn
+                  .count('sentence.original_text')
+                  .distinct()
+                  .as('sentence_count')
+              )
+              .groupBy('word_id')
+              .as('word_sentence_count'),
+          join => join.onRef('word_sentence_count.word_id', '=', 'wum.word_id')
+        )
+        .where('wum.user_id', '=', userId)
+        .where('w.language_code', '=', languageFilter);
+
       const skip = (page - 1) * limit;
 
-      // Build where clause
-      const whereClause: any = { user_id: userId };
       if (markFilter !== undefined && markFilter >= 0 && markFilter <= 5) {
-        whereClause.mark = markFilter;
-      }
-
-      // Build word filter conditions
-      const wordConditions: Record<string, unknown> = {};
-      if (languageFilter) {
-        wordConditions['language_code'] = languageFilter;
+        query = query.where('mark', '=', markFilter);
       }
       if (words && words.length > 0) {
-        wordConditions['word'] = { in: words };
-      }
-
-      // Exact words[] takes precedence over search; search matches word text or notes
-      if (words && words.length > 0) {
-        whereClause.word = wordConditions;
+        query = query.where('w.word', 'in', words);
       } else if (searchFilter) {
-        const searchTerm = searchFilter.toLowerCase();
-        whereClause.OR = [
-          {
-            word: {
-              ...wordConditions,
-              word: {
-                contains: searchTerm,
-              },
-            },
-          },
-          {
-            note: {
-              contains: searchTerm,
-            },
-            ...(Object.keys(wordConditions).length > 0 && {
-              word: wordConditions,
-            }),
-          },
-        ];
-      } else if (Object.keys(wordConditions).length > 0) {
-        whereClause.word = wordConditions;
+        query = query.where('w.word', 'like', `%${searchFilter}%`);
       }
-
-      // Build orderBy clause
-      let orderBy: any = { updated_at: 'desc' }; // default
 
       switch (sortBy) {
         case 'word':
-          orderBy = { word: { word: sortOrder } };
+          query = query.orderBy('w.word', sortOrder);
           break;
         case 'mark':
-          orderBy = { mark: sortOrder };
+          query = query.orderBy('wum.mark', sortOrder);
+          break;
+
+        case 'sentence_count':
+          query = query.orderBy(
+            'word_sentence_count.sentence_count',
+            sortOrder
+          );
           break;
         case 'updated_at':
-          orderBy = { updated_at: sortOrder };
-          break;
-        case 'sentence_count':
-          // For sentence count, we'll sort after getting all data
-          orderBy = { updated_at: 'desc' };
-          break;
         default:
-          orderBy = { updated_at: 'desc' };
+          query = query.orderBy('wum.updated_at', sortOrder);
       }
 
-      // For sentence count sorting, we need to get all data first
-      const needsAllData = sortBy === 'sentence_count';
+      const total = Number(
+        (
+          await query
+            .select(eb => eb.fn.countAll().as('total'))
+            .executeTakeFirst()
+        )?.total || 0
+      );
+      const pageData = await query
+        .select(['wum.id', 'wum.word_id', 'word_sentence_count.sentence_count'])
+        .limit(limit)
+        .offset(skip)
+        .execute();
 
       const wordUserMarks = await ctx.prisma.wordUserMark.findMany({
-        where: whereClause,
+        where: {
+          id: { in: pageData.map(i => i.id) },
+        },
         include: {
           word: {
             include: {
-              sentenceWords: {
-                include: {
-                  sentence: {
-                    include: {
-                      lesson: {
-                        select: {
-                          id: true,
-                          title: true,
-                          language_code: true,
-                        },
-                      },
-                    },
-                  },
-                },
-                take: 3, // Limit to 3 sentences per word
-              },
               wordTranslations: {
                 where: {
                   language_code: 'en', // English translations
@@ -307,99 +295,86 @@ export class WordService {
             },
           },
         },
-        orderBy,
-        ...(needsAllData ? {} : { skip, take: limit }), // Skip pagination if we need all data
       });
 
-      const total = await ctx.prisma.wordUserMark.count({ where: whereClause });
+      const sentenceDataFromDb = await withKysely(ctx)
+        .selectFrom('sentence')
+        .innerJoin('sentence_word', join =>
+          join.onRef('sentence.id', '=', 'sentence_word.sentence_id').on(
+            'sentence_word.word_id',
+            'in',
+            pageData.map(p => p.word_id)
+          )
+        )
+        .innerJoin('lesson', 'lesson.id', 'sentence.lesson_id')
+        .select([
+          'sentence.original_text',
+          'sentence_word.word_id',
+          'lesson.id as lessonId',
+          'lesson.title as lessonTitle',
+          'lesson.language_code as lessonLanguageCode',
+        ])
+        .select(eb => eb.fn.max<number>('sentence.id').as('id'))
+        .groupBy([
+          'sentence.original_text',
+          'sentence_word.word_id',
+          'sentence.lesson_id',
+        ])
+        .execute();
 
-      const sentenceCounts = await ctx.prisma.sentenceWord.groupBy({
-        by: ['word_id'],
-        where: {
-          sentence: {
-            lesson: {
-              created_by: userId,
+      // Prisma `in` does not preserve order — re-sort to match pageData
+      const pageOrder = new Map(pageData.map((p, i) => [p.id, i]));
+      const transformedData = wordUserMarks
+        .sort((a, b) => (pageOrder.get(a.id) ?? 0) - (pageOrder.get(b.id) ?? 0))
+        .map(wordMark => {
+          const sentences = sentenceDataFromDb
+            .filter(i => Number(i.word_id) === Number(wordMark.word.id))
+            .map(sw => ({
+              id: sw.id,
+              original_text: sw.original_text,
+              lesson: {
+                id: sw.lessonId,
+                title: sw.lessonTitle,
+                language_code: sw.lessonLanguageCode,
+              },
+            }));
+
+          // Get unique lessons from sentences
+          const lessonMap = new Map();
+          sentences.forEach(sentence => {
+            if (sentence.lesson && !lessonMap.has(sentence.lesson.id)) {
+              lessonMap.set(sentence.lesson.id, sentence.lesson);
+            }
+          });
+          const lessons = Array.from(lessonMap.values()).slice(0, 3); // Limit to 3 lessons
+
+          // Transform translations and pronunciations
+          const translations = wordMark.word.wordTranslations.map(wt => ({
+            word: wordMark.word.word,
+            translation: wt.translation,
+          }));
+
+          const pronunciations = wordMark.word.wordPronunciations.map(wp => ({
+            word: wordMark.word.word,
+            pronunciation: wp.pronunciation,
+            pronunciationType: wp.pronunciation_type || 'unknown',
+          }));
+
+          return {
+            ...wordMark,
+            word: {
+              ...wordMark.word,
+              sentences: sentences.slice(0, 3), // Limit to 3 sentences
+              totalSentenceCount:
+                Number(
+                  pageData.find(p => p.id === wordMark.id)?.sentence_count
+                ) || 0,
+              lessons,
+              translations,
+              pronunciations,
             },
-          },
-        },
-        _count: {
-          sentence_id: true,
-        },
-      });
-
-      const sentenceCountMap = new Map(
-        sentenceCounts.map(sc => [sc.word_id, sc._count.sentence_id])
-      );
-
-      // Transform the data to include unique lessons per word
-      const transformedData = wordUserMarks.map(wordMark => {
-        const sentences = wordMark.word.sentenceWords.map(sw => ({
-          id: sw.sentence.id,
-          original_text: sw.sentence.original_text,
-          lesson: sw.sentence.lesson,
-        }));
-
-        // Get unique lessons from sentences
-        const lessonMap = new Map();
-        sentences.forEach(sentence => {
-          if (sentence.lesson && !lessonMap.has(sentence.lesson.id)) {
-            lessonMap.set(sentence.lesson.id, sentence.lesson);
-          }
+          };
         });
-        const lessons = Array.from(lessonMap.values()).slice(0, 3); // Limit to 3 lessons
-
-        // Transform translations and pronunciations
-        const translations = wordMark.word.wordTranslations.map(wt => ({
-          word: wordMark.word.word,
-          translation: wt.translation,
-        }));
-
-        const pronunciations = wordMark.word.wordPronunciations.map(wp => ({
-          word: wordMark.word.word,
-          pronunciation: wp.pronunciation,
-          pronunciationType: wp.pronunciation_type || 'unknown',
-        }));
-
-        return {
-          ...wordMark,
-          word: {
-            ...wordMark.word,
-            sentences: sentences.slice(0, 3), // Limit to 3 sentences
-            totalSentenceCount: sentenceCountMap.get(wordMark.word.id) || 0,
-            lessons,
-            translations,
-            pronunciations,
-          },
-        };
-      });
-
-      // Handle sentence count sorting and pagination
-      if (sortBy === 'sentence_count') {
-        // Sort by sentence count
-        transformedData.sort((a, b) => {
-          const countA = a.word.totalSentenceCount;
-          const countB = b.word.totalSentenceCount;
-          return sortOrder === 'asc' ? countA - countB : countB - countA;
-        });
-
-        // Apply pagination after sorting
-        const startIndex = skip;
-        const endIndex = skip + limit;
-        const paginatedData = transformedData.slice(startIndex, endIndex);
-
-        return {
-          success: true,
-          data: {
-            wordUserMarks: paginatedData,
-            pagination: {
-              page,
-              limit,
-              total,
-              totalPages: Math.ceil(total / limit),
-            },
-          },
-        };
-      }
 
       return {
         success: true,
