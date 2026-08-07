@@ -277,44 +277,41 @@ export class WordService {
       // For sentence count sorting, we need to get all data first
       const needsAllData = sortBy === 'sentence_count';
 
-      const [wordUserMarks, total] = await Promise.all([
-        ctx.prisma.wordUserMark.findMany({
-          where: whereClause,
-          include: {
-            word: {
-              include: {
-                sentenceWords: {
-                  include: {
-                    sentence: {
-                      include: {
-                        lesson: {
-                          select: {
-                            id: true,
-                            title: true,
-                            language_code: true,
-                          },
+      const wordUserMarks = await ctx.prisma.wordUserMark.findMany({
+        where: whereClause,
+        include: {
+          word: {
+            include: {
+              sentenceWords: {
+                include: {
+                  sentence: {
+                    include: {
+                      lesson: {
+                        select: {
+                          id: true,
+                          title: true,
+                          language_code: true,
                         },
                       },
                     },
                   },
-                  take: 3, // Limit to 3 sentences per word
                 },
-                wordTranslations: {
-                  where: {
-                    language_code: 'en', // English translations
-                  },
-                },
-                wordPronunciations: true, // Include all pronunciations
+                take: 3, // Limit to 3 sentences per word
               },
+              wordTranslations: {
+                where: {
+                  language_code: 'en', // English translations
+                },
+              },
+              wordPronunciations: true, // Include all pronunciations
             },
           },
-          orderBy,
-          ...(needsAllData ? {} : { skip, take: limit }), // Skip pagination if we need all data
-        }),
-        ctx.prisma.wordUserMark.count({
-          where: whereClause,
-        }),
-      ]);
+        },
+        orderBy,
+        ...(needsAllData ? {} : { skip, take: limit }), // Skip pagination if we need all data
+      });
+
+      const total = await ctx.prisma.wordUserMark.count({ where: whereClause });
 
       const sentenceCounts = await ctx.prisma.sentenceWord.groupBy({
         by: ['word_id'],
