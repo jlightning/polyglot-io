@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { inTransactionAls, withKysely } from './kysely';
 
 type BaseContext = {
   prisma: PrismaClient;
@@ -64,19 +65,25 @@ export const wrapInTransaction = async <T extends BaseContext, G>(
 
   if (!options) options = { maxWait: 5000, timeout: 30000 };
 
-  const result = await ctx.prisma.$transaction(async newPrisma => {
-    const _result = await handleFn({
-      ...ctx,
-      prisma: newPrisma,
-      transactionController,
-    });
+  const kyselyClient = withKysely(ctx);
+  const result = await inTransactionAls.run(
+    { inTransaction: true, kysely: kyselyClient },
+    async () => {
+      return await ctx.prisma.$transaction(async newPrisma => {
+        const _result = await handleFn({
+          ...ctx,
+          prisma: newPrisma,
+          transactionController,
+        });
 
-    for (const hook of inTransactionHooks) {
-      await hook();
+        for (const hook of inTransactionHooks) {
+          await hook();
+        }
+
+        return _result;
+      }, options);
     }
-
-    return _result;
-  }, options);
+  );
 
   for (const hook of outTransactionHooks) {
     await hook();

@@ -16,6 +16,9 @@ import type { TextProcessingService } from './textProcessingService';
 import type { LingQService } from './import/lingqService';
 import { PrismaClient } from '@prisma/client';
 
+export type { DB } from '../db/types';
+export { kysely, withKysely } from './kysely';
+
 export type Context = {
   prisma: PrismaClient;
   authService: UserService;
