@@ -2,6 +2,9 @@ import { Prisma, UserActionType } from '@prisma/client';
 
 import type { Context } from './index';
 import { wrapInTransaction } from './db';
+import { kysely, withKysely } from './kysely';
+
+const { sql } = kysely;
 
 interface WordMarkActionData {
   word_id: number;
@@ -165,19 +168,24 @@ export class UserActionLogService {
   async cleanUpDuplicatedLog(ctx: Context) {
     console.log('cleanUpDuplicatedLog: starting');
 
-    const tmp = await ctx.prisma.$queryRaw<
-      { ids: string; user_id: number; word_id: number; created_date: string }[]
-    >`
-      SELECT
-        GROUP_CONCAT(id) AS ids,
-        user_id,
-        word_id,
-        DATE_FORMAT(CONVERT_TZ(created_at, 'UTC', 'Asia/Singapore'), '%Y-%m-%d') AS created_date
-      FROM user_action_log ual
-      WHERE type = ${UserActionType.word_mark}
-      GROUP BY user_id, word_id, DATE_FORMAT(CONVERT_TZ(created_at, 'UTC', 'Asia/Singapore'), '%Y-%m-%d')
-      HAVING COUNT(1) > 1
-    `;
+    const tmp = await withKysely(ctx)
+      .selectFrom('user_action_log')
+      .select([
+        sql<string>`GROUP_CONCAT(id)`.as('ids'),
+        'user_id',
+        'word_id',
+        sql<string>`DATE_FORMAT(CONVERT_TZ(created_at, 'UTC', 'Asia/Singapore'), '%Y-%m-%d')`.as(
+          'created_date'
+        ),
+      ])
+      .where('type', '=', UserActionType.word_mark)
+      .groupBy([
+        'user_id',
+        'word_id',
+        sql`DATE_FORMAT(CONVERT_TZ(created_at, 'UTC', 'Asia/Singapore'), '%Y-%m-%d')`,
+      ])
+      .having(sql`COUNT(1)`, '>', 1)
+      .execute();
 
     const data = tmp
       .map(i => ({ ...i, ids: i.ids.split(',').map(Number) }))

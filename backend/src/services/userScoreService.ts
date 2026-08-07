@@ -8,6 +8,9 @@ dayjs.extend(timezone);
 dayjs.extend(isoWeek);
 
 import type { Context } from './index';
+import { kysely, withKysely } from './kysely';
+
+const { sql } = kysely;
 
 // Daily score target for backfill logic (fallback default)
 const DEFAULT_DAILY_SCORE_TARGET = 200;
@@ -62,20 +65,26 @@ export class UserScoreService {
       const startOfDay = targetDate.startOf('day').utc().toDate();
       const endOfDay = targetDate.endOf('day').utc().toDate();
 
-      // Calculate score using raw SQL for better performance
       // Sum of (new_mark - old_mark) from user action logs for the target day
-      const scoreResult = await ctx.prisma.$queryRaw<{ total_score: number }[]>`
-        SELECT COALESCE(SUM(
-          CAST(JSON_EXTRACT(action, '$.new_mark') AS SIGNED) - 
-          CAST(JSON_EXTRACT(action, '$.old_mark') AS SIGNED)
-        ), 0) as total_score
-        FROM user_action_log ual
-        WHERE ual.user_id = ${userId}
-          AND ual.language_code = ${languageCode}
-          AND ual.type = 'word_mark'
-          AND ual.created_at >= ${startOfDay}
-          AND ual.created_at <= ${endOfDay}
-      `;
+      const scoreResult = await withKysely(ctx)
+        .selectFrom('user_action_log')
+        .select(({ fn }) =>
+          fn
+            .coalesce(
+              fn.sum<number>(
+                sql`CAST(JSON_EXTRACT(action, '$.new_mark') AS SIGNED) -
+                    CAST(JSON_EXTRACT(action, '$.old_mark') AS SIGNED)`
+              ),
+              sql.lit(0)
+            )
+            .as('total_score')
+        )
+        .where('user_id', '=', userId)
+        .where('language_code', '=', languageCode)
+        .where('type', '=', 'word_mark')
+        .where('created_at', '>=', startOfDay)
+        .where('created_at', '<=', endOfDay)
+        .execute();
 
       const score = scoreResult[0]?.total_score || 0;
 
@@ -142,20 +151,25 @@ export class UserScoreService {
         const endOfDay = targetDate.endOf('day').utc().toDate();
 
         // Calculate score for this day
-        const scoreResult = await ctx.prisma.$queryRaw<
-          { total_score: number }[]
-        >`
-          SELECT COALESCE(SUM(
-            CAST(JSON_EXTRACT(action, '$.new_mark') AS SIGNED) - 
-            CAST(JSON_EXTRACT(action, '$.old_mark') AS SIGNED)
-          ), 0) as total_score
-          FROM user_action_log ual
-          WHERE ual.user_id = ${userId}
-            AND ual.language_code = ${languageCode}
-            AND ual.type = 'word_mark'
-            AND ual.created_at >= ${startOfDay}
-            AND ual.created_at <= ${endOfDay}
-        `;
+        const scoreResult = await withKysely(ctx)
+          .selectFrom('user_action_log')
+          .select(({ fn }) =>
+            fn
+              .coalesce(
+                fn.sum<number>(
+                  sql`CAST(JSON_EXTRACT(action, '$.new_mark') AS SIGNED) -
+                      CAST(JSON_EXTRACT(action, '$.old_mark') AS SIGNED)`
+                ),
+                sql.lit(0)
+              )
+              .as('total_score')
+          )
+          .where('user_id', '=', userId)
+          .where('language_code', '=', languageCode)
+          .where('type', '=', 'word_mark')
+          .where('created_at', '>=', startOfDay)
+          .where('created_at', '<=', endOfDay)
+          .execute();
 
         const score = scoreResult[0]?.total_score || 0;
 

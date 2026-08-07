@@ -4,6 +4,9 @@ import timezone from 'dayjs/plugin/timezone';
 import { UserActionType } from '@prisma/client';
 
 import type { Context } from './index';
+import { kysely, withKysely } from './kysely';
+
+const { sql } = kysely;
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -171,18 +174,21 @@ async function queryFirstKnownTransitions(
   userId: number,
   languageCode: string
 ) {
-  return ctx.prisma.$queryRaw<{ word_id: bigint | number; first_at: Date }[]>`
-    SELECT
-      CAST(JSON_EXTRACT(action, '$.word_id') AS UNSIGNED) AS word_id,
-      MIN(created_at) AS first_at
-    FROM user_action_log
-    WHERE user_id = ${userId}
-      AND language_code = ${languageCode}
-      AND type = ${UserActionType.word_mark}
-      AND CAST(JSON_EXTRACT(action, '$.new_mark') AS SIGNED) >= 4
-      AND CAST(JSON_EXTRACT(action, '$.old_mark') AS SIGNED) < 4
-    GROUP BY CAST(JSON_EXTRACT(action, '$.word_id') AS UNSIGNED)
-  `;
+  return withKysely(ctx)
+    .selectFrom('user_action_log')
+    .select(eb => [
+      sql<number>`CAST(JSON_EXTRACT(action, '$.word_id') AS UNSIGNED)`.as(
+        'word_id'
+      ),
+      eb.fn.min('created_at').as('first_at'),
+    ])
+    .where('user_id', '=', userId)
+    .where('language_code', '=', languageCode)
+    .where('type', '=', UserActionType.word_mark)
+    .where(sql`CAST(JSON_EXTRACT(action, '$.new_mark') AS SIGNED)`, '>=', 4)
+    .where(sql`CAST(JSON_EXTRACT(action, '$.old_mark') AS SIGNED)`, '<', 4)
+    .groupBy(sql`CAST(JSON_EXTRACT(action, '$.word_id') AS UNSIGNED)`)
+    .execute();
 }
 
 function learnedFirstByDayInWindow(
@@ -249,17 +255,24 @@ export class ChartService {
         select: { created_at: true, action: true },
         orderBy: { created_at: 'asc' },
       }),
-      ctx.prisma.$queryRaw<{ total_score: number }[]>`
-        SELECT COALESCE(SUM(
-          CAST(JSON_EXTRACT(action, '$.new_mark') AS SIGNED) -
-          CAST(JSON_EXTRACT(action, '$.old_mark') AS SIGNED)
-        ), 0) AS total_score
-        FROM user_action_log ual
-        WHERE ual.user_id = ${userId}
-          AND ual.language_code = ${languageCode}
-          AND ual.type = ${UserActionType.word_mark}
-          AND ual.created_at < ${w.startUtc}
-      `,
+      withKysely(ctx)
+        .selectFrom('user_action_log')
+        .select(({ fn }) =>
+          fn
+            .coalesce(
+              fn.sum<number>(
+                sql`CAST(JSON_EXTRACT(action, '$.new_mark') AS SIGNED) -
+                    CAST(JSON_EXTRACT(action, '$.old_mark') AS SIGNED)`
+              ),
+              sql.lit(0)
+            )
+            .as('total_score')
+        )
+        .where('user_id', '=', userId)
+        .where('language_code', '=', languageCode)
+        .where('type', '=', UserActionType.word_mark)
+        .where('created_at', '<', w.startUtc)
+        .execute(),
     ]);
     const byDay = aggregateWordMarkDeltaByDay(markRows, tz);
     const baseline = Number(scoreBeforeRows[0]?.total_score ?? 0);
