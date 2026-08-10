@@ -462,6 +462,13 @@ const LessonList: React.FC<LessonListProps> = ({
                     <EyeOpenIcon />
                     View Lesson
                   </MyButton>
+                  <MyButton
+                    variant="soft"
+                    size="2"
+                    onClick={() => navigate(`/words?lessonId=${lesson.id}`)}
+                  >
+                    Words in this lesson
+                  </MyButton>
                   {lesson.lessonType === 'subtitle' && (
                     <MyButton
                       variant="soft"

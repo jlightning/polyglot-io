@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Box,
   Flex,
@@ -13,6 +13,8 @@ import {
   Link,
   Dialog,
   Tabs,
+  Popover,
+  Callout,
 } from '@radix-ui/themes';
 import MyButton from '../components/MyButton';
 import {
@@ -22,8 +24,9 @@ import {
   CrossCircledIcon,
   CaretUpIcon,
   CaretDownIcon,
+  ChevronDownIcon,
 } from '@radix-ui/react-icons';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import Pagination from '../components/Pagination';
@@ -32,6 +35,7 @@ import {
   getDifficultyLabel,
   getDifficultyColor,
 } from '../constants/difficultyColors';
+import axios from 'axios';
 
 interface Word {
   id: number;
@@ -106,10 +110,39 @@ const WordsPage: React.FC = () => {
   const { selectedLanguage } = useLanguage();
   const { openWordSidebar } = useWordSidebar();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [words, setWords] = useState<WordUserMark[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [difficultyFilter, setDifficultyFilter] = useState('all');
+  const [searchTerm, setSearchTerm] = useState(
+    () => searchParams.get('search') || ''
+  );
+  const [appliedSearch, setAppliedSearch] = useState(
+    () => searchParams.get('search') || ''
+  );
+  const [difficultyFilter, setDifficultyFilter] = useState(() => {
+    const mark = searchParams.get('mark');
+    if (mark && ['0', '1', '2', '3', '4', '5'].includes(mark)) {
+      return mark;
+    }
+    return 'all';
+  });
+  const [lessonId, setLessonId] = useState<number | null>(() => {
+    const raw = searchParams.get('lessonId');
+    if (!raw) return null;
+    const parsed = parseInt(raw, 10);
+    return Number.isNaN(parsed) || parsed < 1 ? null : parsed;
+  });
+  const [selectedLessonTitle, setSelectedLessonTitle] = useState<string | null>(
+    null
+  );
+  const [lessonFilterError, setLessonFilterError] = useState('');
+  const [lessonPickerOpen, setLessonPickerOpen] = useState(false);
+  const [lessonSearch, setLessonSearch] = useState('');
+  const [debouncedLessonSearch, setDebouncedLessonSearch] = useState('');
+  const [lessonOptions, setLessonOptions] = useState<
+    Array<{ id: number; title: string }>
+  >([]);
+  const [lessonOptionsLoading, setLessonOptionsLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [sortField, setSortField] = useState<string>('updated_at');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
@@ -119,6 +152,7 @@ const WordsPage: React.FC = () => {
     total: 0,
     totalPages: 0,
   });
+  const prevLanguageRef = useRef(selectedLanguage);
 
   // Import dialog state
   const [importDialogOpen, setImportDialogOpen] = useState(false);
@@ -132,7 +166,8 @@ const WordsPage: React.FC = () => {
     search: string = '',
     difficulty: string = '',
     sort: string = 'updated_at',
-    direction: 'asc' | 'desc' = 'desc'
+    direction: 'asc' | 'desc' = 'desc',
+    filterLessonId: number | null = null
   ) => {
     if (!axiosInstance) return;
 
@@ -149,14 +184,16 @@ const WordsPage: React.FC = () => {
         params.append('mark', difficulty);
       }
 
-      // Add language filter to backend request
       if (selectedLanguage) {
         params.append('language', selectedLanguage);
       }
 
-      // Add search filter to backend request
       if (search) {
         params.append('search', search);
+      }
+
+      if (filterLessonId !== null) {
+        params.append('lessonId', filterLessonId.toString());
       }
 
       const response = await axiosInstance.get<WordsResponse>(
@@ -164,24 +201,163 @@ const WordsPage: React.FC = () => {
       );
 
       if (response.data.success) {
-        // No more frontend filtering - backend handles it all
         setWords(response.data.data.wordUserMarks);
         setPagination(response.data.data.pagination);
       }
     } catch (error) {
       console.error('Error fetching words:', error);
+      if (
+        axios.isAxiosError(error) &&
+        (error.response?.status === 404 || error.response?.status === 400) &&
+        filterLessonId !== null
+      ) {
+        setLessonId(null);
+        setSelectedLessonTitle(null);
+        setLessonFilterError(
+          error.response.data?.message ||
+            'Lesson filter cleared: lesson not found or language mismatch'
+        );
+      }
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    const next = new URLSearchParams();
+    if (lessonId !== null) {
+      next.set('lessonId', lessonId.toString());
+    }
+    if (difficultyFilter !== 'all') {
+      next.set('mark', difficultyFilter);
+    }
+    if (appliedSearch) {
+      next.set('search', appliedSearch);
+    }
+    setSearchParams(next, { replace: true });
+  }, [lessonId, difficultyFilter, appliedSearch, setSearchParams]);
+
+  useEffect(() => {
+    if (
+      prevLanguageRef.current &&
+      selectedLanguage &&
+      prevLanguageRef.current !== selectedLanguage
+    ) {
+      setLessonId(null);
+      setSelectedLessonTitle(null);
+      setCurrentPage(1);
+    }
+    prevLanguageRef.current = selectedLanguage;
+  }, [selectedLanguage]);
+
+  useEffect(() => {
+    if (!axiosInstance || lessonId === null) {
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const response = await axiosInstance.get(`/api/lessons/${lessonId}`);
+        if (cancelled) return;
+        if (!response.data.success || !response.data.lesson) {
+          setLessonId(null);
+          setSelectedLessonTitle(null);
+          setLessonFilterError(
+            'Lesson filter cleared: lesson not found or access denied'
+          );
+          return;
+        }
+        if (
+          selectedLanguage &&
+          response.data.lesson.languageCode !== selectedLanguage
+        ) {
+          setLessonId(null);
+          setSelectedLessonTitle(null);
+          setLessonFilterError(
+            'Lesson filter cleared: lesson language does not match'
+          );
+          return;
+        }
+        setSelectedLessonTitle(response.data.lesson.title);
+        setLessonFilterError('');
+      } catch {
+        if (cancelled) return;
+        setLessonId(null);
+        setSelectedLessonTitle(null);
+        setLessonFilterError(
+          'Lesson filter cleared: lesson not found or access denied'
+        );
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [axiosInstance, lessonId, selectedLanguage]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedLessonSearch(lessonSearch);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [lessonSearch]);
+
+  useEffect(() => {
+    if (!lessonPickerOpen || !axiosInstance || !selectedLanguage) {
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        setLessonOptionsLoading(true);
+        const params = new URLSearchParams();
+        if (debouncedLessonSearch) {
+          params.append('search', debouncedLessonSearch);
+        }
+        const query = params.toString();
+        const response = await axiosInstance.get(
+          `/api/lessons/language/${selectedLanguage}${query ? `?${query}` : ''}`
+        );
+        if (cancelled) return;
+        if (response.data.success) {
+          setLessonOptions(
+            (response.data.lessons || []).map(
+              (lesson: { id: number; title: string }) => ({
+                id: lesson.id,
+                title: lesson.title,
+              })
+            )
+          );
+        }
+      } catch (error) {
+        console.error('Error fetching lessons for filter:', error);
+      } finally {
+        if (!cancelled) {
+          setLessonOptionsLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    lessonPickerOpen,
+    debouncedLessonSearch,
+    axiosInstance,
+    selectedLanguage,
+  ]);
+
+  useEffect(() => {
     fetchWords(
       currentPage,
-      searchTerm,
+      appliedSearch,
       difficultyFilter,
       sortField,
-      sortDirection
+      sortDirection,
+      lessonId
     );
   }, [
     axiosInstance,
@@ -190,11 +366,13 @@ const WordsPage: React.FC = () => {
     difficultyFilter,
     sortField,
     sortDirection,
+    appliedSearch,
+    lessonId,
   ]);
 
   const handleSearch = () => {
     setCurrentPage(1);
-    fetchWords(1, searchTerm, difficultyFilter, sortField, sortDirection);
+    setAppliedSearch(searchTerm);
   };
 
   const handlePageChange = (page: number) => {
@@ -204,10 +382,11 @@ const WordsPage: React.FC = () => {
   const handleRefresh = () => {
     fetchWords(
       currentPage,
-      searchTerm,
+      appliedSearch,
       difficultyFilter,
       sortField,
-      sortDirection
+      sortDirection,
+      lessonId
     );
   };
 
@@ -282,25 +461,28 @@ const WordsPage: React.FC = () => {
         }
 
         setImportSuccess(message);
-        // Refresh the words list
         fetchWords(
           currentPage,
-          searchTerm,
+          appliedSearch,
           difficultyFilter,
           sortField,
-          sortDirection
+          sortDirection,
+          lessonId
         );
       } else {
         throw new Error(
           importResponse.data.message || 'Failed to import words'
         );
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('LingQ import error:', error);
-      const errorMessage =
-        error.response?.data?.message ||
-        error.message ||
-        'Failed to import from LingQ. Please check your API key and try again.';
+      const errorMessage = axios.isAxiosError(error)
+        ? error.response?.data?.message ||
+          error.message ||
+          'Failed to import from LingQ. Please check your API key and try again.'
+        : error instanceof Error
+          ? error.message
+          : 'Failed to import from LingQ. Please check your API key and try again.';
       setImportError(errorMessage);
     } finally {
       setImportLoading(false);
@@ -365,6 +547,12 @@ const WordsPage: React.FC = () => {
 
       <Separator size="4" mb="6" />
 
+      {lessonFilterError && (
+        <Callout.Root color="orange" mb="4">
+          <Callout.Text>{lessonFilterError}</Callout.Text>
+        </Callout.Root>
+      )}
+
       {/* Filters */}
       <Flex gap="4" mb="6" wrap="wrap">
         {/* Search */}
@@ -402,6 +590,121 @@ const WordsPage: React.FC = () => {
             ))}
           </Select.Content>
         </Select.Root>
+
+        {/* Lesson Filter — Popover styled like Select.Trigger */}
+        <Popover.Root
+          open={lessonPickerOpen}
+          onOpenChange={open => {
+            setLessonPickerOpen(open);
+            if (open) {
+              setLessonSearch('');
+              setDebouncedLessonSearch('');
+            }
+          }}
+        >
+          <Popover.Trigger>
+            <MyButton
+              variant="surface"
+              color="gray"
+              style={{
+                minWidth: '200px',
+                justifyContent: 'space-between',
+                fontWeight: 'var(--font-weight-regular)',
+              }}
+            >
+              <Text truncate style={{ maxWidth: '160px' }}>
+                {selectedLessonTitle || 'All lessons'}
+              </Text>
+              <ChevronDownIcon width="12" height="12" />
+            </MyButton>
+          </Popover.Trigger>
+          <Popover.Content
+            align="start"
+            style={{ width: '280px', padding: 'var(--space-2)' }}
+          >
+            <Flex direction="column" gap="2">
+              <TextField.Root
+                size="2"
+                placeholder="Search lessons..."
+                value={lessonSearch}
+                onChange={e => setLessonSearch(e.target.value)}
+                autoFocus
+              >
+                <TextField.Slot>
+                  <MagnifyingGlassIcon height="16" width="16" />
+                </TextField.Slot>
+              </TextField.Root>
+              <Box style={{ maxHeight: '240px', overflowY: 'auto' }}>
+                <Flex direction="column">
+                  <Box
+                    onClick={() => {
+                      setLessonId(null);
+                      setSelectedLessonTitle(null);
+                      setLessonFilterError('');
+                      setCurrentPage(1);
+                      setLessonPickerOpen(false);
+                    }}
+                    style={{
+                      padding: '6px 8px',
+                      borderRadius: 'var(--radius-2)',
+                      cursor: 'pointer',
+                      background:
+                        lessonId === null ? 'var(--accent-a3)' : 'transparent',
+                    }}
+                  >
+                    <Text
+                      size="2"
+                      weight={lessonId === null ? 'medium' : 'regular'}
+                    >
+                      All lessons
+                    </Text>
+                  </Box>
+                  {lessonOptionsLoading && (
+                    <Text size="2" color="gray" style={{ padding: '6px 8px' }}>
+                      Loading...
+                    </Text>
+                  )}
+                  {!lessonOptionsLoading &&
+                    lessonOptions.map(lesson => (
+                      <Box
+                        key={lesson.id}
+                        onClick={() => {
+                          setLessonId(lesson.id);
+                          setSelectedLessonTitle(lesson.title);
+                          setLessonFilterError('');
+                          setCurrentPage(1);
+                          setLessonPickerOpen(false);
+                        }}
+                        style={{
+                          padding: '6px 8px',
+                          borderRadius: 'var(--radius-2)',
+                          cursor: 'pointer',
+                          background:
+                            lessonId === lesson.id
+                              ? 'var(--accent-a3)'
+                              : 'transparent',
+                        }}
+                      >
+                        <Text
+                          size="2"
+                          weight={lessonId === lesson.id ? 'medium' : 'regular'}
+                          truncate
+                          style={{ display: 'block', maxWidth: '260px' }}
+                        >
+                          {lesson.title}
+                        </Text>
+                      </Box>
+                    ))}
+                  {!lessonOptionsLoading && lessonOptions.length === 0 && (
+                    <Text size="2" color="gray" style={{ padding: '6px 8px' }}>
+                      No lessons found
+                    </Text>
+                  )}
+                </Flex>
+              </Box>
+            </Flex>
+          </Popover.Content>
+        </Popover.Root>
       </Flex>
 
       {/* Loading State */}

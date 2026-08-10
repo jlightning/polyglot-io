@@ -181,6 +181,14 @@ export const ListWordsInputSchema = z.object({
   languageCode: z.string().min(1),
   mark: MarkSchema.optional(),
   words: z.array(z.string().min(1)).optional(),
+  lessonId: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe(
+      'Only marked words that appear in at least one sentence of this lesson'
+    ),
 });
 
 export const ListWordsOutputSchema = z.object({

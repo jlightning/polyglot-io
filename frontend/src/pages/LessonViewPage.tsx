@@ -471,6 +471,12 @@ const LessonViewPage: React.FC = () => {
                 Manga View
               </MyButton>
             )}
+            <MyButton
+              variant="soft"
+              onClick={() => navigate(`/words?lessonId=${lessonId}`)}
+            >
+              Words in this lesson
+            </MyButton>
             <MyButton variant="soft" onClick={() => setIsEditDialogOpen(true)}>
               Edit Lesson
             </MyButton>

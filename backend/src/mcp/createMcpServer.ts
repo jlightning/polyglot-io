@@ -71,7 +71,8 @@ export function createPolyglotMcpServer(
         '- mark_word sets difficulty 0–5:',
         "  0=Ignore, 1=Don't remember, 2=Hard to remember,",
         '  3=Remembered, 4=Easy to remember, 5=No problem.',
-        '- list_words is paginated; supports exact words[] match and mark/language filters.',
+        '- list_words is paginated; supports exact words[] match, mark/language filters, and optional lessonId.',
+        '- Optional lessonId returns only marked words that appear in that lesson (must own lesson; language must match).',
         '- No free-text search on list_words.',
         '',
         'After add_sentence:',
@@ -273,11 +274,32 @@ export function createPolyglotMcpServer(
     'list_words',
     {
       description:
-        'List marked words with pagination (default limit 100). No search. languageCode required. Optional exact-match words list and mark filter.',
+        'List marked words with pagination (default limit 100). No search. languageCode required. Optional exact-match words list, mark filter, and lessonId (words appearing in that lesson).',
       inputSchema: ListWordsInputSchema,
       outputSchema: ListWordsOutputSchema,
     },
-    async ({ page, limit, languageCode, mark, words }) => {
+    async ({ page, limit, languageCode, mark, words, lessonId }) => {
+      if (lessonId !== undefined) {
+        const lessonResult = await ctx.lessonService.getLessonById(
+          ctx,
+          userId,
+          lessonId
+        );
+        if (!lessonResult.success || !lessonResult.lesson) {
+          return toolResult({
+            success: false,
+            message:
+              lessonResult.message || 'Lesson not found or access denied',
+          });
+        }
+        if (lessonResult.lesson.languageCode !== languageCode) {
+          return toolResult({
+            success: false,
+            message: 'Lesson language must match languageCode',
+          });
+        }
+      }
+
       const result = await ctx.wordService.getUserWordMarksWithDetails(
         ctx,
         userId,
@@ -288,7 +310,8 @@ export function createPolyglotMcpServer(
         undefined,
         'updated_at',
         'desc',
-        words
+        words,
+        lessonId
       );
       return toolResult(result);
     }

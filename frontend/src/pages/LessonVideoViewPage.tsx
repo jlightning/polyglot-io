@@ -1404,6 +1404,13 @@ const LessonVideoViewPage: React.FC = () => {
             >
               ← Back to Lessons
             </MyButton>
+            <MyButton
+              variant="soft"
+              size="2"
+              onClick={() => navigate(`/words?lessonId=${lessonId}`)}
+            >
+              Words in this lesson
+            </MyButton>
           </Flex>
           <Flex align="center" gap="2">
             <Heading size="5">{lesson.title} - Video View</Heading>

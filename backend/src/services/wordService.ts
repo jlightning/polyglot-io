@@ -207,7 +207,8 @@ export class WordService {
     searchFilter?: string,
     sortBy: string = 'updated_at',
     sortOrder: 'asc' | 'desc' = 'desc',
-    words?: string[]
+    words?: string[],
+    lessonId?: number
   ) {
     if (!languageFilter) {
       throw new Error('languageFilter is required');
@@ -245,6 +246,19 @@ export class WordService {
         query = query.where('w.word', 'in', words);
       } else if (searchFilter) {
         query = query.where('w.word', 'like', `%${searchFilter}%`);
+      }
+      if (lessonId !== undefined) {
+        query = query.where(eb =>
+          eb(
+            'wum.word_id',
+            'in',
+            eb
+              .selectFrom('sentence_word')
+              .innerJoin('sentence', 'sentence.id', 'sentence_word.sentence_id')
+              .select('sentence_word.word_id')
+              .where('sentence.lesson_id', '=', lessonId)
+          )
+        );
       }
 
       switch (sortBy) {

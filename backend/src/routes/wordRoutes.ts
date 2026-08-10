@@ -132,6 +132,8 @@ router.get('/marks/details', async (req: Request, res: Response) => {
     const searchFilter = req.query['search'] as string | undefined;
     const sortBy = (req.query['sortBy'] as string) || 'updated_at';
     const sortOrder = (req.query['sortOrder'] as 'asc' | 'desc') || 'desc';
+    const lessonIdRaw = req.query['lessonId'] as string | undefined;
+    let lessonId: number | undefined;
 
     if (!languageFilter) {
       return res.status(400).json({
@@ -155,6 +157,34 @@ router.get('/marks/details', async (req: Request, res: Response) => {
       });
     }
 
+    if (lessonIdRaw !== undefined && lessonIdRaw !== '') {
+      lessonId = parseInt(lessonIdRaw, 10);
+      if (isNaN(lessonId) || lessonId < 1) {
+        return res.status(400).json({
+          success: false,
+          message: 'lessonId must be a positive integer',
+        });
+      }
+
+      const lessonResult = await ctx.lessonService.getLessonById(
+        ctx,
+        req.userId!,
+        lessonId
+      );
+      if (!lessonResult.success || !lessonResult.lesson) {
+        return res.status(404).json({
+          success: false,
+          message: lessonResult.message || 'Lesson not found or access denied',
+        });
+      }
+      if (lessonResult.lesson.languageCode !== languageFilter) {
+        return res.status(400).json({
+          success: false,
+          message: 'Lesson language must match the language filter',
+        });
+      }
+    }
+
     const result = await ctx.wordService.getUserWordMarksWithDetails(
       ctx,
       req.userId!,
@@ -164,7 +194,9 @@ router.get('/marks/details', async (req: Request, res: Response) => {
       languageFilter,
       searchFilter,
       sortBy,
-      sortOrder
+      sortOrder,
+      undefined,
+      lessonId
     );
 
     if (result.success) {
