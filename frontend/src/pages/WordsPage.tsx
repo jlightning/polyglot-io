@@ -31,6 +31,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import Pagination from '../components/Pagination';
 import { useWordSidebar } from '../contexts/WordSidebarContext';
+import { useWordMark } from '../contexts/WordMarkContext';
+import SentenceReConstructor from '../components/SentenceReConstructor';
 import {
   getDifficultyLabel,
   getDifficultyColor,
@@ -44,6 +46,7 @@ interface Word {
   sentences: Array<{
     id: number;
     original_text: string;
+    split_text: string[] | null;
     lesson: {
       id: number;
       title: string;
@@ -105,6 +108,7 @@ const WordsPage: React.FC = () => {
   const { axiosInstance } = useAuth();
   const { selectedLanguage } = useLanguage();
   const { openWordSidebar } = useWordSidebar();
+  const { addWords, seedWordMarks } = useWordMark();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [words, setWords] = useState<WordUserMark[]>([]);
@@ -232,8 +236,24 @@ const WordsPage: React.FC = () => {
       );
 
       if (response.data.success) {
-        setWords(response.data.data.wordUserMarks);
+        const wordUserMarks = response.data.data.wordUserMarks;
+        setWords(wordUserMarks);
         setPagination(response.data.data.pagination);
+        seedWordMarks(
+          wordUserMarks.map(wm => ({ word: wm.word.word, mark: wm.mark }))
+        );
+        if (selectedLanguage) {
+          void addWords(
+            [
+              ...new Set(
+                wordUserMarks.flatMap(wm =>
+                  wm.word.sentences.flatMap(s => s.split_text ?? [])
+                )
+              ),
+            ],
+            selectedLanguage
+          );
+        }
       }
     } catch (error) {
       console.error('Error fetching words:', error);
@@ -918,10 +938,35 @@ const WordsPage: React.FC = () => {
                       <Flex direction="column" gap="2">
                         {wordMark.word.sentences.length > 0 ? (
                           wordMark.word.sentences.map((sentence, index) => (
-                            <Text key={sentence.id} size="2" color="gray">
-                              {index + 1}.{' '}
-                              {truncateText(sentence.original_text, 80)}
-                            </Text>
+                            <Flex
+                              key={sentence.id}
+                              gap="1"
+                              align="start"
+                              wrap="wrap"
+                            >
+                              <Text size="2" color="gray">
+                                {index + 1}.
+                              </Text>
+                              {sentence.split_text &&
+                              sentence.split_text.length > 0 ? (
+                                <Box style={{ lineHeight: 1.5 }}>
+                                  <SentenceReConstructor
+                                    sentence={sentence}
+                                    fontSize="14px"
+                                    onWordClick={word =>
+                                      openWordSidebar(
+                                        word,
+                                        wordMark.word.language_code
+                                      )
+                                    }
+                                  />
+                                </Box>
+                              ) : (
+                                <Text size="2" color="gray">
+                                  {truncateText(sentence.original_text, 80)}
+                                </Text>
+                              )}
+                            </Flex>
                           ))
                         ) : (
                           <Text

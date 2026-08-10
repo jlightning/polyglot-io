@@ -323,6 +323,7 @@ export class WordService {
         .innerJoin('lesson', 'lesson.id', 'sentence.lesson_id')
         .select([
           'sentence.original_text',
+          'sentence.split_text',
           'sentence_word.word_id',
           'lesson.id as lessonId',
           'lesson.title as lessonTitle',
@@ -331,6 +332,7 @@ export class WordService {
         .select(eb => eb.fn.max<number>('sentence.id').as('id'))
         .groupBy([
           'sentence.original_text',
+          'sentence.split_text',
           'sentence_word.word_id',
           'sentence.lesson_id',
         ])
@@ -346,6 +348,11 @@ export class WordService {
             .map(sw => ({
               id: sw.id,
               original_text: sw.original_text,
+              split_text: Array.isArray(sw.split_text)
+                ? sw.split_text.filter(
+                    (part): part is string => typeof part === 'string'
+                  )
+                : null,
               lesson: {
                 id: sw.lessonId,
                 title: sw.lessonTitle,

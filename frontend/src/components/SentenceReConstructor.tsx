@@ -14,15 +14,15 @@ interface Sentence {
   id: number;
   original_text: string;
   split_text: string[] | null;
-  words: {
+  words?: {
     word: string;
     translations: string[];
     pronunciations: string[];
     stems: string[];
     mark: number | null;
   }[];
-  start_time: number | null;
-  end_time: number | null;
+  start_time?: number | null;
+  end_time?: number | null;
 }
 
 interface SentenceReConstructorProps {
