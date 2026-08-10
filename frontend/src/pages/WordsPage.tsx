@@ -97,12 +97,12 @@ interface WordsResponse {
 
 const DIFFICULTY_OPTIONS = [
   { value: 'all', label: 'All Difficulties' },
-  { value: '0', label: getDifficultyLabel(0) },
-  { value: '1', label: getDifficultyLabel(1) },
-  { value: '2', label: getDifficultyLabel(2) },
-  { value: '3', label: getDifficultyLabel(3) },
-  { value: '4', label: getDifficultyLabel(4) },
-  { value: '5', label: getDifficultyLabel(5) },
+  { value: '0', label: `0. ${getDifficultyLabel(0)}` },
+  { value: '1', label: `1. ${getDifficultyLabel(1)}` },
+  { value: '2', label: `2. ${getDifficultyLabel(2)}` },
+  { value: '3', label: `3. ${getDifficultyLabel(3)}` },
+  { value: '4', label: `4. ${getDifficultyLabel(4)}` },
+  { value: '5', label: `5. ${getDifficultyLabel(5)}` },
 ];
 
 const WordsPage: React.FC = () => {
@@ -144,8 +144,23 @@ const WordsPage: React.FC = () => {
   >([]);
   const [lessonOptionsLoading, setLessonOptionsLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [sortField, setSortField] = useState<string>('updated_at');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [sortField, setSortField] = useState(() => {
+    const sortBy = searchParams.get('sortBy');
+    if (
+      sortBy &&
+      ['word', 'mark', 'sentence_count', 'updated_at'].includes(sortBy)
+    ) {
+      return sortBy;
+    }
+    return 'updated_at';
+  });
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>(() => {
+    const sortOrder = searchParams.get('sortOrder');
+    if (sortOrder === 'asc' || sortOrder === 'desc') {
+      return sortOrder;
+    }
+    return 'desc';
+  });
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 50,
@@ -234,8 +249,19 @@ const WordsPage: React.FC = () => {
     if (appliedSearch) {
       next.set('search', appliedSearch);
     }
+    if (sortField !== 'updated_at' || sortDirection !== 'desc') {
+      next.set('sortBy', sortField);
+      next.set('sortOrder', sortDirection);
+    }
     setSearchParams(next, { replace: true });
-  }, [lessonId, difficultyFilter, appliedSearch, setSearchParams]);
+  }, [
+    lessonId,
+    difficultyFilter,
+    appliedSearch,
+    sortField,
+    sortDirection,
+    setSearchParams,
+  ]);
 
   useEffect(() => {
     if (
@@ -400,7 +426,7 @@ const WordsPage: React.FC = () => {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
       setSortField(field);
-      setSortDirection('asc');
+      setSortDirection('desc');
     }
     setCurrentPage(1);
   };
