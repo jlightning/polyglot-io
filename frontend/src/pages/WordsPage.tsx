@@ -527,11 +527,7 @@ const WordsPage: React.FC = () => {
               <DownloadIcon />
               Import
             </MyButton>
-            <MyButton
-              variant="ghost"
-              onClick={handleRefresh}
-              disabled={loading}
-            >
+            <MyButton variant="soft" onClick={handleRefresh} disabled={loading}>
               <ReloadIcon />
               Refresh
             </MyButton>
