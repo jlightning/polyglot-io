@@ -71,7 +71,8 @@ export function createPolyglotMcpServer(
         '- mark_word sets difficulty 0–5:',
         "  0=Ignore, 1=Don't remember, 2=Hard to remember,",
         '  3=Remembered, 4=Easy to remember, 5=No problem.',
-        '- list_words is paginated; supports exact words[] match, mark/language filters, and optional lessonId.',
+        '- list_words is paginated; supports exact words[] match, marks[]/language filters, and optional lessonId.',
+        '- Optional marks[] filters by difficulty (0–5); omit or [] for all marks.',
         '- Optional lessonId returns only marked words that appear in that lesson (must own lesson; language must match).',
         '- No free-text search on list_words.',
         '',
@@ -274,11 +275,11 @@ export function createPolyglotMcpServer(
     'list_words',
     {
       description:
-        'List marked words with pagination (default limit 100). No search. languageCode required. Optional exact-match words list, mark filter, and lessonId (words appearing in that lesson).',
+        'List marked words with pagination (default limit 100). No search. languageCode required. Optional exact-match words list, marks[] difficulty filter, and lessonId (words appearing in that lesson).',
       inputSchema: ListWordsInputSchema,
       outputSchema: ListWordsOutputSchema,
     },
-    async ({ page, limit, languageCode, mark, words, lessonId }) => {
+    async ({ page, limit, languageCode, marks, words, lessonId }) => {
       if (lessonId !== undefined) {
         const lessonResult = await ctx.lessonService.getLessonById(
           ctx,
@@ -305,7 +306,7 @@ export function createPolyglotMcpServer(
         userId,
         page ?? 1,
         limit ?? 100,
-        mark,
+        marks,
         languageCode,
         undefined,
         'updated_at',

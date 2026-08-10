@@ -125,9 +125,8 @@ router.get('/marks/details', async (req: Request, res: Response) => {
   try {
     const page = parseInt(req.query['page'] as string) || 1;
     const limit = parseInt(req.query['limit'] as string) || 50;
-    const markFilter = req.query['mark']
-      ? parseInt(req.query['mark'] as string)
-      : undefined;
+    const markRaw = req.query['mark'];
+    let markFilters: number[] | undefined;
     const languageFilter = req.query['language'] as string | undefined;
     const searchFilter = req.query['search'] as string | undefined;
     const sortBy = (req.query['sortBy'] as string) || 'updated_at';
@@ -150,11 +149,25 @@ router.get('/marks/details', async (req: Request, res: Response) => {
       });
     }
 
-    if (markFilter !== undefined && (markFilter < 0 || markFilter > 5)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Mark filter must be between 0 and 5',
-      });
+    if (markRaw !== undefined) {
+      const parts = (Array.isArray(markRaw) ? markRaw : [markRaw]).flatMap(
+        value => String(value).split(',')
+      );
+      markFilters = [];
+      for (const part of parts) {
+        const trimmed = part.trim();
+        if (trimmed === '') continue;
+        const parsed = parseInt(trimmed, 10);
+        if (Number.isNaN(parsed) || parsed < 0 || parsed > 5) {
+          return res.status(400).json({
+            success: false,
+            message: 'Mark filter values must be integers between 0 and 5',
+          });
+        }
+        if (!markFilters.includes(parsed)) {
+          markFilters.push(parsed);
+        }
+      }
     }
 
     if (lessonIdRaw !== undefined && lessonIdRaw !== '') {
@@ -190,7 +203,7 @@ router.get('/marks/details', async (req: Request, res: Response) => {
       req.userId!,
       page,
       limit,
-      markFilter,
+      markFilters,
       languageFilter,
       searchFilter,
       sortBy,

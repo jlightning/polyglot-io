@@ -7,7 +7,6 @@ import {
   TextField,
   Separator,
   Table,
-  Select,
   Heading,
   Card,
   Link,
@@ -15,6 +14,7 @@ import {
   Tabs,
   Popover,
   Callout,
+  Checkbox,
 } from '@radix-ui/themes';
 import MyButton from '../components/MyButton';
 import {
@@ -95,15 +95,11 @@ interface WordsResponse {
   };
 }
 
-const DIFFICULTY_OPTIONS = [
-  { value: 'all', label: 'All Difficulties' },
-  { value: '0', label: `0. ${getDifficultyLabel(0)}` },
-  { value: '1', label: `1. ${getDifficultyLabel(1)}` },
-  { value: '2', label: `2. ${getDifficultyLabel(2)}` },
-  { value: '3', label: `3. ${getDifficultyLabel(3)}` },
-  { value: '4', label: `4. ${getDifficultyLabel(4)}` },
-  { value: '5', label: `5. ${getDifficultyLabel(5)}` },
-];
+const ALL_DIFFICULTY_MARKS = [0, 1, 2, 3, 4, 5] as const;
+const DIFFICULTY_OPTIONS = ALL_DIFFICULTY_MARKS.map(mark => ({
+  value: mark,
+  label: `${mark}. ${getDifficultyLabel(mark)}`,
+}));
 
 const WordsPage: React.FC = () => {
   const { axiosInstance } = useAuth();
@@ -119,13 +115,23 @@ const WordsPage: React.FC = () => {
   const [appliedSearch, setAppliedSearch] = useState(
     () => searchParams.get('search') || ''
   );
-  const [difficultyFilter, setDifficultyFilter] = useState(() => {
-    const mark = searchParams.get('mark');
-    if (mark && ['0', '1', '2', '3', '4', '5'].includes(mark)) {
-      return mark;
+  const [difficultyFilter, setDifficultyFilter] = useState<number[]>(() => {
+    if (!searchParams.has('mark')) {
+      return [...ALL_DIFFICULTY_MARKS];
     }
-    return 'all';
+    const mark = searchParams.get('mark') || '';
+    const parsed = mark
+      .split(',')
+      .map(part => part.trim())
+      .filter(part => part !== '')
+      .map(part => parseInt(part, 10))
+      .filter(n => !Number.isNaN(n) && n >= 0 && n <= 5);
+    if (parsed.length === 0) {
+      return [...ALL_DIFFICULTY_MARKS];
+    }
+    return [...new Set(parsed)].sort((a, b) => a - b);
   });
+  const [difficultyPickerOpen, setDifficultyPickerOpen] = useState(false);
   const [lessonId, setLessonId] = useState<number | null>(() => {
     const raw = searchParams.get('lessonId');
     if (!raw) return null;
@@ -179,7 +185,7 @@ const WordsPage: React.FC = () => {
   const fetchWords = async (
     page: number = 1,
     search: string = '',
-    difficulty: string = '',
+    difficulties: number[] = [...ALL_DIFFICULTY_MARKS],
     sort: string = 'updated_at',
     direction: 'asc' | 'desc' = 'desc',
     filterLessonId: number | null = null
@@ -195,8 +201,18 @@ const WordsPage: React.FC = () => {
         sortOrder: direction,
       });
 
-      if (difficulty && difficulty !== 'all') {
-        params.append('mark', difficulty);
+      const allSelected =
+        difficulties.length === 0 ||
+        (difficulties.length === ALL_DIFFICULTY_MARKS.length &&
+          ALL_DIFFICULTY_MARKS.every(mark => difficulties.includes(mark)));
+      if (!allSelected) {
+        params.append(
+          'mark',
+          difficulties
+            .slice()
+            .sort((a, b) => a - b)
+            .join(',')
+        );
       }
 
       if (selectedLanguage) {
@@ -243,8 +259,18 @@ const WordsPage: React.FC = () => {
     if (lessonId !== null) {
       next.set('lessonId', lessonId.toString());
     }
-    if (difficultyFilter !== 'all') {
-      next.set('mark', difficultyFilter);
+    const allDifficultiesSelected =
+      difficultyFilter.length === 0 ||
+      (difficultyFilter.length === ALL_DIFFICULTY_MARKS.length &&
+        ALL_DIFFICULTY_MARKS.every(mark => difficultyFilter.includes(mark)));
+    if (!allDifficultiesSelected) {
+      next.set(
+        'mark',
+        difficultyFilter
+          .slice()
+          .sort((a, b) => a - b)
+          .join(',')
+      );
     }
     if (appliedSearch) {
       next.set('search', appliedSearch);
@@ -416,10 +442,26 @@ const WordsPage: React.FC = () => {
     );
   };
 
-  const handleDifficultyChange = (value: string) => {
-    setDifficultyFilter(value);
+  const handleDifficultyToggle = (mark: number, checked: boolean) => {
+    setDifficultyFilter(prev => {
+      if (checked) {
+        return prev.includes(mark)
+          ? prev
+          : [...prev, mark].sort((a, b) => a - b);
+      }
+      const next = prev.filter(value => value !== mark);
+      return next.length === 0 ? [...ALL_DIFFICULTY_MARKS] : next;
+    });
     setCurrentPage(1);
   };
+
+  const allDifficultiesSelected =
+    difficultyFilter.length === 0 ||
+    (difficultyFilter.length === ALL_DIFFICULTY_MARKS.length &&
+      ALL_DIFFICULTY_MARKS.every(mark => difficultyFilter.includes(mark)));
+  const difficultyTriggerLabel = allDifficultiesSelected
+    ? 'Difficulties'
+    : difficultyFilter.join(', ');
 
   const handleSort = (field: string) => {
     if (sortField === field) {
@@ -596,22 +638,57 @@ const WordsPage: React.FC = () => {
         </Flex>
 
         {/* Difficulty Filter */}
-        <Select.Root
-          value={difficultyFilter}
-          onValueChange={handleDifficultyChange}
+        <Popover.Root
+          open={difficultyPickerOpen}
+          onOpenChange={setDifficultyPickerOpen}
         >
-          <Select.Trigger
-            style={{ minWidth: '200px' }}
-            placeholder="Filter by difficulty"
-          />
-          <Select.Content>
-            {DIFFICULTY_OPTIONS.map(option => (
-              <Select.Item key={option.value} value={option.value}>
-                {option.label}
-              </Select.Item>
-            ))}
-          </Select.Content>
-        </Select.Root>
+          <Popover.Trigger>
+            <MyButton
+              variant="surface"
+              color="gray"
+              style={{
+                minWidth: '200px',
+                justifyContent: 'space-between',
+                fontWeight: 'var(--font-weight-regular)',
+              }}
+            >
+              <Text truncate style={{ maxWidth: '160px' }}>
+                {difficultyTriggerLabel}
+              </Text>
+              <ChevronDownIcon width="12" height="12" />
+            </MyButton>
+          </Popover.Trigger>
+          <Popover.Content
+            align="start"
+            style={{ width: '260px', padding: 'var(--space-2)' }}
+          >
+            <Flex direction="column" gap="2">
+              {DIFFICULTY_OPTIONS.map(option => {
+                const checked = difficultyFilter.includes(option.value);
+                const checkboxId = `difficulty-mark-${option.value}`;
+                return (
+                  <Flex key={option.value} align="center" gap="2">
+                    <Checkbox
+                      id={checkboxId}
+                      checked={checked}
+                      onCheckedChange={value =>
+                        handleDifficultyToggle(option.value, value === true)
+                      }
+                    />
+                    <Text
+                      size="2"
+                      as="label"
+                      htmlFor={checkboxId}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      {option.label}
+                    </Text>
+                  </Flex>
+                );
+              })}
+            </Flex>
+          </Popover.Content>
+        </Popover.Root>
 
         {/* Lesson Filter — Popover styled like Select.Trigger */}
         <Popover.Root
@@ -755,7 +832,7 @@ const WordsPage: React.FC = () => {
             No words found
           </Text>
           <Text size="3" color="gray">
-            {searchTerm || (difficultyFilter && difficultyFilter !== 'all')
+            {searchTerm || !allDifficultiesSelected
               ? 'Try adjusting your search or filter criteria'
               : 'Start marking words in lessons to see them here'}
           </Text>

@@ -202,7 +202,7 @@ export class WordService {
     userId: number,
     page: number = 1,
     limit: number = 50,
-    markFilter: number | undefined,
+    markFilters: number[] | undefined,
     languageFilter: string,
     searchFilter?: string,
     sortBy: string = 'updated_at',
@@ -239,8 +239,8 @@ export class WordService {
 
       const skip = (page - 1) * limit;
 
-      if (markFilter !== undefined && markFilter >= 0 && markFilter <= 5) {
-        query = query.where('mark', '=', markFilter);
+      if (markFilters !== undefined && markFilters.length > 0) {
+        query = query.where('mark', 'in', markFilters);
       }
       if (words && words.length > 0) {
         query = query.where('w.word', 'in', words);
