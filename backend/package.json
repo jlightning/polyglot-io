@@ -12,7 +12,7 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev --create-only",
     "db:migrate:deploy": "prisma migrate deploy",
-    "test": "tsx --test src/**/*.test.ts",
+    "test": "tsx --test \"src/**/*.test.ts\"",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {

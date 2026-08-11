@@ -89,10 +89,11 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({
         );
 
         if (!storedLanguage || !validLanguageCodes.includes(storedLanguage)) {
-          // Always default to first language from backend
-          if (fetchedLanguages.length > 0) {
-            setSelectedLanguage(fetchedLanguages[0].code);
-          }
+          // English is the default learning language when the API enables it.
+          const defaultLanguage = validLanguageCodes.includes('en')
+            ? 'en'
+            : fetchedLanguages[0]?.code;
+          if (defaultLanguage) setSelectedLanguage(defaultLanguage);
         } else {
           setSelectedLanguageState(storedLanguage);
         }

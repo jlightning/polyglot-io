@@ -5,6 +5,7 @@ import MyButton from '../components/MyButton';
 import { useUserSettings } from '../contexts/UserSettingContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useI18n } from '../contexts/I18nContext';
 import {
   ALLOWED_SCORE_TARGETS,
   getScoreTargetDifficulty,
@@ -14,6 +15,7 @@ const SettingsPage: React.FC = () => {
   const { dailyScoreTarget, updateUserSetting } = useUserSettings();
   const { fetchUserStats } = useAuth();
   const { selectedLanguage } = useLanguage();
+  const { t } = useI18n();
   const [selectedTarget, setSelectedTarget] =
     useState<number>(dailyScoreTarget);
   const [isLoading, setIsLoading] = useState(false);
@@ -37,7 +39,7 @@ const SettingsPage: React.FC = () => {
 
     if (result.success) {
       setMessage({
-        text: 'Settings saved successfully!',
+        text: t('settings.saved'),
         type: 'success',
       });
       if (selectedLanguage) {
@@ -45,7 +47,7 @@ const SettingsPage: React.FC = () => {
       }
     } else {
       setMessage({
-        text: result.message || 'Failed to save settings',
+        text: result.message || t('settings.saveFailed'),
         type: 'error',
       });
     }
@@ -56,7 +58,7 @@ const SettingsPage: React.FC = () => {
   return (
     <Container size="4" p="4">
       <Heading size="8" mb="4">
-        Settings
+        {t('settings.title')}
       </Heading>
 
       <Card size="3" style={{ padding: '24px', width: '100%' }}>
@@ -83,11 +85,10 @@ const SettingsPage: React.FC = () => {
 
         <Box mb="6">
           <Text size="4" weight="bold" mb="2" as="div">
-            Daily Score Target
+            {t('settings.dailyTarget')}
           </Text>
           <Text size="2" color="gray" mb="4" as="div">
-            Set your daily goal for word learning score (per language). This
-            applies to the currently selected language.
+            {t('settings.dailyTargetHelp')}
           </Text>
 
           <RadioGroup.Root
@@ -143,7 +144,8 @@ const SettingsPage: React.FC = () => {
                   </RadioGroup.Indicator>
                 </RadioGroup.Item>
                 <Text size="3" as="label" htmlFor={`target-${target}`}>
-                  {target} points ({getScoreTargetDifficulty(target)})
+                  {t('settings.points', { count: target })} (
+                  {getScoreTargetDifficulty(target)})
                 </Text>
               </Flex>
             ))}
@@ -160,7 +162,7 @@ const SettingsPage: React.FC = () => {
             }
             variant="solid"
           >
-            {isLoading ? 'Saving...' : 'Save'}
+            {isLoading ? t('settings.saving') : t('settings.save')}
           </MyButton>
         </Flex>
       </Card>

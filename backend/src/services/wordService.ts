@@ -293,6 +293,23 @@ export class WordService {
         .offset(skip)
         .execute();
 
+      // Kysely renders an empty `in` list as `IN ()`, which is invalid MySQL.
+      // There is no related word/sentence data to load when this page is empty.
+      if (pageData.length === 0) {
+        return {
+          success: true,
+          data: {
+            wordUserMarks: [],
+            pagination: {
+              page,
+              limit,
+              total,
+              totalPages: Math.ceil(total / limit),
+            },
+          },
+        };
+      }
+
       const wordUserMarks = await ctx.prisma.wordUserMark.findMany({
         where: {
           id: { in: pageData.map(i => i.id) },

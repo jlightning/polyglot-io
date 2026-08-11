@@ -29,8 +29,8 @@ export class ConfigService {
       name: 'English',
       localName: 'English',
       tag: 'en-US',
-      enabled: false,
-    }, // Example disabled language
+      enabled: true,
+    },
     {
       code: 'zh',
       name: 'Chinese',

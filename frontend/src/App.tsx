@@ -23,9 +23,11 @@ import {
 import { Flex, Text } from '@radix-ui/themes';
 import Sidebar from './components/Sidebar';
 import { WordSidebarProvider } from './contexts/WordSidebarContext';
+import { I18nProvider, useI18n } from './contexts/I18nContext';
 
 const AppContent: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth();
+  const { t } = useI18n();
 
   if (isLoading) {
     return (
@@ -35,7 +37,7 @@ const AppContent: React.FC = () => {
         justify="center"
         style={{ minHeight: '100vh' }}
       >
-        <Text size="3">Loading...</Text>
+        <Text size="3">{t('common.loading')}</Text>
       </Flex>
     );
   }
@@ -97,9 +99,11 @@ const AppContent: React.FC = () => {
 
 function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <I18nProvider>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </I18nProvider>
   );
 }
 

@@ -14,6 +14,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useUserSettings } from '../contexts/UserSettingContext';
 import LanguageSwitcher from './LanguageSwitcher';
+import LocaleSwitcher from './LocaleSwitcher';
+import { useI18n } from '../contexts/I18nContext';
 
 interface SidebarProps {}
 
@@ -31,6 +33,7 @@ const Sidebar: React.FC<SidebarProps> = () => {
   const { selectedLanguage } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
+  const { locale, t } = useI18n();
 
   const handleLogout = () => {
     logout();
@@ -89,14 +92,17 @@ const Sidebar: React.FC<SidebarProps> = () => {
             </Text>
           </Flex>
           <Text size="2" color="gray">
-            Welcome, {user?.username}
+            {t('sidebar.welcome', { name: user?.username || '' })}
           </Text>
           <Text
             size="2"
             color={userScore >= dailyScoreTarget ? 'green' : 'yellow'}
             weight="medium"
           >
-            Today's Score: {userScore} / {dailyScoreTarget}
+            {t('sidebar.todayScore', {
+              score: userScore,
+              target: dailyScoreTarget,
+            })}
           </Text>
         </Flex>
 
@@ -104,7 +110,7 @@ const Sidebar: React.FC<SidebarProps> = () => {
         {scoreHistory.length > 0 && (
           <Box mt="3">
             <Text size="2" weight="medium" mb="2" as="div" color="gray">
-              7-Day Score History
+              {t('sidebar.history')}
             </Text>
             <Flex
               direction="row"
@@ -191,7 +197,7 @@ const Sidebar: React.FC<SidebarProps> = () => {
                         flexDirection: 'column',
                         justifyContent: 'flex-end',
                       }}
-                      title={`${new Date(day.date).toLocaleDateString('en', { weekday: 'long', month: 'short', day: 'numeric' })}: ${totalScore} pts${backfilledAmount > 0 ? ` (${actualScore} actual + ${backfilledAmount} backfilled)` : ''}`}
+                      title={`${new Date(day.date).toLocaleDateString(locale, { weekday: 'long', month: 'short', day: 'numeric' })}: ${totalScore}`}
                     >
                       {/* Zero score indicator */}
                       {totalScore === 0 ? (
@@ -238,7 +244,7 @@ const Sidebar: React.FC<SidebarProps> = () => {
                     </Box>
                     <Text size="1" color="gray" style={{ fontSize: '10px' }}>
                       {new Date(day.date)
-                        .toLocaleDateString('en', { weekday: 'short' })
+                        .toLocaleDateString(locale, { weekday: 'short' })
                         .slice(0, 1)}
                     </Text>
                   </Flex>
@@ -251,7 +257,7 @@ const Sidebar: React.FC<SidebarProps> = () => {
         {/* Known Words - moved below chart */}
         <Box mt="3">
           <Text size="2" color="blue" weight="medium">
-            Known Words: {knownWordsCount}
+            {t('sidebar.knownWords', { count: knownWordsCount })}
           </Text>
         </Box>
       </Box>
@@ -261,9 +267,18 @@ const Sidebar: React.FC<SidebarProps> = () => {
       {/* Language Switcher */}
       <Box p="4">
         <Text size="2" weight="medium" mb="3" as="div">
-          Language
+          {t('sidebar.learningLanguage')}
         </Text>
         <LanguageSwitcher />
+      </Box>
+
+      <Separator size="4" />
+
+      <Box px="4" py="3">
+        <Text size="2" weight="medium" mb="2" as="div">
+          {t('locale.label')}
+        </Text>
+        <LocaleSwitcher />
       </Box>
 
       <Separator size="4" />
@@ -271,7 +286,7 @@ const Sidebar: React.FC<SidebarProps> = () => {
       {/* Navigation */}
       <Box p="4" flexGrow="1">
         <Text size="2" weight="medium" mb="3" as="div">
-          Navigation
+          {t('sidebar.navigation')}
         </Text>
         <Flex direction="column" gap="2">
           <MyButton
@@ -280,7 +295,7 @@ const Sidebar: React.FC<SidebarProps> = () => {
             onClick={() => navigate('/lessons')}
           >
             <ReaderIcon />
-            Lessons
+            {t('sidebar.lessons')}
           </MyButton>
           <MyButton
             variant={isWordsActive ? 'solid' : 'soft'}
@@ -288,7 +303,7 @@ const Sidebar: React.FC<SidebarProps> = () => {
             onClick={() => navigate('/words')}
           >
             <BookmarkIcon />
-            Words
+            {t('sidebar.words')}
           </MyButton>
           <MyButton
             variant={isChartsActive ? 'solid' : 'soft'}
@@ -296,7 +311,7 @@ const Sidebar: React.FC<SidebarProps> = () => {
             onClick={() => navigate('/charts')}
           >
             <DashboardIcon />
-            Charts
+            {t('sidebar.charts')}
           </MyButton>
           <MyButton
             variant={isMcpActive ? 'solid' : 'soft'}
@@ -318,7 +333,7 @@ const Sidebar: React.FC<SidebarProps> = () => {
             onClick={() => navigate('/settings')}
           >
             <GearIcon />
-            Settings
+            {t('sidebar.settings')}
           </MyButton>
           <MyButton
             variant="ghost"
@@ -327,7 +342,7 @@ const Sidebar: React.FC<SidebarProps> = () => {
             style={{ width: '100%', justifyContent: 'flex-start' }}
           >
             <ExitIcon />
-            Logout
+            {t('sidebar.logout')}
           </MyButton>
         </Flex>
       </Box>

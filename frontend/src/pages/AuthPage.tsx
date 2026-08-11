@@ -5,6 +5,8 @@ import * as Tabs from '@radix-ui/react-tabs';
 import { Card, Text, Heading, TextField } from '@radix-ui/themes';
 import MyButton from '../components/MyButton';
 import { useAuth } from '../contexts/AuthContext';
+import { useI18n } from '../contexts/I18nContext';
+import LocaleSwitcher from '../components/LocaleSwitcher';
 
 const AuthPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -13,6 +15,7 @@ const AuthPage: React.FC = () => {
     type: 'success' | 'error';
   } | null>(null);
   const { login, register } = useAuth();
+  const { t } = useI18n();
 
   const handleSubmit = async (
     event: React.FormEvent<HTMLFormElement>,
@@ -61,7 +64,7 @@ const AuthPage: React.FC = () => {
         });
       }
     } catch (error) {
-      setMessage({ text: 'Network error. Please try again.', type: 'error' });
+      setMessage({ text: t('auth.networkError'), type: 'error' });
       console.error('Auth error:', error);
     } finally {
       setIsLoading(false);
@@ -72,9 +75,12 @@ const AuthPage: React.FC = () => {
     <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
-          <Heading size="8">Welcome to polyglotio</Heading>
+          <div className="mb-4 flex justify-end">
+            <LocaleSwitcher />
+          </div>
+          <Heading size="8">{t('auth.title')}</Heading>
           <Text size="4" className="mt-2">
-            Sign in to your account or create a new one
+            {t('auth.subtitle')}
           </Text>
         </div>
 
@@ -85,13 +91,13 @@ const AuthPage: React.FC = () => {
                 value="login"
                 className="px-4 py-2 text-sm font-medium text-center border-b-2 border-transparent hover:border-current focus:border-current focus:outline-none data-[state=active]:border-current"
               >
-                Sign In
+                {t('auth.signInTab')}
               </Tabs.Trigger>
               <Tabs.Trigger
                 value="register"
                 className="px-4 py-2 text-sm font-medium text-center border-b-2 border-transparent hover:border-current focus:border-current focus:outline-none data-[state=active]:border-current"
               >
-                Sign Up
+                {t('auth.signUpTab')}
               </Tabs.Trigger>
             </Tabs.List>
 
@@ -114,20 +120,20 @@ const AuthPage: React.FC = () => {
                     <div className="flex items-baseline justify-between">
                       <Form.Label asChild>
                         <Label.Root className="text-sm font-medium">
-                          Email address
+                          {t('auth.email')}
                         </Label.Root>
                       </Form.Label>
                       <Form.Message
                         className="text-xs text-red-600 dark:text-red-400"
                         match="valueMissing"
                       >
-                        Please enter your email
+                        {t('auth.emailRequired')}
                       </Form.Message>
                       <Form.Message
                         className="text-xs text-red-600 dark:text-red-400"
                         match="typeMismatch"
                       >
-                        Please provide a valid email
+                        {t('auth.emailInvalid')}
                       </Form.Message>
                     </div>
                     <Form.Control asChild>
@@ -135,7 +141,7 @@ const AuthPage: React.FC = () => {
                         type="email"
                         required
                         className="mt-1"
-                        placeholder="Enter your email"
+                        placeholder={t('auth.emailPlaceholder')}
                       />
                     </Form.Control>
                   </Form.Field>
@@ -144,14 +150,14 @@ const AuthPage: React.FC = () => {
                     <div className="flex items-baseline justify-between">
                       <Form.Label asChild>
                         <Label.Root className="text-sm font-medium">
-                          Password
+                          {t('auth.password')}
                         </Label.Root>
                       </Form.Label>
                       <Form.Message
                         className="text-xs text-red-600 dark:text-red-400"
                         match="valueMissing"
                       >
-                        Please enter your password
+                        {t('auth.passwordRequired')}
                       </Form.Message>
                     </div>
                     <Form.Control asChild>
@@ -159,7 +165,7 @@ const AuthPage: React.FC = () => {
                         type="password"
                         required
                         className="mt-1"
-                        placeholder="Enter your password"
+                        placeholder={t('auth.passwordPlaceholder')}
                       />
                     </Form.Control>
                   </Form.Field>
@@ -171,7 +177,7 @@ const AuthPage: React.FC = () => {
                       className="w-full"
                       size="3"
                     >
-                      {isLoading ? 'Signing in...' : 'Sign in'}
+                      {isLoading ? t('auth.signingIn') : t('auth.signIn')}
                     </MyButton>
                   </Form.Submit>
                 </div>
@@ -185,14 +191,14 @@ const AuthPage: React.FC = () => {
                     <div className="flex items-baseline justify-between">
                       <Form.Label asChild>
                         <Label.Root className="text-sm font-medium">
-                          Username
+                          {t('auth.username')}
                         </Label.Root>
                       </Form.Label>
                       <Form.Message
                         className="text-xs text-red-600 dark:text-red-400"
                         match="valueMissing"
                       >
-                        Please enter a username
+                        {t('auth.usernameRequired')}
                       </Form.Message>
                     </div>
                     <Form.Control asChild>
@@ -200,7 +206,7 @@ const AuthPage: React.FC = () => {
                         type="text"
                         required
                         className="mt-1"
-                        placeholder="Choose a username"
+                        placeholder={t('auth.usernamePlaceholder')}
                       />
                     </Form.Control>
                   </Form.Field>
@@ -209,20 +215,20 @@ const AuthPage: React.FC = () => {
                     <div className="flex items-baseline justify-between">
                       <Form.Label asChild>
                         <Label.Root className="text-sm font-medium">
-                          Email address
+                          {t('auth.email')}
                         </Label.Root>
                       </Form.Label>
                       <Form.Message
                         className="text-xs text-red-600 dark:text-red-400"
                         match="valueMissing"
                       >
-                        Please enter your email
+                        {t('auth.emailRequired')}
                       </Form.Message>
                       <Form.Message
                         className="text-xs text-red-600 dark:text-red-400"
                         match="typeMismatch"
                       >
-                        Please provide a valid email
+                        {t('auth.emailInvalid')}
                       </Form.Message>
                     </div>
                     <Form.Control asChild>
@@ -230,7 +236,7 @@ const AuthPage: React.FC = () => {
                         type="email"
                         required
                         className="mt-1"
-                        placeholder="Enter your email"
+                        placeholder={t('auth.emailPlaceholder')}
                       />
                     </Form.Control>
                   </Form.Field>
@@ -239,14 +245,14 @@ const AuthPage: React.FC = () => {
                     <div className="flex items-baseline justify-between">
                       <Form.Label asChild>
                         <Label.Root className="text-sm font-medium">
-                          Password
+                          {t('auth.password')}
                         </Label.Root>
                       </Form.Label>
                       <Form.Message
                         className="text-xs text-red-600 dark:text-red-400"
                         match="valueMissing"
                       >
-                        Please enter a password
+                        {t('auth.passwordRequired')}
                       </Form.Message>
                     </div>
                     <Form.Control asChild>
@@ -254,7 +260,7 @@ const AuthPage: React.FC = () => {
                         type="password"
                         required
                         className="mt-1"
-                        placeholder="Choose a password (min 6 characters)"
+                        placeholder={t('auth.newPasswordPlaceholder')}
                       />
                     </Form.Control>
                   </Form.Field>
@@ -263,7 +269,7 @@ const AuthPage: React.FC = () => {
                     <div className="flex items-baseline justify-between">
                       <Form.Label asChild>
                         <Label.Root className="text-sm font-medium">
-                          Phone Number (optional)
+                          {t('auth.phone')}
                         </Label.Root>
                       </Form.Label>
                     </div>
@@ -271,7 +277,7 @@ const AuthPage: React.FC = () => {
                       <TextField.Root
                         type="tel"
                         className="mt-1"
-                        placeholder="Enter your phone number"
+                        placeholder={t('auth.phonePlaceholder')}
                       />
                     </Form.Control>
                   </Form.Field>
@@ -283,7 +289,9 @@ const AuthPage: React.FC = () => {
                       className="w-full"
                       size="3"
                     >
-                      {isLoading ? 'Creating account...' : 'Create account'}
+                      {isLoading
+                        ? t('auth.creatingAccount')
+                        : t('auth.createAccount')}
                     </MyButton>
                   </Form.Submit>
                 </div>
