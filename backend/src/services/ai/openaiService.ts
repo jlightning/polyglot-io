@@ -38,18 +38,78 @@ export interface SentenceAnalysis {
   language: string; // Source language
 }
 
-export class OpenAIService {
-  private client: OpenAI;
+export class OpenAIConfigurationError extends Error {
+  readonly code = 'openai_not_configured';
 
   constructor() {
-    const apiKey = process.env['OPENAI_API_KEY'];
-    if (!apiKey) {
+    super(
+      'OPENAI_API_KEY is required for this operation. Configure it or use the Agent Session API when AGENT_TMUX_ENABLED=true.'
+    );
+  }
+}
+
+interface OpenAIServiceOptions {
+  apiKey?: string | undefined;
+  agentRuntimeEnabled?: boolean;
+  provider?: 'auto' | 'openai' | 'agent_cli' | undefined;
+}
+
+export class OpenAIService {
+  private readonly client?: OpenAI;
+  private readonly provider: 'auto' | 'openai' | 'agent_cli';
+
+  constructor(options: OpenAIServiceOptions = {}) {
+    const apiKey = options.apiKey ?? process.env['OPENAI_API_KEY'];
+    const agentRuntimeEnabled =
+      options.agentRuntimeEnabled ??
+      process.env['AGENT_TMUX_ENABLED'] === 'true';
+    const provider = options.provider ?? process.env['AI_PROVIDER'] ?? 'auto';
+    if (!['auto', 'openai', 'agent_cli'].includes(provider)) {
+      throw new Error('AI_PROVIDER must be auto, openai, or agent_cli');
+    }
+    this.provider = provider as 'auto' | 'openai' | 'agent_cli';
+    if (this.provider === 'openai' && !apiKey) {
       throw new Error('OPENAI_API_KEY environment variable is required');
     }
+    if (this.provider === 'agent_cli' && !agentRuntimeEnabled) {
+      throw new Error(
+        'AGENT_TMUX_ENABLED=true is required when AI_PROVIDER=agent_cli'
+      );
+    }
+    if (this.provider === 'auto' && !apiKey && !agentRuntimeEnabled) {
+      throw new Error(
+        'Configure OPENAI_API_KEY or set AGENT_TMUX_ENABLED=true when AI_PROVIDER=auto'
+      );
+    }
 
-    this.client = new OpenAI({
-      apiKey: apiKey,
-    });
+    if (apiKey) this.client = new OpenAI({ apiKey });
+  }
+
+  isConfigured(): boolean {
+    return this.client !== undefined;
+  }
+
+  useAgentCli(): boolean {
+    return (
+      this.provider === 'agent_cli' ||
+      (this.provider === 'auto' && !this.client)
+    );
+  }
+
+  private shouldFallback(error: unknown): boolean {
+    return (
+      this.provider === 'auto' &&
+      (error instanceof OpenAIConfigurationError ||
+        (typeof error === 'object' &&
+          error !== null &&
+          'status' in error &&
+          error.status === 401))
+    );
+  }
+
+  private createRunner(): Runner {
+    if (!this.client) throw new OpenAIConfigurationError();
+    return new Runner();
   }
 
   private agentContext(ctx: Context, languageCode: string): BaseAgentContext {
@@ -86,7 +146,7 @@ export class OpenAIService {
       throw new Error('Sentence cannot be empty');
     }
 
-    const runner = new Runner();
+    const runner = this.createRunner();
     const baseContext = this.agentContext(ctx, sourceLanguage);
 
     const splitResult = await runner.run(
@@ -155,7 +215,8 @@ export class OpenAIService {
             const generated = await this.getWordPronunciation(
               ctx,
               word.word,
-              sourceLanguage
+              sourceLanguage,
+              userId
             );
             if (generated?.pronunciation && generated.pronunciationType) {
               pronunciation = generated.pronunciation.trim();
@@ -207,7 +268,8 @@ export class OpenAIService {
   async getWordPronunciation(
     ctx: Context,
     word: string,
-    languageCode: string
+    languageCode: string,
+    userId: number
   ): Promise<{
     pronunciation: string;
     pronunciationType: PronunciationType;
@@ -217,7 +279,16 @@ export class OpenAIService {
         throw new Error('Word cannot be empty');
       }
 
-      const runner = new Runner();
+      if (this.useAgentCli()) {
+        return ctx.agentSessionService.generateWordPronunciation(
+          ctx,
+          userId,
+          word,
+          languageCode
+        );
+      }
+
+      const runner = this.createRunner();
 
       const pronunciationData = await runner.run(
         wordPronunciationAgent,
@@ -235,6 +306,15 @@ export class OpenAIService {
       };
     } catch (error) {
       console.error('Error in getWordPronunciation:', error);
+
+      if (this.shouldFallback(error)) {
+        return ctx.agentSessionService.generateWordPronunciation(
+          ctx,
+          userId,
+          word,
+          languageCode
+        );
+      }
 
       if (error instanceof Error) {
         // Re-throw known errors
@@ -273,14 +353,26 @@ export class OpenAIService {
     ctx: Context,
     word: string,
     sourceLanguage: string,
-    targetLanguage: string = 'en'
+    targetLanguage: string = 'en',
+    userId?: number
   ): Promise<string[]> {
     try {
       if (!word || word.trim().length === 0) {
         throw new Error('Word cannot be empty');
       }
 
-      const runner = new Runner();
+      if (this.useAgentCli()) {
+        if (userId === undefined) throw new OpenAIConfigurationError();
+        return ctx.agentSessionService.translateWord(
+          ctx,
+          userId,
+          word,
+          sourceLanguage,
+          targetLanguage
+        );
+      }
+
+      const runner = this.createRunner();
 
       const translationData = await runner.run(
         wordTranslationAgent,
@@ -305,6 +397,16 @@ export class OpenAIService {
       return cleanedTranslations;
     } catch (error) {
       console.error('Error in getWordTranslation:', error);
+
+      if (this.shouldFallback(error) && userId !== undefined) {
+        return ctx.agentSessionService.translateWord(
+          ctx,
+          userId,
+          word,
+          sourceLanguage,
+          targetLanguage
+        );
+      }
 
       if (error instanceof Error) {
         // Return empty array for known errors
@@ -347,7 +449,7 @@ export class OpenAIService {
       throw new Error('Image data cannot be empty');
     }
 
-    const runner = new Runner();
+    const runner = this.createRunner();
 
     const result = await runner.run(
       imageTextExtractorAgent,
@@ -432,7 +534,7 @@ export class OpenAIService {
     const code = languageCode.trim().toLowerCase();
     const baseContext = this.agentContext(ctx, code);
 
-    const runner = new Runner();
+    const runner = this.createRunner();
 
     const result = await runner.run(
       lessonGeneratorAgent,
@@ -464,28 +566,57 @@ export class OpenAIService {
     ctx: Context,
     targetSentence: string,
     contextSentences: string[],
-    sourceLanguage: string
+    sourceLanguage: string,
+    userId: number,
+    targetLanguage: string = 'en'
   ): Promise<string> {
     if (!targetSentence || targetSentence.trim().length === 0) {
       throw new Error('Target sentence cannot be empty');
     }
 
-    const runner = new Runner();
-
-    const result = await runner.run(sentenceTranslatorAgent, 'Translate now', {
-      context: {
-        ...this.agentContext(ctx, sourceLanguage),
+    if (this.useAgentCli()) {
+      return ctx.agentSessionService.translateSentence(
+        ctx,
+        userId,
         targetSentence,
         contextSentences,
-      },
-    });
-    if (!result) {
-      throw new Error('Error while running sentenceTranslatorAgent');
+        sourceLanguage,
+        targetLanguage
+      );
     }
 
-    return (result.finalOutput?.translation ?? '')
-      .trim()
-      .replace(/^["']|["']$/g, '');
+    try {
+      const runner = this.createRunner();
+      const result = await runner.run(
+        sentenceTranslatorAgent,
+        'Translate now',
+        {
+          context: {
+            ...this.agentContext(ctx, sourceLanguage),
+            targetSentence,
+            contextSentences,
+            targetLanguage,
+          },
+        }
+      );
+      if (!result) {
+        throw new Error('Error while running sentenceTranslatorAgent');
+      }
+
+      return (result.finalOutput?.translation ?? '')
+        .trim()
+        .replace(/^["']|["']$/g, '');
+    } catch (error) {
+      if (!this.shouldFallback(error)) throw error;
+      return ctx.agentSessionService.translateSentence(
+        ctx,
+        userId,
+        targetSentence,
+        contextSentences,
+        sourceLanguage,
+        targetLanguage
+      );
+    }
   }
 
   /**
@@ -529,7 +660,7 @@ export class OpenAIService {
     targetLanguage: string = 'en'
   ): Promise<string[]> {
     try {
-      const runner = new Runner();
+      const runner = this.createRunner();
 
       const simplifyData = await runner.run(
         simplifyTranslationsAgent,
@@ -620,7 +751,10 @@ export class OpenAIService {
   ): Promise<Buffer> {
     const instructions = `Speak in ${this.agentContext(ctx, languageCode).languageName}.`;
 
-    const response = await this.client.audio.speech.create({
+    const client = this.client;
+    if (!client) throw new OpenAIConfigurationError();
+
+    const response = await client.audio.speech.create({
       model: 'gpt-4o-mini-tts',
       voice: 'marin',
       input: text,

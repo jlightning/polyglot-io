@@ -14,7 +14,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useUserSettings } from '../contexts/UserSettingContext';
 import LanguageSwitcher from './LanguageSwitcher';
-import LocaleSwitcher from './LocaleSwitcher';
 import { useI18n } from '../contexts/I18nContext';
 
 interface SidebarProps {}
@@ -270,15 +269,6 @@ const Sidebar: React.FC<SidebarProps> = () => {
           {t('sidebar.learningLanguage')}
         </Text>
         <LanguageSwitcher />
-      </Box>
-
-      <Separator size="4" />
-
-      <Box px="4" py="3">
-        <Text size="2" weight="medium" mb="2" as="div">
-          {t('locale.label')}
-        </Text>
-        <LocaleSwitcher />
       </Box>
 
       <Separator size="4" />

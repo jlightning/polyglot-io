@@ -6,12 +6,14 @@ import { PlusIcon, UploadIcon, UpdateIcon } from '@radix-ui/react-icons';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useI18n } from '../contexts/I18nContext';
 
 interface LessonUploadProps {
   onLessonUploaded: () => void;
 }
 
 const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const { selectedLanguage } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
@@ -607,24 +609,23 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
         <Dialog.Trigger>
           <MyButton>
             <PlusIcon />
-            Create New Lesson
+            {t('upload.createNew')}
           </MyButton>
         </Dialog.Trigger>
         <Dialog.Content style={{ maxWidth: 720 }}>
-          <Dialog.Title>Upload New Lesson</Dialog.Title>
+          <Dialog.Title>{t('upload.title')}</Dialog.Title>
           <Dialog.Description size="2" mb="4">
-            Upload lesson files for language learning - text/subtitle files or
-            manga pages.
+            {t('upload.description')}
           </Dialog.Description>
 
           <Tabs.Root value={activeTab} onValueChange={setActiveTab}>
             <Tabs.List>
-              <Tabs.Trigger value="text">Text / SRT Upload</Tabs.Trigger>
-              <Tabs.Trigger value="manual">Manual Lesson</Tabs.Trigger>
+              <Tabs.Trigger value="text">{t('upload.textTab')}</Tabs.Trigger>
+              <Tabs.Trigger value="manual">{t('upload.manualTab')}</Tabs.Trigger>
               <Tabs.Trigger value="ai-generate">
-                Generate Lesson with AI
+                {t('upload.generateTab')}
               </Tabs.Trigger>
-              <Tabs.Trigger value="manga">Manga Upload</Tabs.Trigger>
+              <Tabs.Trigger value="manga">{t('upload.mangaTab')}</Tabs.Trigger>
             </Tabs.List>
 
             <Box pt="4">
@@ -634,13 +635,13 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
                   {/* Title Input */}
                   <Box>
                     <Text size="2" weight="medium" mb="2" as="div">
-                      Lesson Title *
+                      {t('upload.lessonTitle')}
                     </Text>
                     <input
                       type="text"
                       value={title}
                       onChange={e => setTitle(e.target.value)}
-                      placeholder="Enter lesson title..."
+                      placeholder={t('upload.lessonTitlePlaceholder')}
                       style={{
                         width: '100%',
                         padding: '8px',
@@ -654,7 +655,7 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
                   {/* Image Upload */}
                   <Box>
                     <Text size="2" weight="medium" mb="2" as="div">
-                      Image (Optional)
+                      {t('upload.imageOptional')}
                     </Text>
                     <input
                       id="image-upload"
@@ -671,7 +672,7 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
                     />
                     {imageFile && (
                       <Text size="1" color="green" mt="1">
-                        Selected: {imageFile.name}
+                        {t('upload.selected', { value: imageFile.name })}
                       </Text>
                     )}
                   </Box>
@@ -679,7 +680,7 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
                   {/* Lesson File Upload */}
                   <Box>
                     <Text size="2" weight="medium" mb="2" as="div">
-                      Lesson File (Required) - Text or Subtitle files only
+                      {t('upload.lessonFile')}
                     </Text>
                     <input
                       id="file-upload"
@@ -696,7 +697,7 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
                     />
                     {lessonFile && (
                       <Text size="1" color="green" mt="1">
-                        Selected: {lessonFile.name}
+                        {t('upload.selected', { value: lessonFile.name })}
                       </Text>
                     )}
                   </Box>
@@ -704,7 +705,7 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
                   {/* Paste text alternative */}
                   <Box>
                     <Text size="2" weight="medium" mb="2" as="div">
-                      Or paste lesson text below
+                      {t('upload.pasteText')}
                     </Text>
                     <Text size="1" color="gray" mb="2" as="div">
                       You can paste a{' '}
@@ -719,7 +720,7 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
                     <textarea
                       value={lessonPastedText}
                       onChange={e => setLessonPastedText(e.target.value)}
-                      placeholder="Plain text, subtitles, or YouTube transcript (with lines like 0:00, 0:02, …)…"
+                      placeholder={t('upload.pastePlaceholder')}
                       rows={6}
                       style={{
                         width: '100%',
@@ -736,7 +737,7 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
                   {/* Audio File Upload */}
                   <Box>
                     <Text size="2" weight="medium" mb="2" as="div">
-                      Audio File (Optional) - MP3, OGG, or AAC files
+                      {t('upload.audioOptional')}
                     </Text>
                     <input
                       id="audio-upload"
@@ -753,7 +754,7 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
                     />
                     {audioFile && (
                       <Text size="1" color="green" mt="1">
-                        Selected: {audioFile.name}
+                        {t('upload.selected', { value: audioFile.name })}
                       </Text>
                     )}
                   </Box>
@@ -765,13 +766,13 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
                 <Flex direction="column" gap="4">
                   <Box>
                     <Text size="2" weight="medium" mb="2" as="div">
-                      Lesson Title *
+                      {t('upload.lessonTitle')}
                     </Text>
                     <input
                       type="text"
                       value={manualTitle}
                       onChange={e => setManualTitle(e.target.value)}
-                      placeholder="Enter lesson title..."
+                      placeholder={t('upload.lessonTitlePlaceholder')}
                       style={{
                         width: '100%',
                         padding: '8px',
@@ -782,8 +783,7 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
                     />
                   </Box>
                   <Text size="1" color="gray">
-                    Create an empty lesson and add sentences one by one from the
-                    lesson view.
+                    {t('upload.manualHelp')}
                   </Text>
                 </Flex>
               </Tabs.Content>
@@ -793,13 +793,13 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
                 <Flex direction="column" gap="4">
                   <Box>
                     <Text size="2" weight="medium" mb="2" as="div">
-                      Lesson Title *
+                      {t('upload.lessonTitle')}
                     </Text>
                     <input
                       type="text"
                       value={aiGenerateTitle}
                       onChange={e => setAiGenerateTitle(e.target.value)}
-                      placeholder="Enter lesson title..."
+                      placeholder={t('upload.lessonTitlePlaceholder')}
                       style={{
                         width: '100%',
                         padding: '8px',
@@ -811,7 +811,7 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
                   </Box>
                   <Box>
                     <Text size="2" weight="medium" mb="2" as="div">
-                      Difficulty
+                      {t('upload.difficulty')}
                     </Text>
                     <Select.Root
                       value={aiGenerateDifficulty}
@@ -819,27 +819,27 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
                     >
                       <Select.Trigger
                         style={{ width: '100%' }}
-                        placeholder="Select difficulty"
+                        placeholder={t('upload.selectDifficulty')}
                       />
                       <Select.Content>
-                        <Select.Item value="Beginner">Beginner</Select.Item>
-                        <Select.Item value="Easy">Easy</Select.Item>
+                        <Select.Item value="Beginner">{t('difficulty.beginner')}</Select.Item>
+                        <Select.Item value="Easy">{t('difficulty.easy')}</Select.Item>
                         <Select.Item value="Intermediate">
-                          Intermediate
+                          {t('difficulty.intermediate')}
                         </Select.Item>
-                        <Select.Item value="Advanced">Advanced</Select.Item>
-                        <Select.Item value="Native">Native</Select.Item>
+                        <Select.Item value="Advanced">{t('difficulty.advanced')}</Select.Item>
+                        <Select.Item value="Native">{t('difficulty.native')}</Select.Item>
                       </Select.Content>
                     </Select.Root>
                   </Box>
                   <Box>
                     <Text size="2" weight="medium" mb="2" as="div">
-                      Prompt *
+                      {t('upload.prompt')}
                     </Text>
                     <textarea
                       value={aiGeneratePrompt}
                       onChange={e => setAiGeneratePrompt(e.target.value)}
-                      placeholder="e.g. 10 simple Japanese sentences about ordering coffee"
+                      placeholder={t('upload.promptPlaceholder')}
                       rows={4}
                       style={{
                         width: '100%',
@@ -851,8 +851,7 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
                       }}
                     />
                     <Text size="1" color="gray" mt="1">
-                      AI will generate a short lesson in your selected language,
-                      then split it into sentences.
+                      {t('upload.generateHelp')}
                     </Text>
                   </Box>
                 </Flex>
@@ -864,13 +863,13 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
                   {/* Manga Title Input */}
                   <Box>
                     <Text size="2" weight="medium" mb="2" as="div">
-                      Manga Lesson Title *
+                      {t('upload.mangaTitle')}
                     </Text>
                     <input
                       type="text"
                       value={mangaTitle}
                       onChange={e => setMangaTitle(e.target.value)}
-                      placeholder="Enter manga lesson title..."
+                      placeholder={t('upload.mangaTitlePlaceholder')}
                       style={{
                         width: '100%',
                         padding: '8px',
@@ -884,7 +883,7 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
                   {/* Manga Lesson Image Upload */}
                   <Box>
                     <Text size="2" weight="medium" mb="2" as="div">
-                      Lesson Cover Image (Optional)
+                      {t('upload.coverOptional')}
                     </Text>
                     <input
                       id="manga-image-upload"
@@ -901,7 +900,7 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
                     />
                     {mangaImage && (
                       <Text size="1" color="green" mt="1">
-                        Selected: {mangaImage.name}
+                        {t('upload.selected', { value: mangaImage.name })}
                       </Text>
                     )}
                   </Box>
@@ -909,7 +908,7 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
                   {/* Manga Pages Upload */}
                   <Box>
                     <Text size="2" weight="medium" mb="2" as="div">
-                      Manga Pages (Required) - JPG, PNG, GIF, or WebP
+                      {t('upload.mangaPages')}
                     </Text>
                     <input
                       id="manga-files-upload"
@@ -927,12 +926,11 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
                     />
                     {mangaFiles.length > 0 && (
                       <Text size="1" color="green" mt="1">
-                        Selected: {mangaFiles.length} files
+                        {t('upload.selectedFiles', { count: mangaFiles.length })}
                       </Text>
                     )}
                     <Text size="1" color="gray" mt="1">
-                      Pages will be processed using OCR to extract text for
-                      learning
+                      {t('upload.ocrHelp')}
                     </Text>
                   </Box>
                 </Flex>
@@ -975,7 +973,7 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
             <Flex gap="3" mt="4" justify="end">
               <Dialog.Close>
                 <MyButton variant="soft" color="gray" disabled={uploading}>
-                  Cancel
+                  {t('common.cancel')}
                 </MyButton>
               </Dialog.Close>
               {activeTab === 'text' ? (
@@ -988,12 +986,12 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
                   {uploading ? (
                     <>
                       <UpdateIcon style={spinningIconStyle} />
-                      Uploading...
+                      {t('upload.uploading')}
                     </>
                   ) : (
                     <>
                       <UploadIcon />
-                      Upload Lesson
+                      {t('upload.uploadLesson')}
                     </>
                   )}
                 </MyButton>
@@ -1005,12 +1003,12 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
                   {uploading ? (
                     <>
                       <UpdateIcon style={spinningIconStyle} />
-                      Creating...
+                      {t('upload.creating')}
                     </>
                   ) : (
                     <>
                       <UploadIcon />
-                      Create Lesson
+                      {t('upload.createLesson')}
                     </>
                   )}
                 </MyButton>
@@ -1026,12 +1024,12 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
                   {uploading ? (
                     <>
                       <UpdateIcon style={spinningIconStyle} />
-                      Generating...
+                      {t('upload.generating')}
                     </>
                   ) : (
                     <>
                       <UploadIcon />
-                      Generate Lesson
+                      {t('upload.generateLesson')}
                     </>
                   )}
                 </MyButton>
@@ -1043,12 +1041,12 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
                   {uploading ? (
                     <>
                       <UpdateIcon style={spinningIconStyle} />
-                      Processing...
+                      {t('upload.processing')}
                     </>
                   ) : (
                     <>
                       <UploadIcon />
-                      Upload Manga
+                      {t('upload.uploadManga')}
                     </>
                   )}
                 </MyButton>

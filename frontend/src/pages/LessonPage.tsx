@@ -13,8 +13,10 @@ import { MagnifyingGlassIcon } from '@radix-ui/react-icons';
 import { useLanguage } from '../contexts/LanguageContext';
 import LessonList from '../components/LessonList';
 import LessonUpload from '../components/LessonUpload';
+import { useI18n } from '../contexts/I18nContext';
 
 const LessonPage: React.FC = () => {
+  const { t } = useI18n();
   const {
     selectedLanguage,
     languages,
@@ -46,9 +48,9 @@ const LessonPage: React.FC = () => {
     <Container size="4" p="4">
       {/* Header */}
       <Flex direction="column" gap="4" mb="6">
-        <Heading size="6">Lessons</Heading>
+        <Heading size="6">{t('lessons.title')}</Heading>
         <Text size="3" color="gray">
-          Manage and view your language learning lessons
+          {t('lessons.description')}
         </Text>
       </Flex>
 
@@ -65,9 +67,9 @@ const LessonPage: React.FC = () => {
                     language?.localName && language.localName !== language.name
                       ? `${language.localName} (${language.name})`
                       : language?.name || selectedLanguage.toUpperCase();
-                  return `Showing lessons for: ${displayName}`;
+                  return t('lessons.showingFor', { language: displayName });
                 })()
-              : 'Loading language...'}
+              : t('language.loading')}
           </Text>
         </Box>
         <LessonUpload onLessonUploaded={handleLessonUploaded} />
@@ -80,7 +82,7 @@ const LessonPage: React.FC = () => {
         {/* Search */}
         <Flex gap="2" style={{ flex: 1, minWidth: '300px' }}>
           <TextField.Root
-            placeholder="Search lessons by title..."
+            placeholder={t('lessons.search')}
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
             style={{ flex: 1 }}
@@ -95,12 +97,12 @@ const LessonPage: React.FC = () => {
         <Select.Root value={statusFilter} onValueChange={setStatusFilter}>
           <Select.Trigger
             style={{ minWidth: '180px' }}
-            placeholder="Filter by status"
+            placeholder={t('lessons.filterStatus')}
           />
           <Select.Content>
-            <Select.Item value="all">All Status</Select.Item>
-            <Select.Item value="finished">Completed</Select.Item>
-            <Select.Item value="reading">In Progress</Select.Item>
+            <Select.Item value="all">{t('lessons.allStatuses')}</Select.Item>
+            <Select.Item value="finished">{t('lesson.completed')}</Select.Item>
+            <Select.Item value="reading">{t('lesson.inProgress')}</Select.Item>
           </Select.Content>
         </Select.Root>
 
@@ -108,15 +110,15 @@ const LessonPage: React.FC = () => {
         <Select.Root value={typeFilter} onValueChange={setTypeFilter}>
           <Select.Trigger
             style={{ minWidth: '180px' }}
-            placeholder="Filter by type"
+            placeholder={t('lessons.filterType')}
           />
           <Select.Content>
-            <Select.Item value="all">All Types</Select.Item>
-            <Select.Item value="text">Text</Select.Item>
-            <Select.Item value="subtitle">Subtitle</Select.Item>
-            <Select.Item value="manga">Manga</Select.Item>
-            <Select.Item value="manual">Manual Lesson</Select.Item>
-            <Select.Item value="generated">Generated</Select.Item>
+            <Select.Item value="all">{t('lessons.allTypes')}</Select.Item>
+            <Select.Item value="text">{t('lessons.type.text')}</Select.Item>
+            <Select.Item value="subtitle">{t('lessons.type.subtitle')}</Select.Item>
+            <Select.Item value="manga">{t('lessons.type.manga')}</Select.Item>
+            <Select.Item value="manual">{t('lessons.type.manual')}</Select.Item>
+            <Select.Item value="generated">{t('lessons.type.generated')}</Select.Item>
           </Select.Content>
         </Select.Root>
       </Flex>
@@ -124,16 +126,16 @@ const LessonPage: React.FC = () => {
       {/* Lessons Section */}
       <Box>
         <Flex align="center" justify="between" mb="4">
-          <Heading size="4">Your Lessons</Heading>
+          <Heading size="4">{t('lessons.yours')}</Heading>
           <Text size="2" color="gray">
-            Refresh automatically after upload
+            {t('lessons.autoRefresh')}
           </Text>
         </Flex>
 
         {languageLoading || !selectedLanguage ? (
           <Box>
             <Text size="3" color="gray">
-              Loading language...
+              {t('language.loading')}
             </Text>
           </Box>
         ) : (

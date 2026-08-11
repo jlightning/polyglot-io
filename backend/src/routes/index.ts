@@ -38,7 +38,12 @@ export const ctx: Context = {
   cronService: new CronService(),
   s3Service: new S3Service(),
   ttsService: new TtsService(),
-  openaiService: new OpenAIService(),
+  openaiService: new OpenAIService({
+    apiKey: process.env['OPENAI_API_KEY'],
+    agentRuntimeEnabled: tmuxRuntime.config.enabled,
+    provider: process.env['AI_PROVIDER'] as
+      'auto' | 'openai' | 'agent_cli' | undefined,
+  }),
   textProcessingService: new TextProcessingService(),
   lingqService: new LingQService(),
   agentSessionService: new AgentSessionService(tmuxRuntime),

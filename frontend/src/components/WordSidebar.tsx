@@ -17,6 +17,7 @@ import {
 } from '../constants/difficultyColors';
 import DebounceTextArea from './DebounceTextArea';
 import dayjs from 'dayjs';
+import { useI18n } from '../contexts/I18nContext';
 
 interface WordTranslation {
   word: string;
@@ -67,6 +68,7 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
 }) => {
   const { axiosInstance } = useAuth();
   const { saveWordMark, isSaving } = useWordMark();
+  const { t } = useI18n();
   const [note, setNote] = useState('');
   const [currentMark, setCurrentMark] = useState<number | null>(null);
   const [userMark, setUserMark] = useState<WordUserMark | null>(null);
@@ -291,7 +293,9 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
       <>
         <Box>
           <Text size="2" color="gray" mb="2" as="div">
-            {pronunciations.length > 1 ? 'Pronunciations' : 'Pronunciation'}
+            {pronunciations.length > 1
+              ? t('wordSidebar.pronunciations')
+              : t('wordSidebar.pronunciation')}
           </Text>
           <Flex direction="column" gap="2">
             {pronunciations.map((pronunciation, index) => (
@@ -321,7 +325,7 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
       <>
         <Box>
           <Text size="2" color="gray" mb="2" as="div">
-            {stems.length > 1 ? 'Word Stems' : 'Word Stem'}
+            {stems.length > 1 ? t('wordSidebar.stems') : t('wordSidebar.stem')}
           </Text>
           <Flex direction="column" gap="2">
             <Text size="4" color="purple" weight="medium">
@@ -347,7 +351,7 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
         size="2"
         onClick={() => onMarkSave(0)}
         disabled={disabled}
-        title="Ignore this word"
+        title={t('wordSidebar.ignore')}
         style={{
           ...getDifficultyStyles(0),
           color: 'white',
@@ -409,10 +413,10 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
       <Separator size="4" />
       <Box>
         <Text size="2" color="gray" mb="2" as="div">
-          Your Note
+          {t('wordSidebar.note')}
         </Text>
         <DebounceTextArea
-          placeholder="Add a note about this word..."
+          placeholder={t('wordSidebar.notePlaceholder')}
           value={note}
           onChange={onNoteChange}
           disabled={isSaving || loadingMark}
@@ -423,7 +427,7 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
 
       <Box>
         <Text size="2" color="gray" mb="2" as="div">
-          Difficulty Rating
+          {t('wordSidebar.difficulty')}
         </Text>
         <RatingButtons
           currentMark={currentMark}
@@ -434,7 +438,7 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
         {currentMark !== null && (
           <Text size="1" color="gray" mt="1">
             {getDifficultyLabel(currentMark)}
-            {isSaving && ' (saving...)'}
+            {isSaving && ` (${t('wordSidebar.saving')})`}
           </Text>
         )}
       </Box>
@@ -442,7 +446,9 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
       {updatedAt && (
         <Box>
           <Text size="1" color="gray" mt="2">
-            Last updated: {dayjs(updatedAt).format('YYYY-MM-DD HH:mm:ss')}
+            {t('wordSidebar.lastUpdated', {
+              date: dayjs(updatedAt).format('YYYY-MM-DD HH:mm:ss'),
+            })}
           </Text>
         </Box>
       )}
@@ -474,7 +480,7 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
         <Box>
           <Flex align="center" justify="between" mb="1">
             <Text size="2" color="gray" as="div">
-              Word
+              {t('wordSidebar.word')}
             </Text>
             {languageCode && (
               <MyButton
@@ -496,7 +502,7 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
                     height: 12,
                   }}
                 />
-                View history
+                {t('wordSidebar.viewHistory')}
               </MyButton>
             )}
           </Flex>
@@ -509,7 +515,7 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
                 text={word}
                 languageCode={languageCode}
                 axiosInstance={axiosInstance}
-                title="Read word"
+                title={t('wordSidebar.readWord')}
               />
             )}
           </Flex>
@@ -527,7 +533,9 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
         <Box>
           <Flex align="center" justify="between" mb="2">
             <Text size="2" color="gray" as="div">
-              {translations.length > 1 ? 'Translations' : 'Translation'}
+              {translations.length > 1
+                ? t('wordSidebar.translations')
+                : t('wordSidebar.title')}
             </Text>
             {languageCode && (
               <MyButton
@@ -535,7 +543,7 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
                 size="1"
                 onClick={onReloadTranslations}
                 disabled={reloadingTranslations}
-                title="Regenerate translations"
+                title={t('wordSidebar.reload')}
                 style={{
                   color: 'var(--gray-11)',
                   fontSize: '11px',
@@ -551,25 +559,27 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
                     height: 12,
                   }}
                 />
-                {reloadingTranslations ? 'Reloading...' : 'Reload'}
+                {reloadingTranslations
+                  ? t('wordSidebar.reloading')
+                  : t('wordSidebar.reload')}
               </MyButton>
             )}
           </Flex>
           {reloadingTranslations ? (
             <Text size="3" color="gray">
-              Regenerating translations...
+              {t('wordSidebar.regenerating')}
             </Text>
           ) : translations.length > 0 ? (
             <Flex direction="column" gap="2">
               {translations.map((translation, index) => (
                 <Text key={index} size="4" color="blue">
-                  {translation.translation || 'No translation available'}
+                  {translation.translation || t('wordSidebar.noTranslation')}
                 </Text>
               ))}
             </Flex>
           ) : (
             <Text size="4" color="orange">
-              No translation available
+              {t('wordSidebar.noTranslation')}
             </Text>
           )}
         </Box>
@@ -640,7 +650,7 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
           }}
         >
           <Text size="4" weight="bold">
-            Translation
+            {t('wordSidebar.title')}
           </Text>
           <MyButton variant="ghost" size="2" onClick={onClose}>
             <Cross2Icon />
@@ -665,7 +675,7 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
               }
             >
               <Text size="3" color="gray">
-                Loading translation...
+                {t('lesson.loadingTranslation')}
               </Text>
             </Flex>
           ) : selectedWord ? (
@@ -691,7 +701,7 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
               }
             >
               <Text size="3" color="gray" style={{ textAlign: 'center' }}>
-                Click on a word in the lesson to see its translation
+                {t('wordSidebar.empty')}
               </Text>
             </Flex>
           )}

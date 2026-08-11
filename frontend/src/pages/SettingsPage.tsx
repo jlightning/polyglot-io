@@ -6,6 +6,7 @@ import { useUserSettings } from '../contexts/UserSettingContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useI18n } from '../contexts/I18nContext';
+import LocaleSwitcher from '../components/LocaleSwitcher';
 import {
   ALLOWED_SCORE_TARGETS,
   getScoreTargetDifficulty,
@@ -82,6 +83,16 @@ const SettingsPage: React.FC = () => {
             <Text size="2">{message.text}</Text>
           </Box>
         )}
+
+        <Box mb="6">
+          <Text size="4" weight="bold" mb="2" as="div">
+            {t('settings.languages')}
+          </Text>
+          <Text size="2" color="gray" mb="3" as="div">
+            {t('locale.label')}
+          </Text>
+          <LocaleSwitcher />
+        </Box>
 
         <Box mb="6">
           <Text size="4" weight="bold" mb="2" as="div">

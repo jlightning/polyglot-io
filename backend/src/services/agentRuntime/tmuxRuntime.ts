@@ -117,7 +117,7 @@ export class TmuxRuntime {
           return {
             type: adapter.type,
             available: false,
-            error: `${adapter.apiKeyEnvironmentVariable} is not configured`,
+            error: `${adapter.apiKeyEnvironmentVariable || 'Agent CLI credential'} is not configured`,
           };
         }
         const result = await this.runner(adapter.binary, adapter.versionArgs, {
@@ -194,6 +194,134 @@ export class TmuxRuntime {
       throw new Error(
         this.cleanError(result.stderr || result.stdout) || 'tmux start failed'
       );
+    }
+  }
+
+  async runBatch(
+    sessionName: string,
+    adapter: AgentCliAdapterConfig,
+    prompt: string
+  ): Promise<string> {
+    this.assertSessionName(sessionName);
+    if (!adapter.batchArgs) {
+      throw new Error(
+        `Batch mode is not configured for Agent CLI ${adapter.type}`
+      );
+    }
+
+    const tmux = (...args: string[]) =>
+      this.runner(this.config.tmuxBinary, ['-L', sessionName, ...args], {
+        cwd: this.config.workingDirectory,
+        env: this.safeEnvironment(),
+        timeoutMs: 10_000,
+      });
+
+    try {
+      const created = await tmux(
+        'new-session',
+        '-d',
+        '-s',
+        sessionName,
+        '-c',
+        this.config.workingDirectory,
+        '-x',
+        '200',
+        '-y',
+        '100'
+      );
+      if (created.exitCode !== 0) {
+        throw new Error(
+          this.cleanError(created.stderr || created.stdout) ||
+            'tmux batch session creation failed'
+        );
+      }
+
+      for (const option of [
+        ['-p', 'remain-on-exit', 'on'],
+        ['-w', 'history-limit', '10000'],
+      ]) {
+        const configured = await tmux(
+          'set-option',
+          option[0]!,
+          '-t',
+          sessionName,
+          option[1]!,
+          option[2]!
+        );
+        if (configured.exitCode !== 0) {
+          throw new Error(
+            this.cleanError(configured.stderr || configured.stdout) ||
+              'tmux batch option failed'
+          );
+        }
+      }
+
+      const started = await tmux(
+        'respawn-pane',
+        '-k',
+        '-t',
+        sessionName,
+        '--',
+        adapter.binary,
+        ...adapter.batchArgs,
+        prompt
+      );
+      if (started.exitCode !== 0) {
+        throw new Error(
+          this.cleanError(started.stderr || started.stdout) ||
+            'Agent CLI batch start failed'
+        );
+      }
+
+      const deadline = Date.now() + this.config.batchTimeoutMs;
+      let exitCode: number | undefined;
+      while (Date.now() < deadline) {
+        const status = await tmux(
+          'list-panes',
+          '-t',
+          sessionName,
+          '-F',
+          '#{pane_dead} #{pane_dead_status}'
+        );
+        if (status.exitCode !== 0) {
+          throw new Error(
+            this.cleanError(status.stderr || status.stdout) ||
+              'Agent CLI batch status failed'
+          );
+        }
+        const match = status.stdout.trim().match(/^1\s+(\d+)$/);
+        if (match) {
+          exitCode = Number(match[1]);
+          break;
+        }
+        await new Promise(resolve => setTimeout(resolve, 250));
+      }
+      if (exitCode === undefined) throw new Error('Agent CLI batch timed out');
+
+      const captured = await tmux(
+        'capture-pane',
+        '-p',
+        '-J',
+        '-S',
+        '-',
+        '-t',
+        sessionName
+      );
+      if (captured.exitCode !== 0) {
+        throw new Error(
+          this.cleanError(captured.stderr || captured.stdout) ||
+            'Agent CLI batch output capture failed'
+        );
+      }
+      if (exitCode !== 0) {
+        throw new Error(
+          this.cleanError(captured.stdout) ||
+            `Agent CLI batch exited with code ${exitCode}`
+        );
+      }
+      return captured.stdout;
+    } finally {
+      await tmux('kill-server').catch(() => undefined);
     }
   }
 

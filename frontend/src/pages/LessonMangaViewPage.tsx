@@ -14,6 +14,7 @@ import { useWordMark } from '../contexts/WordMarkContext';
 import { useWordSidebar } from '../contexts/WordSidebarContext';
 import SentenceReConstructor from '../components/SentenceReConstructor';
 import axios from 'axios';
+import { useI18n } from '../contexts/I18nContext';
 
 interface Sentence {
   id: number;
@@ -65,6 +66,7 @@ const LessonMangaViewPage: React.FC = () => {
   const { axiosInstance, isAuthenticated, isLoading: authLoading } = useAuth();
   const { seedWordMarks } = useWordMark();
   const { openWordSidebar, setWordSidebarLanguage } = useWordSidebar();
+  const { locale, t } = useI18n();
 
   const seedWordMarksRef = useRef(seedWordMarks);
   seedWordMarksRef.current = seedWordMarks;
@@ -93,6 +95,11 @@ const LessonMangaViewPage: React.FC = () => {
   const [loadingTranslations, setLoadingTranslations] = useState<{
     [key: number]: boolean;
   }>({});
+
+  useEffect(() => {
+    setTranslations({});
+    setLoadingTranslations({});
+  }, [locale]);
 
   const [deletingSentenceId, setDeletingSentenceId] = useState<number | null>(
     null
@@ -433,7 +440,8 @@ const LessonMangaViewPage: React.FC = () => {
       setLoadingTranslations(prev => ({ ...prev, [sentenceId]: true }));
 
       const response = await axiosInstance.get(
-        `/api/lessons/sentences/${sentenceId}/translation`
+        `/api/lessons/sentences/${sentenceId}/translation`,
+        { params: { targetLanguage: locale } }
       );
 
       if (response.data.success) {
@@ -691,7 +699,7 @@ const LessonMangaViewPage: React.FC = () => {
             justify="center"
             style={{ minHeight: '50vh' }}
           >
-            <Text size="3">Loading lesson...</Text>
+            <Text size="3">{t('lesson.loading')}</Text>
           </Flex>
         </Box>
       </Flex>
@@ -729,7 +737,7 @@ const LessonMangaViewPage: React.FC = () => {
         <Box style={{ padding: '16px 24px' }}>
           <Flex direction="column" gap="4">
             <MyButton variant="ghost" onClick={() => navigate('/lessons')}>
-              ← Back to Lessons
+              {t('lesson.back')}
             </MyButton>
             <Flex
               direction="column"
@@ -777,7 +785,7 @@ const LessonMangaViewPage: React.FC = () => {
                 size="2"
                 onClick={() => navigate('/lessons')}
               >
-                ← Back to Lessons
+                {t('lesson.back')}
               </MyButton>
               <MyButton
                 variant="soft"
@@ -824,7 +832,7 @@ const LessonMangaViewPage: React.FC = () => {
               >
                 <Flex direction="column" gap="3" style={{ height: '100%' }}>
                   <Flex align="center" justify="between">
-                    <Heading size="4">Manga Page</Heading>
+                    <Heading size="4">{t('manga.page')}</Heading>
                     <Flex align="center" gap="2">
                       <MyButton
                         variant={isSelectionMode ? 'solid' : 'soft'}
@@ -1063,7 +1071,7 @@ const LessonMangaViewPage: React.FC = () => {
               >
                 <Flex direction="column" gap="3" style={{ height: '100%' }}>
                   <Flex align="center" justify="between">
-                    <Heading size="4">Sentences</Heading>
+                    <Heading size="4">{t('video.sentences')}</Heading>
                     <Text size="2" color="gray">
                       Page {currentMangaPageIndex + 1} sentences
                     </Text>
@@ -1168,10 +1176,10 @@ const LessonMangaViewPage: React.FC = () => {
                                       style={{}}
                                     >
                                       {loadingTranslations[sentence.id]
-                                        ? 'Loading...'
+                                          ? t('common.loading')
                                         : translations[sentence.id]
-                                          ? 'Hide translation'
-                                          : 'Show translation'}
+                                          ? t('lesson.hideTranslation')
+                                          : t('lesson.showTranslation')}
                                     </MyButton>
                                     <MyButton
                                       variant="soft"
@@ -1225,14 +1233,13 @@ const LessonMangaViewPage: React.FC = () => {
                           !lessonCompleted && (
                             <Box mt="4">
                               <Flex direction="column" gap="3" align="center">
-                                <Heading size="3">🎉 Congratulations!</Heading>
+                                <Heading size="3">{t('lesson.congratulations')}</Heading>
                                 <Text
                                   size="2"
                                   color="gray"
                                   style={{ textAlign: 'center' }}
                                 >
-                                  You've reached the last page of this manga
-                                  lesson.
+                                  {t('manga.reachedEnd')}
                                 </Text>
                                 <MyButton
                                   size="2"
@@ -1243,8 +1250,8 @@ const LessonMangaViewPage: React.FC = () => {
                                   style={{}}
                                 >
                                   {isFinishingLesson
-                                    ? 'Finishing...'
-                                    : 'Finish Lesson'}
+                                    ? t('lesson.finishing')
+                                    : t('lesson.finish')}
                                 </MyButton>
                               </Flex>
                             </Box>
@@ -1254,21 +1261,20 @@ const LessonMangaViewPage: React.FC = () => {
                         {lessonCompleted && (
                           <Box mt="4">
                             <Flex direction="column" gap="3" align="center">
-                              <Heading size="3">✅ Lesson Completed!</Heading>
+                              <Heading size="3">{t('lesson.completedTitle')}</Heading>
                               <Text
                                 size="2"
                                 color="green"
                                 style={{ textAlign: 'center' }}
                               >
-                                Great job! You have successfully completed this
-                                lesson. 🎉
+                                {t('lesson.completedMessage')}
                               </Text>
                               <MyButton
                                 size="2"
                                 variant="soft"
                                 onClick={() => navigate('/lessons')}
                               >
-                                Back to Lessons
+                                {t('lesson.backPlain')}
                               </MyButton>
                             </Flex>
                           </Box>

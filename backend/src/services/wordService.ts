@@ -442,7 +442,8 @@ export class WordService {
     ctx: Context,
     word: string,
     sourceLanguage: string,
-    targetLanguage: string = 'en'
+    targetLanguage: string = 'en',
+    userId?: number
   ) {
     try {
       const translations = await ctx.prisma.wordTranslation.findMany({
@@ -471,7 +472,8 @@ export class WordService {
               ctx,
               word,
               sourceLanguage,
-              targetLanguage
+              targetLanguage,
+              userId
             );
 
           if (generatedTranslations.length > 0) {
@@ -571,7 +573,8 @@ export class WordService {
     ctx: Context,
     word: string,
     sourceLanguage: string,
-    targetLanguage: string = 'en'
+    targetLanguage: string = 'en',
+    userId?: number
   ) {
     try {
       const wordRecord = await ctx.prisma.word.findFirst({
@@ -594,7 +597,8 @@ export class WordService {
         ctx,
         word,
         sourceLanguage,
-        targetLanguage
+        targetLanguage,
+        userId
       );
 
       if (generatedTranslations.length === 0) {
@@ -633,7 +637,8 @@ export class WordService {
   async getWordPronunciations(
     ctx: Context,
     word: string,
-    languageCode: string
+    languageCode: string,
+    userId: number
   ) {
     try {
       const pronunciations = await ctx.prisma.wordPronunciation.findMany({
@@ -655,7 +660,8 @@ export class WordService {
             await ctx.openaiService.getWordPronunciation(
               ctx,
               word,
-              languageCode
+              languageCode,
+              userId
             );
 
           if (pronunciationData) {

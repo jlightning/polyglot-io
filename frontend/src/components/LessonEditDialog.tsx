@@ -4,6 +4,7 @@ import MyButton from './MyButton';
 import { Pencil1Icon, UploadIcon } from '@radix-ui/react-icons';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
+import { useI18n } from '../contexts/I18nContext';
 
 interface Lesson {
   id: number;
@@ -30,6 +31,7 @@ const LessonEditDialog: React.FC<LessonEditDialogProps> = ({
   open: externalOpen,
   onOpenChange: externalOnOpenChange,
 }) => {
+  const { t } = useI18n();
   const [internalOpen, setInternalOpen] = useState(false);
 
   // Use external control if provided, otherwise use internal state
@@ -266,7 +268,7 @@ const LessonEditDialog: React.FC<LessonEditDialogProps> = ({
   const defaultTrigger = (
     <MyButton variant="soft" size="2">
       <Pencil1Icon />
-      Edit
+      {t('common.edit')}
     </MyButton>
   );
 
@@ -276,22 +278,22 @@ const LessonEditDialog: React.FC<LessonEditDialogProps> = ({
         <Dialog.Trigger>{trigger || defaultTrigger}</Dialog.Trigger>
       )}
       <Dialog.Content style={{ maxWidth: 500 }}>
-        <Dialog.Title>Edit Lesson</Dialog.Title>
+        <Dialog.Title>{t('lesson.edit')}</Dialog.Title>
         <Dialog.Description size="2" mb="4">
-          Update the lesson title and optionally replace image or audio files.
+          {t('editLesson.description')}
         </Dialog.Description>
 
         <Flex direction="column" gap="4">
           {/* Title Input */}
           <Box>
             <Text size="2" weight="medium" mb="2" as="div">
-              Lesson Title *
+              {t('upload.lessonTitle')}
             </Text>
             <input
               type="text"
               value={title}
               onChange={e => setTitle(e.target.value)}
-              placeholder="Enter lesson title..."
+              placeholder={t('upload.lessonTitlePlaceholder')}
               style={{
                 width: '100%',
                 padding: '8px',
@@ -305,22 +307,22 @@ const LessonEditDialog: React.FC<LessonEditDialogProps> = ({
           {/* Current Files Info */}
           <Box>
             <Text size="2" weight="medium" mb="2" as="div">
-              Current Files:
+              {t('editLesson.currentFiles')}
             </Text>
             <Flex direction="column" gap="1">
               {lesson.imageUrl && (
                 <Text size="1" color="gray">
-                  • Image: Currently has image file
+                  {t('editLesson.hasImage')}
                 </Text>
               )}
               {lesson.audioUrl && (
                 <Text size="1" color="gray">
-                  • Audio: Currently has audio file
+                  {t('editLesson.hasAudio')}
                 </Text>
               )}
               {!lesson.imageUrl && !lesson.audioUrl && (
                 <Text size="1" color="gray">
-                  • No image or audio files currently
+                  {t('editLesson.noFiles')}
                 </Text>
               )}
             </Flex>
@@ -330,8 +332,8 @@ const LessonEditDialog: React.FC<LessonEditDialogProps> = ({
           <Box>
             <Text size="2" weight="medium" mb="2" as="div">
               {lesson.imageUrl
-                ? 'Replace Image (Optional)'
-                : 'Add Image (Optional)'}
+                ? t('editLesson.replaceImage')
+                : t('editLesson.addImage')}
             </Text>
             <input
               id={`image-edit-${lesson.id}`}
@@ -348,7 +350,7 @@ const LessonEditDialog: React.FC<LessonEditDialogProps> = ({
             />
             {imageFile && (
               <Text size="1" color="green" mt="1">
-                Selected: {imageFile.name}
+                {t('upload.selected', { value: imageFile.name })}
               </Text>
             )}
           </Box>
@@ -357,8 +359,8 @@ const LessonEditDialog: React.FC<LessonEditDialogProps> = ({
           <Box>
             <Text size="2" weight="medium" mb="2" as="div">
               {lesson.audioUrl
-                ? 'Replace Audio (Optional)'
-                : 'Add Audio (Optional)'}
+                ? t('editLesson.replaceAudio')
+                : t('editLesson.addAudio')}
             </Text>
             <input
               id={`audio-edit-${lesson.id}`}
@@ -375,7 +377,7 @@ const LessonEditDialog: React.FC<LessonEditDialogProps> = ({
             />
             {audioFile && (
               <Text size="1" color="green" mt="1">
-                Selected: {audioFile.name}
+                {t('upload.selected', { value: audioFile.name })}
               </Text>
             )}
           </Box>
@@ -414,19 +416,19 @@ const LessonEditDialog: React.FC<LessonEditDialogProps> = ({
           <Flex gap="3" mt="4" justify="end">
             <Dialog.Close>
               <MyButton variant="soft" color="gray" disabled={updating}>
-                Cancel
+                {t('common.cancel')}
               </MyButton>
             </Dialog.Close>
             <MyButton onClick={handleUpdate} disabled={updating}>
               {updating ? (
                 <>
                   <UploadIcon />
-                  Updating...
+                  {t('retime.updating')}
                 </>
               ) : (
                 <>
                   <Pencil1Icon />
-                  Update Lesson
+                  {t('editLesson.update')}
                 </>
               )}
             </MyButton>

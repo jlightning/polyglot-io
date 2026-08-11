@@ -32,14 +32,16 @@ import {
   fetchReadWordsPerDayChart,
 } from '../services/chartApi';
 import type { ChartDayPoint, ChartRangePreset } from '../types/chartOverview';
+import { useI18n } from '../contexts/I18nContext';
 
-const RANGE_OPTIONS: { value: ChartRangePreset; label: string }[] = [
-  { value: '30d', label: '1 month' },
-  { value: '90d', label: '3 months' },
-  { value: '180d', label: '6 months' },
-  { value: '365d', label: '1 year' },
-  { value: 'all', label: 'All time' },
-];
+const RANGE_OPTIONS: ChartRangePreset[] = ['30d', '90d', '180d', '365d', 'all'];
+const RANGE_KEYS = {
+  '30d': 'charts.range.30d',
+  '90d': 'charts.range.90d',
+  '180d': 'charts.range.180d',
+  '365d': 'charts.range.365d',
+  all: 'charts.range.all',
+} as const;
 
 function ChartRangeSelect({
   value,
@@ -48,16 +50,17 @@ function ChartRangeSelect({
   value: ChartRangePreset;
   onChange: (v: ChartRangePreset) => void;
 }) {
+  const { t } = useI18n();
   return (
     <Select.Root
       value={value}
       onValueChange={v => onChange(v as ChartRangePreset)}
     >
-      <Select.Trigger style={{ minWidth: '140px' }} aria-label="Chart range" />
+      <Select.Trigger style={{ minWidth: '140px' }} aria-label={t('charts.range')} />
       <Select.Content position="popper">
-        {RANGE_OPTIONS.map(opt => (
-          <Select.Item key={opt.value} value={opt.value}>
-            {opt.label}
+        {RANGE_OPTIONS.map(option => (
+          <Select.Item key={option} value={option}>
+            {t(RANGE_KEYS[option])}
           </Select.Item>
         ))}
       </Select.Content>
@@ -76,6 +79,7 @@ function formatRangeLabel(startDate: string, endDate: string) {
 }
 
 const ChartsPage: React.FC = () => {
+  const { t } = useI18n();
   const { axiosInstance } = useAuth();
   const { selectedLanguage } = useLanguage();
   const { dailyScoreTarget } = useUserSettings();
@@ -321,9 +325,9 @@ const ChartsPage: React.FC = () => {
     return (
       <Container size="4" p="4">
         <Heading size="6" mb="4">
-          Charts
+          {t('charts.title')}
         </Heading>
-        <Text color="gray">Select a language to view your progress.</Text>
+        <Text color="gray">{t('charts.selectLanguage')}</Text>
       </Container>
     );
   }
@@ -331,18 +335,18 @@ const ChartsPage: React.FC = () => {
   return (
     <Container size="4" p="4">
       <Heading size="6" mb="6">
-        Charts
+        {t('charts.title')}
       </Heading>
 
       <Flex direction="column" gap="6">
         <Card size="3">
           <Flex justify="between" align="start" gap="4" wrap="wrap" mb="2">
             <Text size="3" weight="medium" as="div">
-              Daily score vs target
+              {t('charts.dailyScore')}
             </Text>
             <Flex align="center" gap="2">
               <Text size="2" color="gray" as="span">
-                Range
+                {t('charts.range')}
               </Text>
               <ChartRangeSelect value={dailyRange} onChange={setDailyRange} />
             </Flex>
@@ -353,8 +357,7 @@ const ChartsPage: React.FC = () => {
             </Text>
           )}
           <Text size="2" color="gray" mb="3" as="div">
-            Raw points from word marks per day. Target line uses your daily
-            score goal from settings.
+            {t('charts.dailyScoreHelp')}
           </Text>
           {dailyError && (
             <Text color="red" size="2" mb="2">
@@ -363,7 +366,7 @@ const ChartsPage: React.FC = () => {
           )}
           {dailyLoading && (
             <Text color="gray" size="2" mb="2">
-              Loading…
+              {t('common.loading')}
             </Text>
           )}
           <Box style={{ width: '100%', height: 280 }}>
@@ -393,14 +396,14 @@ const ChartsPage: React.FC = () => {
                   stroke="var(--amber-9)"
                   strokeDasharray="4 4"
                   label={{
-                    value: `Target ${dailyScoreTarget}`,
+                    value: t('charts.target', { count: dailyScoreTarget }),
                     fill: 'var(--amber-11)',
                     fontSize: 11,
                   }}
                 />
                 <Bar
                   dataKey="value"
-                  name="Score"
+                  name={t('charts.score')}
                   fill="var(--blue-9)"
                   radius={[4, 4, 0, 0]}
                 />
@@ -412,11 +415,11 @@ const ChartsPage: React.FC = () => {
         <Card size="3">
           <Flex justify="between" align="start" gap="4" wrap="wrap" mb="2">
             <Text size="3" weight="medium" as="div">
-              Cumulative score
+              {t('charts.cumulative')}
             </Text>
             <Flex align="center" gap="2">
               <Text size="2" color="gray" as="span">
-                Range
+                {t('charts.range')}
               </Text>
               <ChartRangeSelect value={cumRange} onChange={setCumRange} />
             </Flex>
@@ -427,8 +430,7 @@ const ChartsPage: React.FC = () => {
             </Text>
           )}
           <Text size="2" color="gray" mb="3" as="div">
-            Running total of score points, including all activity before the
-            selected range.
+            {t('charts.cumulativeHelp')}
           </Text>
           {cumError && (
             <Text color="red" size="2" mb="2">
@@ -437,7 +439,7 @@ const ChartsPage: React.FC = () => {
           )}
           {cumLoading && (
             <Text color="gray" size="2" mb="2">
-              Loading…
+              {t('common.loading')}
             </Text>
           )}
           <Box style={{ width: '100%', height: 280 }}>
@@ -465,7 +467,7 @@ const ChartsPage: React.FC = () => {
                 <Area
                   type="monotone"
                   dataKey="value"
-                  name="Cumulative score"
+                  name={t('charts.cumulative')}
                   stroke="var(--blue-9)"
                   fill="var(--blue-3)"
                   strokeWidth={2}
@@ -478,11 +480,11 @@ const ChartsPage: React.FC = () => {
         <Card size="3">
           <Flex justify="between" align="start" gap="4" wrap="wrap" mb="2">
             <Text size="3" weight="medium" as="div">
-              Learned words
+              {t('charts.learnedWords')}
             </Text>
             <Flex align="center" gap="2">
               <Text size="2" color="gray" as="span">
-                Range
+                {t('charts.range')}
               </Text>
               <ChartRangeSelect
                 value={learnedRange}
@@ -496,10 +498,7 @@ const ChartsPage: React.FC = () => {
             </Text>
           )}
           <Text size="2" color="gray" mb="4" as="div">
-            Total is words currently marked known (4–5). The green line is based
-            on when each word first hit known in your activity log, plus a
-            baseline so the end of the range matches that total (covers imports
-            or marks that never logged a 3→4 style transition).
+            {t('charts.learnedHelp')}
           </Text>
           {learnedError && (
             <Text color="red" size="2" mb="2">
@@ -508,13 +507,13 @@ const ChartsPage: React.FC = () => {
           )}
           {learnedLoading && (
             <Text color="gray" size="2" mb="2">
-              Loading…
+              {t('common.loading')}
             </Text>
           )}
           <Flex direction={{ initial: 'column', sm: 'row' }} gap="6">
             <Box style={{ minWidth: 140 }}>
               <Text size="2" color="gray" mb="1" as="div">
-                Total known words
+                {t('charts.totalKnown')}
               </Text>
               <Text size="8" weight="bold" style={{ color: 'var(--blue-11)' }}>
                 {totalLearnedWords.toLocaleString()}
@@ -522,7 +521,7 @@ const ChartsPage: React.FC = () => {
             </Box>
             <Box style={{ flex: 1, minHeight: 200 }}>
               <Text size="2" weight="medium" mb="2" as="div">
-                Known words over time (log + alignment to current total)
+                {t('charts.knownOverTime')}
               </Text>
               <Box style={{ width: '100%', height: 200 }}>
                 <ResponsiveContainer width="100%" height="100%">
@@ -554,7 +553,7 @@ const ChartsPage: React.FC = () => {
                     <Area
                       type="monotone"
                       dataKey="value"
-                      name="Cumulative learned"
+                      name={t('charts.cumulativeLearned')}
                       stroke="var(--green-9)"
                       fill="var(--green-3)"
                       strokeWidth={2}
@@ -569,11 +568,11 @@ const ChartsPage: React.FC = () => {
         <Card size="3">
           <Flex justify="between" align="start" gap="4" wrap="wrap" mb="2">
             <Text size="3" weight="medium" as="div">
-              Learned words per day
+              {t('charts.learnedPerDay')}
             </Text>
             <Flex align="center" gap="2">
               <Text size="2" color="gray" as="span">
-                Range
+                {t('charts.range')}
               </Text>
               <ChartRangeSelect value={perDayRange} onChange={setPerDayRange} />
             </Flex>
@@ -584,7 +583,7 @@ const ChartsPage: React.FC = () => {
             </Text>
           )}
           <Text size="2" color="gray" mb="3" as="div">
-            First time each word reached known (mark 4+) on that calendar day.
+            {t('charts.learnedPerDayHelp')}
           </Text>
           {perDayError && (
             <Text color="red" size="2" mb="2">
@@ -593,7 +592,7 @@ const ChartsPage: React.FC = () => {
           )}
           {perDayLoading && (
             <Text color="gray" size="2" mb="2">
-              Loading…
+              {t('common.loading')}
             </Text>
           )}
           <Box style={{ width: '100%', height: 280 }}>
@@ -620,7 +619,7 @@ const ChartsPage: React.FC = () => {
                 />
                 <Bar
                   dataKey="value"
-                  name="Learned"
+                  name={t('charts.learned')}
                   fill="var(--green-9)"
                   radius={[4, 4, 0, 0]}
                 />
@@ -632,11 +631,11 @@ const ChartsPage: React.FC = () => {
         <Card size="3">
           <Flex justify="between" align="start" gap="4" wrap="wrap" mb="2">
             <Text size="3" weight="medium" as="div">
-              Read words per day
+              {t('charts.readPerDay')}
             </Text>
             <Flex align="center" gap="2">
               <Text size="2" color="gray" as="span">
-                Range
+                {t('charts.range')}
               </Text>
               <ChartRangeSelect value={readRange} onChange={setReadRange} />
             </Flex>
@@ -647,9 +646,7 @@ const ChartsPage: React.FC = () => {
             </Text>
           )}
           <Text size="2" color="gray" mb="3" as="div">
-            New read events logged per day (first time you opened a word in a
-            sentence; repeat clicks on the same word in that sentence are not
-            counted again).
+            {t('charts.readPerDayHelp')}
           </Text>
           {readError && (
             <Text color="red" size="2" mb="2">
@@ -658,7 +655,7 @@ const ChartsPage: React.FC = () => {
           )}
           {readLoading && (
             <Text color="gray" size="2" mb="2">
-              Loading…
+              {t('common.loading')}
             </Text>
           )}
           <Box style={{ width: '100%', height: 280 }}>
@@ -685,7 +682,7 @@ const ChartsPage: React.FC = () => {
                 />
                 <Bar
                   dataKey="value"
-                  name="Reads"
+                  name={t('charts.reads')}
                   fill="var(--violet-9)"
                   radius={[4, 4, 0, 0]}
                 />

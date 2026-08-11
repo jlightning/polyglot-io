@@ -1,5 +1,49 @@
 # Kế hoạch BA: Chạy Agent CLI bằng tmux
 
+## Trạng thái triển khai
+
+**MVP backend đã hoàn thành ngày 11/08/2026.**
+
+Đã làm:
+
+- Thêm model/migration `AgentSession` và các trạng thái `starting`, `running`,
+  `exited`, `failed`, `stopped`.
+- Thêm REST API readiness, create/list/get/stop và cấp terminal token dùng một
+  lần. Request tạo phiên giữ trường `goal`; client không gửi binary, CLI type
+  hoặc secret.
+- Thêm WebSocket terminal bridge dựa trên `node-pty`, ownership check, token TTL
+  ngắn và giới hạn một writer.
+- Chạy mỗi Agent trong tmux server/socket cô lập `polyglot-agent-<uuid>`, không
+  can thiệp tmux session cá nhân.
+- Thêm startup reconciliation, giới hạn phiên/người dùng, idempotency key và
+  validation language/lesson ownership.
+- Hỗ trợ cấu hình `codex`, `claude`/`claude-code`, `cursor` bằng
+  `AGENT_CLI_TYPE`. Không có `AGENT_CLI_PROVIDER`; mapping credential mặc định
+  lần lượt là `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `CURSOR_API_KEY`.
+- Đã kiểm thử argument separation/chống shell injection, readiness không lộ
+  key, namespace tmux và smoke-test API thực tế với Codex nhận `goal`.
+- Đã cập nhật `README.md` và `backend/env.example`. Không thêm
+  `AgentSessionsPage` hoặc dependency terminal vào frontend.
+- Backend được phép khởi động không có `OPENAI_API_KEY` khi
+  `AGENT_TMUX_ENABLED=true`. Các route gọi OpenAI trực tiếp trả
+  `503 openai_not_configured`; Agent Session API vẫn là luồng riêng.
+- Route generate lesson tự fallback sang batch mode của Agent CLI khi key thiếu
+  hoặc OpenAI trả 401. Job chạy trong tmux socket cô lập, output JSON có marker
+  được validate trước khi lưu lesson, sentence và word analysis.
+- `AGENT_CLI_AUTH_MODE=login` hỗ trợ credential store của CLI (như
+  `codex login`); `api_key` tiếp tục dùng mapping environment chuẩn. Vì vậy key
+  OpenAI sai không bị truyền tiếp vào Codex fallback ở chế độ login.
+- `AI_PROVIDER=auto|openai|agent_cli` là điểm chọn execution backend tập trung.
+  Fallback Agent CLI hiện hỗ trợ generate lesson, phát âm từ và dịch câu; Vision
+  và TTS vẫn cần OpenAI API.
+
+Chưa làm:
+
+- Credential MCP ngắn hạn theo user/session và thu hồi token.
+- Integration test đầy đủ cho WebSocket, reconnect/backpressure, ownership giữa
+  hai user và reconcile sau backend restart trong CI.
+- Global session limit, idle timeout/cleanup policy và metrics vận hành đầy đủ.
+
 ## 1. Bối cảnh và giả định
 
 Polyglot.io hiện cung cấp MCP qua HTTP để Claude Desktop hoặc Cursor thao tác
@@ -55,8 +99,8 @@ Tiêu chí chấp nhận:
 
 - API readiness trả trạng thái tmux, phiên bản Agent CLI được cấu hình và thư
   mục làm việc; không trả API key.
-- Nếu thiếu tmux hoặc CLI, nút tạo phiên bị vô hiệu và có hướng dẫn cài đặt/cấu
-  hình; hệ thống không tự cài phần mềm.
+- Nếu thiếu tmux hoặc CLI, readiness báo không sẵn sàng và API tạo phiên trả lỗi
+  `runtime_not_ready`; hệ thống không tự cài phần mềm.
 - Backend kiểm tra binary bằng đường dẫn đã cấu hình hoặc `PATH`, không nhận
   binary path trực tiếp từ request tạo phiên.
 - Kết quả kiểm tra không trả environment variables, token hoặc nội dung file bí
@@ -156,7 +200,7 @@ Tiêu chí chấp nhận:
 9. Việc dừng server không mặc định kill các phiên đang chạy; hành vi shutdown
    phải được cấu hình và ghi rõ cho người vận hành.
 
-## 6. Luồng backend đề xuất
+## 6. Luồng backend đã triển khai
 
 1. Backend đọc Agent CLI adapter và API-key environment variable khi khởi động.
 2. Client gọi readiness rồi tạo session với ngôn ngữ, bài học tùy chọn và mục
@@ -167,7 +211,7 @@ Tiêu chí chấp nhận:
    một lần rồi attach WebSocket; không có UI tích hợp trong MVP.
 5. Detach không dừng tmux. Stop kết thúc đúng managed session/socket.
 
-## 7. Hợp đồng API đề xuất
+## 7. Hợp đồng API đã triển khai
 
 | Method | Endpoint                                 | Mục đích                                     |
 | ------ | ---------------------------------------- | -------------------------------------------- |
@@ -183,7 +227,7 @@ Tất cả REST endpoint dùng JWT hiện tại. WebSocket chỉ nhận token ng
 một lần, TTL ngắn do REST endpoint đã xác thực phát hành; không dùng JWT dài hạn
 trong URL.
 
-## 8. Mô hình dữ liệu đề xuất
+## 8. Mô hình dữ liệu đã triển khai
 
 `AgentSession`:
 
@@ -203,7 +247,7 @@ trong URL.
 
 Không lưu JWT, API key, MCP credential hoặc transcript trong bảng này.
 
-## 9. Kiến trúc triển khai đề xuất
+## 9. Kiến trúc triển khai
 
 - `AgentRuntimeService`: điều phối quyền, giới hạn phiên, trạng thái và lifecycle.
 - `TmuxRuntime`: tạo, probe, attach, resize và stop tmux session bằng lời gọi
@@ -264,29 +308,30 @@ false})` hoặc cơ chế tương đương.
 
 ### Giai đoạn 1: Runtime nền
 
-- Readiness, model dữ liệu, tmux adapter, create/list/get/stop và reconciler.
-- Test process adapter bằng fake; integration test với tmux khi môi trường CI có
-  binary.
+- [x] Readiness, model dữ liệu, tmux adapter, create/list/get/stop và reconciler.
+- [x] Test process adapter bằng fake và smoke-test với tmux/Codex local.
+- [ ] Integration test tmux trong CI.
 
 ### Giai đoạn 2: Terminal gateway
 
-- PTY/WebSocket bridge với token dùng một lần và resize protocol.
-- Kiểm thử auth, ownership, backpressure và detach semantics. Không thêm route,
-  component hoặc dependency frontend.
+- [x] PTY/WebSocket bridge với token dùng một lần và resize protocol.
+- [ ] Kiểm thử tích hợp auth, ownership, backpressure và detach semantics. Không thêm route,
+      component hoặc dependency frontend.
 
 ### Giai đoạn 3: Agent adapter đầu tiên
 
-- Adapter CLI cụ thể, prompt gia sư, cấu hình language/lesson và error mapping.
-- Chỉ mở adapter khi readiness pass.
+- [x] Adapter CLI cấu hình từ backend, prompt gia sư dựng từ `goal`, cấu hình
+      language/lesson và error mapping.
+- [x] Chỉ mở adapter khi readiness pass.
 
 ### Giai đoạn 4: MCP an toàn
 
-- Credential ngắn hạn theo phiên, cấu hình MCP tạm thời và thu hồi khi kết thúc.
-- Audit, redaction và kiểm thử không rò rỉ secret.
+- [ ] Credential ngắn hạn theo phiên, cấu hình MCP tạm thời và thu hồi khi kết
+      thúc.
+- [ ] Audit/metrics đầy đủ và kiểm thử tích hợp không rò rỉ secret.
 
 ## 13. Điểm cần Product Owner xác nhận
 
-- Agent CLI đầu tiên là Codex, Claude Code hay CLI khác?
 - Có cần bổ sung CLI chính thức để create/list/attach/stop ở giai đoạn tiếp theo
   hay REST/WebSocket API là đủ?
 - Phiên có được phép tồn tại sau khi backend tắt không, và thời gian tối đa là

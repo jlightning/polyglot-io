@@ -38,6 +38,7 @@ import {
   getDifficultyColor,
 } from '../constants/difficultyColors';
 import axios from 'axios';
+import { useI18n } from '../contexts/I18nContext';
 
 interface Word {
   id: number;
@@ -105,6 +106,7 @@ const DIFFICULTY_OPTIONS = ALL_DIFFICULTY_MARKS.map(mark => ({
 }));
 
 const WordsPage: React.FC = () => {
+  const { t } = useI18n();
   const { axiosInstance } = useAuth();
   const { selectedLanguage } = useLanguage();
   const { openWordSidebar } = useWordSidebar();
@@ -605,7 +607,7 @@ const WordsPage: React.FC = () => {
       {/* Header */}
       <Flex direction="column" gap="4" mb="6">
         <Flex align="center" justify="between">
-          <Heading size="6">My Words</Heading>
+          <Heading size="6">{t('words.title')}</Heading>
           <Flex gap="2">
             <MyButton
               variant="soft"
@@ -613,19 +615,19 @@ const WordsPage: React.FC = () => {
               disabled={loading}
             >
               <DownloadIcon />
-              Import
+              {t('words.import')}
             </MyButton>
             <MyButton variant="soft" onClick={handleRefresh} disabled={loading}>
               <ReloadIcon />
-              Refresh
+              {t('words.refresh')}
             </MyButton>
           </Flex>
         </Flex>
 
         <Text size="3" color="gray">
           {selectedLanguage
-            ? `Words you've marked while learning ${selectedLanguage.toUpperCase()}`
-            : "All words you've marked across all languages"}
+            ? t('words.descriptionLanguage', { language: selectedLanguage.toUpperCase() })
+            : t('words.descriptionAll')}
         </Text>
       </Flex>
 
@@ -642,7 +644,7 @@ const WordsPage: React.FC = () => {
         {/* Search */}
         <Flex gap="2" style={{ flex: 1, minWidth: '300px' }}>
           <TextField.Root
-            placeholder="Search words or notes..."
+            placeholder={t('words.searchPlaceholder')}
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
             onKeyPress={e => e.key === 'Enter' && handleSearch()}
@@ -653,7 +655,7 @@ const WordsPage: React.FC = () => {
             </TextField.Slot>
           </TextField.Root>
           <MyButton onClick={handleSearch} disabled={loading}>
-            Search
+            {t('words.search')}
           </MyButton>
         </Flex>
 
@@ -732,7 +734,7 @@ const WordsPage: React.FC = () => {
               }}
             >
               <Text truncate style={{ maxWidth: '160px' }}>
-                {selectedLessonTitle || 'All lessons'}
+                {selectedLessonTitle || t('words.allLessons')}
               </Text>
               <ChevronDownIcon width="12" height="12" />
             </MyButton>
@@ -744,7 +746,7 @@ const WordsPage: React.FC = () => {
             <Flex direction="column" gap="2">
               <TextField.Root
                 size="2"
-                placeholder="Search lessons..."
+                placeholder={t('words.searchLessons')}
                 value={lessonSearch}
                 onChange={e => setLessonSearch(e.target.value)}
                 autoFocus
@@ -775,12 +777,12 @@ const WordsPage: React.FC = () => {
                       size="2"
                       weight={lessonId === null ? 'medium' : 'regular'}
                     >
-                      All lessons
+                      {t('words.allLessons')}
                     </Text>
                   </Box>
                   {lessonOptionsLoading && (
                     <Text size="2" color="gray" style={{ padding: '6px 8px' }}>
-                      Loading...
+                      {t('common.loading')}
                     </Text>
                   )}
                   {!lessonOptionsLoading &&
@@ -816,7 +818,7 @@ const WordsPage: React.FC = () => {
                     ))}
                   {!lessonOptionsLoading && lessonOptions.length === 0 && (
                     <Text size="2" color="gray" style={{ padding: '6px 8px' }}>
-                      No lessons found
+                      {t('lessons.none')}
                     </Text>
                   )}
                 </Flex>
@@ -835,7 +837,7 @@ const WordsPage: React.FC = () => {
           style={{ minHeight: '300px' }}
         >
           <Text size="3" color="gray">
-            Loading your words...
+            {t('words.loading')}
           </Text>
         </Flex>
       )}
@@ -849,12 +851,12 @@ const WordsPage: React.FC = () => {
           style={{ minHeight: '300px' }}
         >
           <Text size="4" color="gray" mb="2">
-            No words found
+            {t('words.none')}
           </Text>
           <Text size="3" color="gray">
             {searchTerm || !allDifficultiesSelected
-              ? 'Try adjusting your search or filter criteria'
-              : 'Start marking words in lessons to see them here'}
+              ? t('words.adjustFilters')
+              : t('words.startMarking')}
           </Text>
         </Flex>
       )}
@@ -866,16 +868,16 @@ const WordsPage: React.FC = () => {
             <Table.Root>
               <Table.Header>
                 <Table.Row>
-                  {renderSortableHeader('Word', 'word', '16%')}
-                  {renderSortableHeader('Difficulty', 'mark', '10%')}
-                  {renderSortableHeader('Sentences', 'sentence_count', '8%')}
+                  {renderSortableHeader(t('words.column.word'), 'word', '16%')}
+                  {renderSortableHeader(t('words.column.difficulty'), 'mark', '10%')}
+                  {renderSortableHeader(t('words.column.sentences'), 'sentence_count', '8%')}
                   <Table.ColumnHeaderCell style={{ width: '34%' }}>
-                    Example Sentences
+                    {t('words.column.examples')}
                   </Table.ColumnHeaderCell>
                   <Table.ColumnHeaderCell style={{ width: '22%' }}>
-                    Related Lessons
+                    {t('words.column.lessons')}
                   </Table.ColumnHeaderCell>
-                  {renderSortableHeader('Last Updated', 'updated_at', '10%')}
+                  {renderSortableHeader(t('words.column.updated'), 'updated_at', '10%')}
                 </Table.Row>
               </Table.Header>
               <Table.Body>
@@ -974,7 +976,7 @@ const WordsPage: React.FC = () => {
                             color="gray"
                             style={{ fontStyle: 'italic' }}
                           >
-                            No sentences available
+                            {t('words.noSentences')}
                           </Text>
                         )}
                       </Flex>
@@ -1001,7 +1003,7 @@ const WordsPage: React.FC = () => {
                             color="gray"
                             style={{ fontStyle: 'italic' }}
                           >
-                            No lessons found
+                            {t('lessons.none')}
                           </Text>
                         )}
                       </Flex>
@@ -1032,7 +1034,7 @@ const WordsPage: React.FC = () => {
           {/* Stats */}
           <Flex align="center" justify="center" mt="4">
             <Text size="2" color="gray">
-              Showing {words.length} of {pagination.total} words
+              {t('words.showing', { count: words.length, total: pagination.total })}
             </Text>
           </Flex>
         </>
@@ -1041,15 +1043,15 @@ const WordsPage: React.FC = () => {
       {/* Import Dialog */}
       <Dialog.Root open={importDialogOpen} onOpenChange={setImportDialogOpen}>
         <Dialog.Content style={{ maxWidth: '600px' }}>
-          <Dialog.Title>Import Words</Dialog.Title>
+          <Dialog.Title>{t('words.importTitle')}</Dialog.Title>
           <Dialog.Description>
-            Import words from various sources to add to your vocabulary.
+            {t('words.importDescription')}
           </Dialog.Description>
 
           <Tabs.Root defaultValue="csv" style={{ marginTop: '20px' }}>
             <Tabs.List>
-              <Tabs.Trigger value="csv">Upload CSV</Tabs.Trigger>
-              <Tabs.Trigger value="lingq">Import from LingQ</Tabs.Trigger>
+              <Tabs.Trigger value="csv">{t('words.uploadCsv')}</Tabs.Trigger>
+              <Tabs.Trigger value="lingq">{t('words.importLingq')}</Tabs.Trigger>
             </Tabs.List>
 
             <Box pt="4">
@@ -1057,8 +1059,7 @@ const WordsPage: React.FC = () => {
               <Tabs.Content value="csv">
                 <Flex direction="column" gap="4">
                   <Text size="3" color="gray">
-                    Upload a CSV file containing your words and their difficulty
-                    marks.
+                    {t('words.csvDescription')}
                   </Text>
 
                   <Box
@@ -1071,14 +1072,14 @@ const WordsPage: React.FC = () => {
                     }}
                   >
                     <Text size="3" color="gray">
-                      CSV upload functionality will be implemented soon.
+                      {t('words.csvComingSoon')}
                     </Text>
                     <Text
                       size="2"
                       color="gray"
                       style={{ display: 'block', marginTop: '8px' }}
                     >
-                      Expected format: word, language_code, mark, note
+                      {t('words.csvFormat')}
                     </Text>
                   </Box>
                 </Flex>
@@ -1088,7 +1089,7 @@ const WordsPage: React.FC = () => {
               <Tabs.Content value="lingq">
                 <Flex direction="column" gap="4">
                   <Text size="3" color="gray">
-                    Import your LingQs from LingQ.com using your API key.
+                    {t('words.lingqDescription')}
                   </Text>
 
                   {!selectedLanguage && (
@@ -1101,8 +1102,7 @@ const WordsPage: React.FC = () => {
                       }}
                     >
                       <Text size="2" color="amber">
-                        Please select a language first before importing from
-                        LingQ.
+                        {t('words.lingqSelectLanguage')}
                       </Text>
                     </Box>
                   )}
@@ -1114,10 +1114,10 @@ const WordsPage: React.FC = () => {
                       mb="2"
                       style={{ display: 'block' }}
                     >
-                      LingQ API Key
+                      {t('words.lingqApiKey')}
                     </Text>
                     <TextField.Root
-                      placeholder="Enter your LingQ API key..."
+                      placeholder={t('words.lingqPlaceholder')}
                       value={lingqApiKey}
                       onChange={e => setLingqApiKey(e.target.value)}
                       disabled={importLoading}
@@ -1128,9 +1128,7 @@ const WordsPage: React.FC = () => {
                       color="gray"
                       style={{ display: 'block', marginTop: '4px' }}
                     >
-                      You can find your API key in your LingQ account settings.
-                      The key will not be stored and is only used for this
-                      import.
+                      {t('words.lingqKeyHelp')}
                     </Text>
                   </Box>
 
@@ -1173,7 +1171,7 @@ const WordsPage: React.FC = () => {
                       onClick={resetImportDialog}
                       disabled={importLoading}
                     >
-                      Reset
+                      {t('words.reset')}
                     </MyButton>
                     <MyButton
                       onClick={handleLingqImport}
@@ -1184,7 +1182,7 @@ const WordsPage: React.FC = () => {
                       }
                       loading={importLoading}
                     >
-                      {importLoading ? 'Importing...' : 'Import from LingQ'}
+                      {importLoading ? t('words.importing') : t('words.importLingq')}
                     </MyButton>
                   </Flex>
                 </Flex>
@@ -1199,7 +1197,7 @@ const WordsPage: React.FC = () => {
                 color="gray"
                 onClick={handleImportDialogClose}
               >
-                Close
+                {t('words.close')}
               </MyButton>
             </Dialog.Close>
           </Flex>

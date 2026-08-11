@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { ctx } from './index';
+import { OpenAIConfigurationError } from '../services/ai/openaiService';
 
 const router = Router();
 const MAX_TEXT_LENGTH = 5000;
@@ -39,6 +40,13 @@ router.post('/', async (req: Request, res: Response) => {
     return res.send(buffer);
   } catch (error) {
     console.error('TTS route error:', error);
+    if (error instanceof OpenAIConfigurationError) {
+      return res.status(503).json({
+        success: false,
+        code: error.code,
+        message: error.message,
+      });
+    }
     return res.status(502).json({
       success: false,
       message: 'Could not generate audio. Please try again.',

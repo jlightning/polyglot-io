@@ -21,6 +21,19 @@ test('loadAgentRuntimeConfig parses an allowlisted adapter without shell text', 
   assert.deepEqual(config.adapters[0]?.args, ['--full-auto']);
 });
 
+test('login auth mode does not pass an invalid API key to the Agent CLI', () => {
+  const config = loadAgentRuntimeConfig({
+    AGENT_TMUX_ENABLED: 'true',
+    AGENT_CLI_TYPE: 'codex',
+    AGENT_CLI_AUTH_MODE: 'login',
+    OPENAI_API_KEY: 'invalid-key',
+  });
+
+  assert.equal(config.adapters[0]?.credentialConfigured, true);
+  assert.equal(config.adapters[0]?.authMode, 'login');
+  assert.equal(config.environmentAllowlist.includes('OPENAI_API_KEY'), false);
+});
+
 test('TmuxRuntime passes executable and arguments separately', async () => {
   const calls: Array<{ file: string; args: readonly string[] }> = [];
   const runner: CommandRunner = async (file, args) => {
@@ -84,4 +97,49 @@ test('readiness reports the configured CLI without exposing its key', async () =
   assert.equal(readiness.ready, true);
   assert.equal(readiness.adapters[0]?.type, 'codex');
   assert.equal(JSON.stringify(readiness).includes('must-not-leak'), false);
+});
+
+test('runBatch executes the configured CLI inside an isolated tmux server', async () => {
+  const calls: Array<{ file: string; args: readonly string[] }> = [];
+  const runner: CommandRunner = async (file, args) => {
+    calls.push({ file, args });
+    if (args.includes('list-panes')) {
+      return { stdout: '1 0\n', stderr: '', exitCode: 0 };
+    }
+    if (args.includes('capture-pane')) {
+      return {
+        stdout:
+          'POLYGLOT_LESSON_START\n{"text":"Hello.","sentences":[]}\nPOLYGLOT_LESSON_END\n',
+        stderr: '',
+        exitCode: 0,
+      };
+    }
+    return { stdout: '', stderr: '', exitCode: 0 };
+  };
+  const config = loadAgentRuntimeConfig({
+    AGENT_TMUX_ENABLED: 'true',
+    AGENT_CLI_TYPE: 'codex',
+    AGENT_CLI_BIN: '/opt/bin/codex',
+    OPENAI_API_KEY: 'test-key',
+  });
+  const runtime = new TmuxRuntime(config, runner);
+  const sessionName = 'polyglot-agent-12345678-1234-4234-8234-123456789abc';
+
+  const output = await runtime.runBatch(
+    sessionName,
+    config.adapters[0]!,
+    'goal'
+  );
+
+  assert.match(output, /POLYGLOT_LESSON_START/);
+  const respawn = calls.find(call => call.args.includes('respawn-pane'));
+  assert.deepEqual(respawn?.args.slice(-6), [
+    '/opt/bin/codex',
+    'exec',
+    '--skip-git-repo-check',
+    '--color',
+    'never',
+    'goal',
+  ]);
+  assert.ok(calls.some(call => call.args.includes('kill-server')));
 });

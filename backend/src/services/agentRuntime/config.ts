@@ -2,11 +2,13 @@ import path from 'path';
 
 export interface AgentCliAdapterConfig {
   type: string;
-  apiKeyEnvironmentVariable: string;
+  authMode: 'api_key' | 'login';
+  apiKeyEnvironmentVariable: string | null;
   credentialConfigured: boolean;
   binary: string;
   args: string[];
   versionArgs: string[];
+  batchArgs: string[] | null;
 }
 
 export interface AgentRuntimeConfig {
@@ -14,6 +16,7 @@ export interface AgentRuntimeConfig {
   tmuxBinary: string;
   workingDirectory: string;
   maxSessionsPerUser: number;
+  batchTimeoutMs: number;
   adapters: AgentCliAdapterConfig[];
   environmentAllowlist: string[];
 }
@@ -26,6 +29,12 @@ const CLI_API_KEY_ENV: Record<string, string> = {
   claude: 'ANTHROPIC_API_KEY',
   'claude-code': 'ANTHROPIC_API_KEY',
   cursor: 'CURSOR_API_KEY',
+};
+
+const CLI_BATCH_ARGS: Record<string, string[]> = {
+  codex: ['exec', '--skip-git-repo-check', '--color', 'never'],
+  claude: ['--print'],
+  'claude-code': ['--print'],
 };
 
 function parseStringArray(
@@ -61,6 +70,17 @@ function parsePositiveInt(value: string | undefined, fallback: number): number {
   return parsed;
 }
 
+function parseBatchTimeout(value: string | undefined): number {
+  if (!value) return 120_000;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 5_000 || parsed > 600_000) {
+    throw new Error(
+      'AGENT_CLI_BATCH_TIMEOUT_MS must be between 5000 and 600000'
+    );
+  }
+  return parsed;
+}
+
 export function loadAgentRuntimeConfig(
   env: NodeJS.ProcessEnv = process.env
 ): AgentRuntimeConfig {
@@ -70,11 +90,16 @@ export function loadAgentRuntimeConfig(
       'AGENT_CLI_TYPE must contain only lowercase letters, digits, _ or -'
     );
   }
+  const authMode = env['AGENT_CLI_AUTH_MODE'] || 'api_key';
+  if (authMode !== 'api_key' && authMode !== 'login') {
+    throw new Error('AGENT_CLI_AUTH_MODE must be api_key or login');
+  }
   const apiKeyEnvironmentVariable =
-    env['AGENT_CLI_API_KEY_ENV'] || CLI_API_KEY_ENV[agentType];
+    env['AGENT_CLI_API_KEY_ENV'] || CLI_API_KEY_ENV[agentType] || null;
   if (
-    !apiKeyEnvironmentVariable ||
-    !SAFE_ENVIRONMENT_VARIABLE.test(apiKeyEnvironmentVariable)
+    (authMode === 'api_key' && !apiKeyEnvironmentVariable) ||
+    (apiKeyEnvironmentVariable !== null &&
+      !SAFE_ENVIRONMENT_VARIABLE.test(apiKeyEnvironmentVariable))
   ) {
     throw new Error(
       'AGENT_CLI_API_KEY_ENV is required for custom Agent CLIs and must be an environment variable name'
@@ -89,7 +114,12 @@ export function loadAgentRuntimeConfig(
     .map(value => value.trim())
     .filter(Boolean);
   const environmentAllowlist = Array.from(
-    new Set([...extraEnvironment, apiKeyEnvironmentVariable])
+    new Set([
+      ...extraEnvironment,
+      ...(authMode === 'api_key' && apiKeyEnvironmentVariable
+        ? [apiKeyEnvironmentVariable]
+        : []),
+    ])
   );
 
   return {
@@ -100,11 +130,15 @@ export function loadAgentRuntimeConfig(
       env['AGENT_TMUX_MAX_SESSIONS_PER_USER'],
       3
     ),
+    batchTimeoutMs: parseBatchTimeout(env['AGENT_CLI_BATCH_TIMEOUT_MS']),
     adapters: [
       {
         type: agentType,
+        authMode,
         apiKeyEnvironmentVariable,
-        credentialConfigured: Boolean(env[apiKeyEnvironmentVariable]),
+        credentialConfigured:
+          authMode === 'login' ||
+          Boolean(apiKeyEnvironmentVariable && env[apiKeyEnvironmentVariable]),
         binary: env['AGENT_CLI_BIN'] || agentType,
         args: parseStringArray(
           env['AGENT_CLI_ARGS_JSON'],
@@ -114,6 +148,12 @@ export function loadAgentRuntimeConfig(
           env['AGENT_CLI_VERSION_ARGS_JSON'] || '["--version"]',
           'AGENT_CLI_VERSION_ARGS_JSON'
         ),
+        batchArgs: env['AGENT_CLI_BATCH_ARGS_JSON']
+          ? parseStringArray(
+              env['AGENT_CLI_BATCH_ARGS_JSON'],
+              'AGENT_CLI_BATCH_ARGS_JSON'
+            )
+          : CLI_BATCH_ARGS[agentType] || null,
       },
     ],
     environmentAllowlist,

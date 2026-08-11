@@ -13,7 +13,8 @@ Polyglot.io is a full-stack language learning app focused on lessons, synchroniz
 - Node.js `>=18`
 - Yarn `>=1.22`
 - Docker + Docker Compose (for MySQL)
-- OpenAI API key (required for translations, lesson generation, and TTS)
+- OpenAI API key (required for direct translations, lesson generation, and TTS;
+  optional for backend startup when the tmux Agent runtime is enabled)
 - AWS S3 credentials (required for uploads and file-based lessons)
 - tmux and an Agent CLI such as Codex (optional, for backend-managed agent sessions)
 
@@ -32,11 +33,25 @@ cp backend/env.example backend/.env
 cp frontend/env.example frontend/.env
 ```
 
-In `backend/.env`, set your OpenAI API key:
+In `backend/.env`, set your OpenAI API key for direct AI features:
 
 ```env
 OPENAI_API_KEY=your-openai-api-key
 ```
+
+The backend may start without this key when `AGENT_TMUX_ENABLED=true`. In that
+mode, the Agent Session API can use an authenticated CLI, while direct OpenAI
+routes return `503 openai_not_configured` until a real API key is supplied.
+Lesson generation is the exception: `POST /api/lessons/generate` automatically
+falls back to the configured Agent CLI batch mode when the key is missing or
+OpenAI rejects it with HTTP 401. The fallback runs in an isolated tmux socket,
+validates structured output, and stores the generated sentence/word analysis.
+
+AI execution is selected centrally with `AI_PROVIDER=auto|openai|agent_cli`.
+`auto` prefers the OpenAI API and falls back to Agent CLI when the key is absent
+or rejected with 401. Lesson generation, word pronunciation, and sentence
+translation currently support Agent CLI execution. Image extraction and TTS
+still require the OpenAI API.
 
 In `backend/.env`, also set your AWS S3 credentials:
 
@@ -77,7 +92,9 @@ AGENT_TMUX_ENABLED=true
 AGENT_TMUX_BIN=tmux
 AGENT_CLI_TYPE=codex
 AGENT_CLI_BIN=codex
+AGENT_CLI_AUTH_MODE=api_key
 AGENT_CLI_ARGS_JSON=[]
+AGENT_CLI_BATCH_TIMEOUT_MS=120000
 ```
 
 The built-in CLI mappings are `codex` → `OPENAI_API_KEY`,
@@ -85,6 +102,11 @@ The built-in CLI mappings are `codex` → `OPENAI_API_KEY`,
 For another CLI, set `AGENT_CLI_API_KEY_ENV` to the name of its API-key
 environment variable. Only that key and explicitly allowlisted environment
 variables are passed to the managed Agent CLI.
+
+For a CLI already authenticated interactively (for example `codex login`), set
+`AGENT_CLI_AUTH_MODE=login`. In this mode the child receives `HOME` and the
+minimal safe environment needed to use the CLI's own credential store; an
+invalid `OPENAI_API_KEY` is not required for the fallback.
 
 Run a prompt through the configured Agent CLI, following the same daemon-style
 flow as Thanos:

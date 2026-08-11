@@ -1,11 +1,48 @@
 # Kế hoạch BA: Học tiếng Anh
 
+## Trạng thái triển khai
+
+**Đã hoàn thành phần cấu hình/API và nền i18n ngày 11/08/2026; hỗ trợ English
+đầy đủ vẫn đang triển khai.**
+
+Đã làm:
+
+- Bật `en`/`en-US` trong `ConfigService`; API danh sách ngôn ngữ trả English và
+  `/api/lessons/language/en` được backend chấp nhận.
+- Người dùng mới hoặc lựa chọn cũ không hợp lệ mặc định học English. Lựa chọn
+  hợp lệ đã lưu của người dùng cũ vẫn được giữ.
+- Thêm i18n giao diện độc lập với ngôn ngữ đang học: English mặc định và
+  Vietnamese tùy chọn, lưu bằng `localStorage`.
+- Dịch các bề mặt chính gồm đăng nhập/đăng ký, sidebar, bộ chọn ngôn ngữ và cài
+  đặt. Bộ chọn ngôn ngữ giao diện nằm trong Settings > Languages (và trên màn
+  hình đăng nhập). Thuộc tính `lang` của tài liệu được cập nhật theo locale.
+- Đã dịch thêm danh sách/tạo/đọc lesson, Words, Charts, trang đọc video/manga,
+  pagination và Word Sidebar sang Vietnamese. Nội dung gốc của lesson/từ vẫn
+  giữ nguyên vì là dữ liệu ngôn ngữ đang học, không phải nhãn giao diện.
+- Bản dịch câu và nghĩa trong Word Sidebar dùng ngôn ngữ giao diện hiện tại
+  (`en` mặc định, `vi` khi chọn Tiếng Việt), cache riêng theo ngôn ngữ đích và
+  được xóa khỏi state hiển thị khi người dùng đổi locale.
+- Provider AI `auto`/`openai`/`agent_cli` đã áp dụng cho tạo lesson, phát âm,
+  dịch câu và dịch từ; `auto` fallback sang Agent CLI chạy trong tmux khi thiếu
+  API key hoặc OpenAI trả 401.
+- Thêm test xác nhận English nằm trong danh sách ngôn ngữ học đã bật; type-check
+  và production build đã pass.
+
+Chưa làm:
+
+- Kiểm thử/chỉnh rule tách từ English cho contraction và từ ghép.
+- Xác nhận IPA, TTS `en-US` và nội dung MCP không còn giả định hiragana.
+- Chuẩn hóa các thông báo lỗi do backend trả về để dịch theo locale (các nhãn
+  và nội dung tĩnh của trang/dialog frontend đã chuyển sang i18n).
+- Chạy đầy đủ acceptance test cho dữ liệu, điểm và biểu đồ English.
+
 ## 1. Bối cảnh
 
 Polyglot.io đã hỗ trợ các luồng học theo bài, đọc phụ đề, đánh dấu từ, phát âm,
-thống kê và MCP. Trong `ConfigService`, tiếng Anh (`en`, `en-US`) đã được khai
-báo nhưng đang `enabled: false`. Một số hướng dẫn MCP và xử lý phát âm còn giả
-định người học đang học tiếng Nhật, ví dụ luôn yêu cầu hiển thị hiragana.
+thống kê và MCP. Tiếng Anh (`en`, `en-US`) hiện đã được bật trong
+`ConfigService`. Một số hướng dẫn MCP và xử lý phát âm vẫn cần kiểm tra vì còn
+có thể giả định người học đang học tiếng Nhật, ví dụ luôn yêu cầu hiển thị
+hiragana.
 
 Chỉ đổi cờ `enabled` chưa đủ để xem tiếng Anh là một ngôn ngữ được hỗ trợ đầy
 đủ. Tính năng phải nhất quán từ lúc tạo bài đến lúc xem từ, nghe phát âm, theo
@@ -29,9 +66,9 @@ dõi tiến độ và thao tác qua MCP.
 - Chấm điểm nói theo âm vị, nhận dạng giọng nói hoặc hội thoại thời gian thực.
 - Spaced repetition theo thuật toán mới. MVP tiếp tục dùng thang đánh dấu 0-5
   và cách tính điểm hiện tại.
-- Thay đổi ngôn ngữ giao diện sang tiếng Việt hoặc tiếng Anh. “Ngôn ngữ học” và
-  “ngôn ngữ giao diện” là hai khái niệm độc lập.
 - Tự động dịch toàn bộ dữ liệu bài học cũ.
+- Hoàn tất bản dịch giao diện ngoài các bề mặt chính trong cùng hạng mục bật
+  English. Việc này được theo dõi như nhánh i18n riêng.
 
 ## 4. Đối tượng và nhu cầu
 
@@ -133,8 +170,8 @@ Tiêu chí chấp nhận:
 1. Mã ngôn ngữ chuẩn của tính năng là `en`; tag giọng đọc mặc định là `en-US`.
 2. Mọi bảng hiện có vẫn phân tách dữ liệu theo `language_code`; không tạo bảng
    dành riêng cho tiếng Anh.
-3. Bản dịch đích tiếp tục theo quy tắc/cấu hình hiện tại của hệ thống. Việc bật
-   English không mặc định rằng bản dịch cũng phải là English.
+3. Bản dịch đích của câu và từ theo ngôn ngữ giao diện hiện tại; English là
+   locale mặc định và Vietnamese là lựa chọn hiện có.
 4. IPA là kiểu phát âm chuẩn cho English trong MVP. Một từ có thể có nhiều cách
    phát âm nếu dữ liệu hiện tại cho phép.
 5. Contraction là một đơn vị từ vựng khi có nghĩa độc lập trong ngữ cảnh. Dấu
@@ -145,14 +182,14 @@ Tiêu chí chấp nhận:
 
 ## 7. Tác động hệ thống dự kiến
 
-| Khu vực      | Thay đổi                                                                                  |
-| ------------ | ----------------------------------------------------------------------------------------- |
-| Cấu hình     | Bật `en` trong `backend/src/services/configService.ts`                                    |
-| AI splitting | Thêm quy tắc tiếng Anh rõ ràng trong `sentenceSplitterAgent`                              |
-| Phát âm      | Xác nhận English luôn dùng IPA trong splitter và pronunciation agent                      |
-| MCP          | Thay hướng dẫn hiragana cố định bằng hướng dẫn theo ngôn ngữ                              |
-| Frontend     | Kiểm tra LanguageSwitcher, Lessons, Words, Charts, Settings và các nhãn rỗng/lỗi với `en` |
-| Dữ liệu      | Không cần migration nếu tiếp tục dùng schema hiện tại                                     |
+| Khu vực      | Thay đổi                                                                            |
+| ------------ | ----------------------------------------------------------------------------------- |
+| Cấu hình     | Đã bật `en` trong `backend/src/services/configService.ts`                           |
+| AI splitting | Thêm quy tắc tiếng Anh rõ ràng trong `sentenceSplitterAgent`                        |
+| Phát âm      | Xác nhận English luôn dùng IPA trong splitter và pronunciation agent                |
+| MCP          | Thay hướng dẫn hiragana cố định bằng hướng dẫn theo ngôn ngữ                        |
+| Frontend     | Đã thêm English mặc định và i18n `en`/`vi` cho các trang và dialog chính               |
+| Dữ liệu      | Không cần migration nếu tiếp tục dùng schema hiện tại                               |
 
 ## 8. Kiểm thử chấp nhận đầu-cuối
 
@@ -177,10 +214,11 @@ thống đo lường.
 
 ## 10. Kế hoạch phát hành
 
-1. Bổ sung rule, sửa MCP và kiểm thử tự động trước khi bật cờ `en`.
-2. Bật English ở môi trường phát triển và chạy bộ kiểm thử chấp nhận.
-3. Phát hành có theo dõi lỗi AI/TTS theo `languageCode`.
-4. Nếu tỷ lệ lỗi vượt ngưỡng vận hành, có thể tắt English bằng cấu hình mà không
+1. [x] Bật English ở cấu hình/API và đặt English làm mặc định cho người dùng mới.
+2. [ ] Bổ sung rule, sửa MCP và kiểm thử tự động cho splitting/IPA/TTS.
+3. [ ] Chạy bộ kiểm thử chấp nhận English trên toàn bộ frontend và MCP.
+4. [ ] Phát hành có theo dõi lỗi AI/TTS theo `languageCode`.
+5. Nếu tỷ lệ lỗi vượt ngưỡng vận hành, có thể tắt English bằng cấu hình mà không
    xóa dữ liệu người dùng đã tạo.
 
 ## 11. Điểm cần Product Owner xác nhận

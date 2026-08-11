@@ -1,6 +1,7 @@
 import z from 'zod';
 import type { Context } from './index';
 import { wrapInTransaction } from './db';
+import type { SentenceAnalysis } from './ai/openaiService';
 
 export const SentenceWordSchema = z.object({
   word: z.string(),
@@ -938,7 +939,8 @@ export class SentenceService {
     ctx: Context,
     lessonId: number,
     userId: number,
-    texts: string[]
+    texts: string[],
+    precomputedAnalyses?: SentenceAnalysis[]
   ): Promise<{ success: boolean; message?: string; totalSentences?: number }> {
     const trimmed = (texts || [])
       .map(t => (typeof t === 'string' ? t.trim() : ''))
@@ -980,12 +982,13 @@ export class SentenceService {
       }
 
       const analyses =
-        await ctx.openaiService.splitMultipleSentencesAndTranslate(
+        precomputedAnalyses ??
+        (await ctx.openaiService.splitMultipleSentencesAndTranslate(
           ctx,
           trimmed,
           lesson.language_code,
           userId
-        );
+        ));
 
       await wrapInTransaction(ctx, async ctx => {
         for (let i = 0; i < trimmed.length; i++) {
@@ -1111,7 +1114,8 @@ export class SentenceService {
   async getSentenceTranslation(
     ctx: Context,
     sentenceId: number,
-    userId: number
+    userId: number,
+    targetLanguage: string = 'en'
   ): Promise<{
     success: boolean;
     message?: string;
@@ -1150,7 +1154,7 @@ export class SentenceService {
         await ctx.prisma.sentenceTranslation.findFirst({
           where: {
             sentence_id: sentenceId,
-            language_code: 'en', // English translation
+            language_code: targetLanguage,
           },
         });
 
@@ -1192,7 +1196,9 @@ export class SentenceService {
         ctx,
         sentence.original_text,
         contextSentences,
-        sentence.lesson.language_code
+        sentence.lesson.language_code,
+        userId,
+        targetLanguage
       );
 
       // Store the translation in the database using upsert
@@ -1200,7 +1206,7 @@ export class SentenceService {
         where: {
           sentence_id_language_code: {
             sentence_id: sentenceId,
-            language_code: 'en',
+            language_code: targetLanguage,
           },
         },
         update: {
@@ -1208,7 +1214,7 @@ export class SentenceService {
         },
         create: {
           sentence_id: sentenceId,
-          language_code: 'en',
+          language_code: targetLanguage,
           translation: translation,
         },
       });

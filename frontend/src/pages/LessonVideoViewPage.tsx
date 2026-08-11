@@ -16,6 +16,7 @@ import { useWordSidebar } from '../contexts/WordSidebarContext';
 import SentenceReConstructor from '../components/SentenceReConstructor';
 import SentenceRetimeDialog from '../components/SentenceRetimeDialog';
 import axios from 'axios';
+import { useI18n } from '../contexts/I18nContext';
 
 interface Sentence {
   id: number;
@@ -100,12 +101,14 @@ const LessonVideoSentencesFooter: React.FC<{
   onRetime,
   onFinishLesson,
   onBackToLessons,
-}) => (
+}) => {
+  const { t } = useI18n();
+  return (
   <Box style={{ backgroundColor: 'var(--gray-1)' }}>
     <Box
       style={{ padding: '12px 16px', borderBottom: '1px solid var(--gray-6)' }}
     >
-      <Heading size="3">Sentences</Heading>
+      <Heading size="3">{t('video.sentences')}</Heading>
     </Box>
     <Box style={{ padding: '12px' }}>
       <Flex direction="column" gap="2">
@@ -178,10 +181,10 @@ const LessonVideoSentencesFooter: React.FC<{
                           style={{}}
                         >
                           {loadingTranslations[sentence.id]
-                            ? 'Loading...'
+                            ? t('common.loading')
                             : translations[sentence.id]
-                              ? 'Hide translation'
-                              : 'Show translation'}
+                              ? t('lesson.hideTranslation')
+                              : t('lesson.showTranslation')}
                         </MyButton>
                         <MyButton
                           variant="soft"
@@ -189,7 +192,7 @@ const LessonVideoSentencesFooter: React.FC<{
                           onClick={() => onRetime(sentence)}
                           disabled={!sentence.start_time || !sentence.end_time}
                         >
-                          Retime
+                          {t('video.retime')}
                         </MyButton>
                       </Flex>
 
@@ -203,7 +206,7 @@ const LessonVideoSentencesFooter: React.FC<{
                           }}
                         >
                           <Text size="1" color="gray" mb="1">
-                            Translation:
+                            {t('lesson.translation')}
                           </Text>
                           <Text
                             size="2"
@@ -232,8 +235,8 @@ const LessonVideoSentencesFooter: React.FC<{
             >
               <Text size="3" color="gray">
                 {videoUrl
-                  ? 'No sentence active at current time'
-                  : 'Select a video to see sentences'}
+                  ? t('video.noActiveSentence')
+                  : t('video.selectVideo')}
               </Text>
             </Box>
           )}
@@ -267,9 +270,9 @@ const LessonVideoSentencesFooter: React.FC<{
         !lessonCompleted && (
           <Box mt="4">
             <Flex direction="column" gap="3" align="center">
-              <Heading size="3">🎉 Congratulations!</Heading>
+              <Heading size="3">{t('lesson.congratulations')}</Heading>
               <Text size="2" color="gray" style={{ textAlign: 'center' }}>
-                You've reached the last sentence of this lesson.
+                {t('lesson.reachedEnd')}
               </Text>
               <MyButton
                 size="2"
@@ -279,7 +282,7 @@ const LessonVideoSentencesFooter: React.FC<{
                 disabled={isFinishingLesson}
                 style={{}}
               >
-                {isFinishingLesson ? 'Finishing...' : 'Finish Lesson'}
+                {isFinishingLesson ? t('lesson.finishing') : t('lesson.finish')}
               </MyButton>
             </Flex>
           </Box>
@@ -288,24 +291,26 @@ const LessonVideoSentencesFooter: React.FC<{
       {lessonCompleted && (
         <Box mt="4">
           <Flex direction="column" gap="3" align="center">
-            <Heading size="3">✅ Lesson Completed!</Heading>
+            <Heading size="3">{t('lesson.completedTitle')}</Heading>
             <Text size="2" color="green" style={{ textAlign: 'center' }}>
-              Great job! You have successfully completed this lesson. 🎉
+              {t('lesson.completedMessage')}
             </Text>
             <MyButton size="2" variant="soft" onClick={onBackToLessons}>
-              Back to Lessons
+              {t('lesson.backPlain')}
             </MyButton>
           </Flex>
         </Box>
       )}
     </Box>
   </Box>
-);
+  );
+};
 
 const LessonVideoViewPage: React.FC = () => {
   const { lessonId } = useParams<{ lessonId: string }>();
   const navigate = useNavigate();
   const { axiosInstance, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { locale, t } = useI18n();
   const { getWordMark, seedWordMarks } = useWordMark();
   const { openWordSidebar, setWordSidebarLanguage, setSidebarFooter } =
     useWordSidebar();
@@ -1076,6 +1081,11 @@ const LessonVideoViewPage: React.FC = () => {
     setWordSidebarLanguage(lesson?.languageCode);
   }, [lesson?.languageCode, setWordSidebarLanguage]);
 
+  useEffect(() => {
+    setTranslations({});
+    setLoadingTranslations({});
+  }, [locale]);
+
   const toggleTranslation = async (sentenceId: number) => {
     // If translation is already shown, hide it
     if (translations[sentenceId]) {
@@ -1097,7 +1107,8 @@ const LessonVideoViewPage: React.FC = () => {
       setLoadingTranslations(prev => ({ ...prev, [sentenceId]: true }));
 
       const response = await axiosInstance.get(
-        `/api/lessons/sentences/${sentenceId}/translation`
+        `/api/lessons/sentences/${sentenceId}/translation`,
+        { params: { targetLanguage: locale } }
       );
 
       if (response.data.success) {
@@ -1336,7 +1347,7 @@ const LessonVideoViewPage: React.FC = () => {
             justify="center"
             style={{ minHeight: '50vh' }}
           >
-            <Text size="3">Loading lesson...</Text>
+            <Text size="3">{t('lesson.loading')}</Text>
           </Flex>
         </Box>
       </Flex>
@@ -1374,7 +1385,7 @@ const LessonVideoViewPage: React.FC = () => {
         <Box style={{ padding: '16px 24px' }}>
           <Flex direction="column" gap="4">
             <MyButton variant="ghost" onClick={() => navigate('/lessons')}>
-              ← Back to Lessons
+              {t('lesson.back')}
             </MyButton>
             <Flex
               direction="column"
@@ -1402,7 +1413,7 @@ const LessonVideoViewPage: React.FC = () => {
               size="2"
               onClick={() => navigate('/lessons')}
             >
-              ← Back to Lessons
+              {t('lesson.back')}
             </MyButton>
             <MyButton
               variant="soft"
@@ -1438,7 +1449,7 @@ const LessonVideoViewPage: React.FC = () => {
                 justify="between"
                 style={{ padding: '0 8px' }}
               >
-                <Heading size="4">Video Player</Heading>
+                <Heading size="4">{t('video.player')}</Heading>
                 <Text size="2" color="gray">
                   {sentenceBuffer.sentences.length} / {lesson.totalSentences}{' '}
                   loaded

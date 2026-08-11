@@ -1,6 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { LessonType } from '@prisma/client';
 import { ctx } from './index';
+import { OpenAIConfigurationError } from '../services/ai/openaiService';
+import { AgentSessionError } from '../services/agentRuntime/agentSessionService';
 
 const router = Router();
 
@@ -175,13 +177,41 @@ router.post('/generate', async (req: Request, res: Response) => {
       });
     }
 
-    const { text } = await ctx.openaiService.generateLessonFromPrompt(
-      ctx,
-      prompt.trim(),
-      languageCode.trim(),
-      req.userId!,
-      difficultyValue
-    );
+    let generated: Awaited<
+      ReturnType<typeof ctx.agentSessionService.generateLesson>
+    > | null = null;
+    let text: string;
+    try {
+      if (ctx.openaiService.useAgentCli()) {
+        throw new OpenAIConfigurationError();
+      }
+      ({ text } = await ctx.openaiService.generateLessonFromPrompt(
+        ctx,
+        prompt.trim(),
+        languageCode.trim(),
+        req.userId!,
+        difficultyValue
+      ));
+    } catch (error) {
+      const isAuthenticationError =
+        error instanceof OpenAIConfigurationError ||
+        (typeof error === 'object' &&
+          error !== null &&
+          'status' in error &&
+          error.status === 401);
+      if (!isAuthenticationError) throw error;
+
+      generated = await ctx.agentSessionService.generateLesson(
+        ctx,
+        req.userId!,
+        {
+          languageCode: languageCode.trim(),
+          prompt: prompt.trim(),
+          difficulty: difficultyValue,
+        }
+      );
+      text = generated.text;
+    }
 
     if (!text || !text.trim()) {
       return res.status(400).json({
@@ -191,11 +221,13 @@ router.post('/generate', async (req: Request, res: Response) => {
     }
 
     // Split into sentences: by newlines and by sentence-ending punctuation
-    const sentences = text
-      .trim()
-      .split(/\n+|(?<=[.!?。．？！，、；：!?､｡])\s*/u)
-      .map(s => s.trim())
-      .filter(s => s.length > 0);
+    const sentences = generated
+      ? generated.analyses.map(analysis => analysis.originalSentence)
+      : text
+          .trim()
+          .split(/\n+|(?<=[.!?。．？！，、；：!?､｡])\s*/u)
+          .map(s => s.trim())
+          .filter(s => s.length > 0);
 
     if (sentences.length === 0) {
       return res.status(400).json({
@@ -213,6 +245,7 @@ router.post('/generate', async (req: Request, res: Response) => {
         sentences,
         lessonType: LessonType.generated,
         createdWithPrompt: prompt.trim(),
+        ...(generated && { analyses: generated.analyses }),
       }
     );
 
@@ -222,6 +255,20 @@ router.post('/generate', async (req: Request, res: Response) => {
     return res.status(400).json(result);
   } catch (error) {
     console.error('Generate lesson route error:', error);
+    if (error instanceof OpenAIConfigurationError) {
+      return res.status(503).json({
+        success: false,
+        code: error.code,
+        message: error.message,
+      });
+    }
+    if (error instanceof AgentSessionError) {
+      return res.status(error.statusCode).json({
+        success: false,
+        code: error.code,
+        message: error.message,
+      });
+    }
     return res.status(500).json({
       success: false,
       message: 'Internal server error',
@@ -320,11 +367,7 @@ router.get('/language/:languageCode', async (req: Request, res: Response) => {
     const search = req.query['search'] as string | undefined;
     const status = req.query['status'] as 'reading' | 'finished' | undefined;
     const type = req.query['type'] as
-      | 'text'
-      | 'subtitle'
-      | 'manga'
-      | 'manual'
-      | undefined;
+      'text' | 'subtitle' | 'manga' | 'manual' | undefined;
 
     // Validate status enum
     if (status && !['reading', 'finished'].includes(status)) {
@@ -642,6 +685,9 @@ router.delete(
     try {
       const lessonId = parseInt(req.params['lessonId'] || '0');
       const sentenceId = parseInt(req.params['sentenceId'] || '0');
+      const targetLanguage = String(
+        req.query['targetLanguage'] || 'en'
+      ).toLowerCase();
 
       if (isNaN(lessonId)) {
         return res.status(400).json({
@@ -654,6 +700,12 @@ router.delete(
         return res.status(400).json({
           success: false,
           message: 'Invalid sentence ID',
+        });
+      }
+      if (!['en', 'vi'].includes(targetLanguage)) {
+        return res.status(400).json({
+          success: false,
+          message: 'targetLanguage must be en or vi',
         });
       }
 
@@ -719,6 +771,13 @@ router.get(
   async (req: Request, res: Response) => {
     try {
       const sentenceId = parseInt(req.params['sentenceId'] || '0');
+      const requestedTargetLanguage =
+        typeof req.query['targetLanguage'] === 'string'
+          ? req.query['targetLanguage'].trim().toLowerCase()
+          : 'en';
+      const targetLanguage = ['en', 'vi'].includes(requestedTargetLanguage)
+        ? requestedTargetLanguage
+        : 'en';
 
       if (isNaN(sentenceId)) {
         return res.status(400).json({
@@ -730,7 +789,8 @@ router.get(
       const result = await ctx.sentenceService.getSentenceTranslation(
         ctx,
         sentenceId,
-        req.userId!
+        req.userId!,
+        targetLanguage
       );
 
       if (result.success) {

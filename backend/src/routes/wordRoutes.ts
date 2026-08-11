@@ -244,7 +244,8 @@ router.get(
         ctx,
         decodeURIComponent(word),
         sourceLanguage,
-        targetLanguage
+        targetLanguage,
+        req.userId!
       );
 
       if (result.success) {
@@ -280,7 +281,8 @@ router.post(
         ctx,
         decodeURIComponent(word),
         sourceLanguage,
-        targetLanguage
+        targetLanguage,
+        req.userId!
       );
 
       if (result.success) {
@@ -315,7 +317,8 @@ router.get(
       const result = await ctx.wordService.getWordPronunciations(
         ctx,
         decodeURIComponent(word),
-        languageCode
+        languageCode,
+        req.userId!
       );
 
       if (result.success) {

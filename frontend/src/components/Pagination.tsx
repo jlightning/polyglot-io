@@ -7,6 +7,7 @@ import {
   DoubleArrowLeftIcon,
   DoubleArrowRightIcon,
 } from '@radix-ui/react-icons';
+import { useI18n } from '../contexts/I18nContext';
 
 interface PaginationProps {
   currentPage: number;
@@ -21,6 +22,7 @@ const Pagination: React.FC<PaginationProps> = ({
   onPageChange,
   disabled = false,
 }) => {
+  const { t } = useI18n();
   // Calculate the range of pages to show (5 pages total)
   const getVisiblePages = (): number[] => {
     const pages: number[] = [];
@@ -139,7 +141,7 @@ const Pagination: React.FC<PaginationProps> = ({
 
       {/* Page Info */}
       <Text size="2" color="gray" ml="3">
-        Page {currentPage} of {totalPages}
+        {t('pagination.page', { current: currentPage, total: totalPages })}
       </Text>
     </Flex>
   );

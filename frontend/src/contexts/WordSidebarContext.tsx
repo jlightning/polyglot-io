@@ -8,6 +8,7 @@ import React, {
 } from 'react';
 import { Box, Flex } from '@radix-ui/themes';
 import WordSidebar from '../components/WordSidebar';
+import { useI18n } from './I18nContext';
 
 export interface WordSidebarContextValue {
   isOpen: boolean;
@@ -36,6 +37,7 @@ export const useWordSidebar = (): WordSidebarContextValue => {
 export const WordSidebarProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
+  const { locale } = useI18n();
   const [isOpen, setIsOpen] = useState(false);
   const [selectedWord, setSelectedWord] = useState<string | null>(null);
   const [languageCode, setLanguageCodeState] = useState<string | undefined>();
@@ -108,7 +110,7 @@ export const WordSidebarProvider: React.FC<{ children: ReactNode }> = ({
           onClose={closeWordSidebar}
           selectedWord={selectedWord}
           languageCode={languageCode}
-          targetLanguage="en"
+          targetLanguage={locale}
           footer={sidebarFooter}
         />
       </Flex>

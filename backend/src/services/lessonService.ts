@@ -7,6 +7,7 @@ import {
 import type { Context } from './index';
 import { wrapInTransaction } from './db';
 import { PLIMIT_CONCURRENCY } from './consts';
+import type { SentenceAnalysis } from './ai/openaiService';
 
 export interface CreateLessonData {
   title: string;
@@ -39,6 +40,7 @@ export interface CreateManualLessonData {
   sentences?: string[];
   lessonType?: 'manual' | 'generated';
   createdWithPrompt?: string;
+  analyses?: SentenceAnalysis[];
 }
 
 export interface LessonResponse {
@@ -259,7 +261,8 @@ export class LessonService {
           ctx,
           lesson.id,
           userId,
-          lessonData.sentences
+          lessonData.sentences,
+          lessonData.analyses
         );
         if (!addResult.success) {
           return {

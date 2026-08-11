@@ -1,5 +1,11 @@
 # Kế hoạch BA: Object Storage với AWS S3 và Cloudflare R2
 
+## Trạng thái triển khai
+
+**Chưa triển khai.** Tài liệu này vẫn là kế hoạch đã thống nhất về hướng kiến
+trúc. AWS S3 tiếp tục là implementation hiện tại; R2 sẽ được bổ sung như lựa
+chọn ngang hàng và không thay thế hoặc xóa AWS S3.
+
 ## 1. Bối cảnh
 
 Polyglot.io hiện dùng AWS SDK S3 cho toàn bộ file của bài học:
