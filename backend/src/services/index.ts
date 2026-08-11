@@ -14,6 +14,7 @@ import type { TtsService } from './ttsService';
 import type { OpenAIService } from './ai/openaiService';
 import type { TextProcessingService } from './textProcessingService';
 import type { LingQService } from './import/lingqService';
+import type { AgentSessionService } from './agentRuntime/agentSessionService';
 import { PrismaClient } from '@prisma/client';
 
 export type { DB } from '../db/types';
@@ -37,4 +38,5 @@ export type Context = {
   openaiService: OpenAIService;
   textProcessingService: TextProcessingService;
   lingqService: LingQService;
+  agentSessionService: AgentSessionService;
 };

@@ -15,6 +15,7 @@ Polyglot.io is a full-stack language learning app focused on lessons, synchroniz
 - Docker + Docker Compose (for MySQL)
 - OpenAI API key (required for translations, lesson generation, and TTS)
 - AWS S3 credentials (required for uploads and file-based lessons)
+- tmux and an Agent CLI such as Codex (optional, for backend-managed agent sessions)
 
 ### 2) Clone and install
 
@@ -62,6 +63,44 @@ yarn dev
 
 - Frontend: `http://localhost:5173`
 - Backend: `http://localhost:3001`
+
+### Optional: tmux Agent CLI runtime
+
+Agent sessions are a backend capability; no Agent Session page is added to the
+web application. The backend chooses the CLI from trusted environment
+configuration. Clients cannot submit an executable or API key.
+
+Example using Codex with the same `OPENAI_API_KEY` used by the backend:
+
+```env
+AGENT_TMUX_ENABLED=true
+AGENT_TMUX_BIN=tmux
+AGENT_CLI_TYPE=codex
+AGENT_CLI_BIN=codex
+AGENT_CLI_ARGS_JSON=[]
+```
+
+The built-in CLI mappings are `codex` → `OPENAI_API_KEY`,
+`claude`/`claude-code` → `ANTHROPIC_API_KEY`, and `cursor` → `CURSOR_API_KEY`.
+For another CLI, set `AGENT_CLI_API_KEY_ENV` to the name of its API-key
+environment variable. Only that key and explicitly allowlisted environment
+variables are passed to the managed Agent CLI.
+
+Run a prompt through the configured Agent CLI, following the same daemon-style
+flow as Thanos:
+
+```bash
+curl -X POST http://localhost:3001/api/agent-sessions \
+  -H "Authorization: Bearer <polyglot-jwt>" \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: <unique-request-id>" \
+  -d '{"languageCode":"ja","goal":"Practice a restaurant conversation with me"}'
+```
+
+The backend validates the language and optional `lessonId`, persists the
+session, starts the configured CLI inside an isolated managed tmux socket, and
+returns the session status. Use `GET /api/agent-sessions` to list sessions and
+`POST /api/agent-sessions/:id/stop` to stop one.
 
 ## What You Can Do
 

@@ -16,8 +16,12 @@ import { TtsService } from '../services/ttsService';
 import { OpenAIService } from '../services/ai/openaiService';
 import { TextProcessingService } from '../services/textProcessingService';
 import { LingQService } from '../services/import/lingqService';
+import { loadAgentRuntimeConfig } from '../services/agentRuntime/config';
+import { TmuxRuntime } from '../services/agentRuntime/tmuxRuntime';
+import { AgentSessionService } from '../services/agentRuntime/agentSessionService';
 
 const prisma = new PrismaClient();
+const tmuxRuntime = new TmuxRuntime(loadAgentRuntimeConfig());
 
 export const ctx: Context = {
   prisma,
@@ -37,6 +41,7 @@ export const ctx: Context = {
   openaiService: new OpenAIService(),
   textProcessingService: new TextProcessingService(),
   lingqService: new LingQService(),
+  agentSessionService: new AgentSessionService(tmuxRuntime),
 };
 
 export type { Context };

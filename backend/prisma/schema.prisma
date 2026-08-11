@@ -33,8 +33,43 @@ model User {
   userActionLogs       UserActionLog[]
   userSettings         UserSetting[]
   lessonUserPins       LessonUserPin[]
+  agentSessions        AgentSession[]
 
   @@map("user")
+}
+
+enum AgentSessionStatus {
+  starting
+  running
+  exited
+  failed
+  stopped
+}
+
+model AgentSession {
+  id                String             @id @db.VarChar(36)
+  user_id           Int
+  agent_type        String             @db.VarChar(50)
+  language_code     String             @db.VarChar(10)
+  lesson_id         Int?
+  idempotency_key   String?            @db.VarChar(100)
+  goal              String             @db.VarChar(2000)
+  tmux_session_name String             @unique @db.VarChar(100)
+  status            AgentSessionStatus @default(starting)
+  exit_code         Int?
+  error_code        String?            @db.VarChar(100)
+  created_at        DateTime           @default(now()) @db.Timestamp(0)
+  updated_at        DateTime           @default(now()) @updatedAt @db.Timestamp(0)
+  last_seen_at      DateTime?          @db.Timestamp(0)
+  ended_at          DateTime?          @db.Timestamp(0)
+
+  user   User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  lesson Lesson? @relation(fields: [lesson_id], references: [id], onDelete: SetNull)
+
+  @@unique([user_id, idempotency_key])
+  @@index([user_id, created_at])
+  @@index([status])
+  @@map("agent_session")
 }
 
 enum LessonType {
@@ -52,23 +87,24 @@ enum LessonProcessingStatus {
 }
 
 model Lesson {
-  id                Int                    @id @default(autoincrement())
-  created_by        Int
-  title             String                 @db.VarChar(255)
-  lesson_type       LessonType             @default(subtitle)
-  processing_status LessonProcessingStatus @default(completed)
-  language_code     String                 @db.VarChar(10)
-  image_s3_key      String?                @db.VarChar(500)
-  audio_s3_key      String?                @db.VarChar(500)
-  created_with_prompt String?              @db.VarChar(4096)
-  created_at        DateTime               @default(now()) @db.Timestamp(0)
-  updated_at        DateTime               @default(now()) @updatedAt @db.Timestamp(0)
+  id                  Int                    @id @default(autoincrement())
+  created_by          Int
+  title               String                 @db.VarChar(255)
+  lesson_type         LessonType             @default(subtitle)
+  processing_status   LessonProcessingStatus @default(completed)
+  language_code       String                 @db.VarChar(10)
+  image_s3_key        String?                @db.VarChar(500)
+  audio_s3_key        String?                @db.VarChar(500)
+  created_with_prompt String?                @db.VarChar(4096)
+  created_at          DateTime               @default(now()) @db.Timestamp(0)
+  updated_at          DateTime               @default(now()) @updatedAt @db.Timestamp(0)
 
   user                 User                 @relation(fields: [created_by], references: [id])
   sentences            Sentence[]
   userLessonProgresses UserLessonProgress[]
   lessonFiles          LessonFile[]
   lessonUserPins       LessonUserPin[]
+  agentSessions        AgentSession[]
 
   @@fulltext([title])
   @@map("lesson")

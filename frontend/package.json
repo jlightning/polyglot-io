@@ -25,6 +25,7 @@
     "hh-mm-ss": "^1.2.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-is": "^18.2.0",
     "react-router-dom": "^6.26.0",
     "recharts": "^3.8.1"
   },

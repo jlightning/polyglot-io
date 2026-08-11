@@ -1,7 +1,8 @@
+import 'dotenv/config';
 import express from 'express';
+import http from 'http';
 import cors from 'cors';
 import helmet from 'helmet';
-import dotenv from 'dotenv';
 import dayjs from 'dayjs';
 import authRoutes from './routes/authRoutes';
 import configRoutes from './routes/configRoutes';
@@ -20,10 +21,9 @@ import {
   authenticateMcpQueryToken,
 } from './middleware/auth';
 import mcpRoutes from './mcp/mcpRoutes';
+import agentSessionRoutes from './routes/agentSessionRoutes';
+import { AgentTerminalGateway } from './services/agentRuntime/terminalGateway';
 import { PrismaClient } from '@prisma/client';
-
-// Load environment variables
-dotenv.config();
 
 const app = express();
 const port = process.env['PORT'] || 3001;
@@ -70,6 +70,7 @@ app.use('/api/user-action-log', authenticateToken, userActionLogRoutes);
 app.use('/api/user-settings', authenticateToken, userSettingRoutes);
 app.use('/api/charts', authenticateToken, chartRoutes);
 app.use('/api/tts', authenticateToken, ttsRoutes);
+app.use('/api/agent-sessions', authenticateToken, agentSessionRoutes);
 
 // MCP Streamable HTTP (auth via ?token= query param)
 app.use('/mcp', authenticateMcpQueryToken, mcpRoutes);
@@ -92,15 +93,26 @@ app.use('*', (_req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
 
-// Graceful shutdown
+const server = http.createServer(app);
+const terminalGateway = new AgentTerminalGateway(
+  server,
+  ctx.agentSessionService
+);
+
+// Graceful shutdown. Detaching terminal clients does not stop tmux sessions.
 process.on('SIGINT', async () => {
   console.log('Shutting down gracefully...');
+  terminalGateway.close();
+  server.close();
   await ctx.prisma.$disconnect();
   process.exit(0);
 });
 
-app.listen(port, () => {
+server.listen(port, () => {
   console.log(`Server running on port ${port}`);
+  void ctx.agentSessionService.reconcileAll(ctx).catch(error => {
+    console.warn('Agent session startup reconciliation failed:', error);
+  });
 });
 
 ctx.cronService.registerCron({ ...ctx, prisma: new PrismaClient() });
