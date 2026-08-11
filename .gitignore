@@ -115,3 +115,5 @@ backups/
 .yarn
 
 *.tmp*
+
+docs/*

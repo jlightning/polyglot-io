@@ -11,7 +11,7 @@ import { UserActionLogService } from '../services/userActionLogService';
 import { ChartService } from '../services/chartService';
 import { UserSettingService } from '../services/userSettingService';
 import { CronService } from '../services/cronService';
-import { S3Service } from '../services/s3Service';
+import { ObjectStorageService } from '../services/objectStorageService';
 import { TtsService } from '../services/ttsService';
 import { OpenAIService } from '../services/ai/openaiService';
 import { TextProcessingService } from '../services/textProcessingService';
@@ -36,7 +36,7 @@ export const ctx: Context = {
   chartService: new ChartService(),
   userSettingService: new UserSettingService(),
   cronService: new CronService(),
-  s3Service: new S3Service(),
+  objectStorageService: new ObjectStorageService(),
   ttsService: new TtsService(),
   openaiService: new OpenAIService({
     apiKey: process.env['OPENAI_API_KEY'],

@@ -47,12 +47,14 @@ app.get('/api', (_req, res) => {
   res.json({ message: 'Welcome to polyglotio API' });
 });
 
-// Initialize S3 service
+// Initialize the configured AWS S3 or Cloudflare R2 provider.
 try {
-  ctx.s3Service.initialize(ctx);
-  console.log('S3 service initialized successfully');
+  ctx.objectStorageService.initialize(ctx);
+  console.log(
+    `Object storage initialized successfully (${ctx.objectStorageService.provider})`
+  );
 } catch (error) {
-  console.warn('S3 service initialization failed:', error);
+  console.warn('Object storage initialization failed:', error);
   console.warn('File upload functionality will be disabled');
 }
 

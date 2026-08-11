@@ -9,7 +9,7 @@ import type { UserActionLogService } from './userActionLogService';
 import type { ChartService } from './chartService';
 import type { UserSettingService } from './userSettingService';
 import type { CronService } from './cronService';
-import type { S3Service } from './s3Service';
+import type { ObjectStorageService } from './objectStorageService';
 import type { TtsService } from './ttsService';
 import type { OpenAIService } from './ai/openaiService';
 import type { TextProcessingService } from './textProcessingService';
@@ -33,7 +33,7 @@ export type Context = {
   chartService: ChartService;
   userSettingService: UserSettingService;
   cronService: CronService;
-  s3Service: S3Service;
+  objectStorageService: ObjectStorageService;
   ttsService: TtsService;
   openaiService: OpenAIService;
   textProcessingService: TextProcessingService;

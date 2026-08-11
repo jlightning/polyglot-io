@@ -3,7 +3,7 @@ import { ctx } from './index';
 
 const router = Router();
 
-// Upload file to S3
+// Legacy route name retained; upload targets the configured object provider.
 router.post('/upload-file', async (req: Request, res: Response) => {
   try {
     const { fileName, fileType } = req.body;
@@ -61,7 +61,7 @@ router.post('/upload-file', async (req: Request, res: Response) => {
       maxSize = 5 * 1024 * 1024; // 5MB default
     }
 
-    const result = await ctx.s3Service.getUploadUrl(
+    const result = await ctx.objectStorageService.getUploadUrl(
       ctx,
       fileName,
       fileType,

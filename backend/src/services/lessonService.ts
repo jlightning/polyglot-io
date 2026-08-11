@@ -121,7 +121,7 @@ export class LessonService {
       if (!lessonData.lessonType && lessonData.fileKey) {
         try {
           // Download file content to determine type
-          const fileContent = await ctx.s3Service.getFileContent(
+          const fileContent = await ctx.objectStorageService.getFileContent(
             ctx,
             lessonData.fileKey
           );
@@ -326,11 +326,12 @@ export class LessonService {
         ) {
           try {
             console.log(`Converting image to JPG: ${pageKey}`);
-            const jpgKey = await ctx.s3Service.convertImageToJpgAndReplace(
-              ctx,
-              pageKey,
-              userId
-            );
+            const jpgKey =
+              await ctx.objectStorageService.convertImageToJpgAndReplace(
+                ctx,
+                pageKey,
+                userId
+              );
             processedMangaPageKeys.push(jpgKey);
             convertedKeys.push(pageKey);
           } catch (error) {
@@ -374,7 +375,10 @@ export class LessonService {
           languageCode: lesson.language_code,
           processingStatus: lesson.processing_status,
           ...(lesson.image_s3_key && {
-            imageUrl: ctx.s3Service.getFileUrl(ctx, lesson.image_s3_key),
+            imageUrl: await ctx.objectStorageService.getDownloadUrl(
+              ctx,
+              lesson.image_s3_key
+            ),
           }),
           createdAt: lesson.created_at,
         },
@@ -409,7 +413,10 @@ export class LessonService {
       });
 
       // Download file content from S3
-      const fileContent = await ctx.s3Service.getFileContent(ctx, fileKey);
+      const fileContent = await ctx.objectStorageService.getFileContent(
+        ctx,
+        fileKey
+      );
 
       if (!fileContent || fileContent.trim().length === 0) {
         throw new Error('File content is empty');
@@ -487,7 +494,7 @@ export class LessonService {
       // Generate signed URLs for S3 keys
       if (lesson.image_s3_key) {
         try {
-          imageUrl = await ctx.s3Service.getDownloadUrl(
+          imageUrl = await ctx.objectStorageService.getDownloadUrl(
             ctx,
             lesson.image_s3_key
           );
@@ -504,7 +511,7 @@ export class LessonService {
         lesson.lessonFiles[0]?.file_s3_key
       ) {
         try {
-          fileUrl = await ctx.s3Service.getDownloadUrl(
+          fileUrl = await ctx.objectStorageService.getDownloadUrl(
             ctx,
             lesson.lessonFiles[0]?.file_s3_key
           );
@@ -516,7 +523,7 @@ export class LessonService {
 
       if (lesson.audio_s3_key) {
         try {
-          audioUrl = await ctx.s3Service.getDownloadUrl(
+          audioUrl = await ctx.objectStorageService.getDownloadUrl(
             ctx,
             lesson.audio_s3_key
           );
@@ -550,7 +557,7 @@ export class LessonService {
             let imageUrl: string | undefined;
             if (file.file_s3_key) {
               try {
-                imageUrl = await ctx.s3Service.getDownloadUrl(
+                imageUrl = await ctx.objectStorageService.getDownloadUrl(
                   ctx,
                   file.file_s3_key
                 );
@@ -797,7 +804,7 @@ export class LessonService {
 
           if (lesson.image_s3_key) {
             try {
-              imageUrl = await ctx.s3Service.getDownloadUrl(
+              imageUrl = await ctx.objectStorageService.getDownloadUrl(
                 ctx,
                 lesson.image_s3_key
               );
@@ -814,7 +821,7 @@ export class LessonService {
             lesson.lessonFiles[0]?.file_s3_key
           ) {
             try {
-              fileUrl = await ctx.s3Service.getDownloadUrl(
+              fileUrl = await ctx.objectStorageService.getDownloadUrl(
                 ctx,
                 lesson.lessonFiles[0]?.file_s3_key
               );
@@ -826,7 +833,7 @@ export class LessonService {
 
           if (lesson.audio_s3_key) {
             try {
-              audioUrl = await ctx.s3Service.getDownloadUrl(
+              audioUrl = await ctx.objectStorageService.getDownloadUrl(
                 ctx,
                 lesson.audio_s3_key
               );
@@ -961,7 +968,9 @@ export class LessonService {
       // Delete old S3 files asynchronously (don't wait for completion)
       if (s3KeysToDelete.length > 0) {
         Promise.all(
-          s3KeysToDelete.map(key => ctx.s3Service.deleteFile(ctx, key))
+          s3KeysToDelete.map(key =>
+            ctx.objectStorageService.deleteFile(ctx, key)
+          )
         ).catch((error: any) => {
           console.error(
             'Error deleting old S3 files during lesson update:',
@@ -1087,18 +1096,18 @@ export class LessonService {
 
       const s3DeletePromises = [
         s3KeysToDelete.imageKey &&
-          ctx.s3Service
+          ctx.objectStorageService
             .deleteFile(ctx, s3KeysToDelete.imageKey)
             .catch(error => {
               console.error('Error deleting image from S3:', error);
             }),
         ...s3KeysToDelete.fileKeys.map(fileKey =>
-          ctx.s3Service.deleteFile(ctx, fileKey).catch(error => {
+          ctx.objectStorageService.deleteFile(ctx, fileKey).catch(error => {
             console.error('Error deleting file from S3:', error);
           })
         ),
         s3KeysToDelete.audioKey &&
-          ctx.s3Service
+          ctx.objectStorageService
             .deleteFile(ctx, s3KeysToDelete.audioKey)
             .catch(error => {
               console.error('Error deleting audio from S3:', error);
@@ -1173,7 +1182,7 @@ export class LessonService {
         };
       }
 
-      const imageBuffer = await ctx.s3Service.getFileBuffer(
+      const imageBuffer = await ctx.objectStorageService.getFileBuffer(
         ctx,
         lessonFile.file_s3_key
       );

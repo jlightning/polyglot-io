@@ -572,7 +572,7 @@ export class SentenceService {
       let audioUrl: string | undefined;
       if (lesson.audio_s3_key) {
         try {
-          audioUrl = await ctx.s3Service.getDownloadUrl(
+          audioUrl = await ctx.objectStorageService.getDownloadUrl(
             ctx,
             lesson.audio_s3_key
           );
@@ -601,7 +601,7 @@ export class SentenceService {
               let imageUrl: string | undefined;
               if (file.file_s3_key) {
                 try {
-                  imageUrl = await ctx.s3Service.getDownloadUrl(
+                  imageUrl = await ctx.objectStorageService.getDownloadUrl(
                     ctx,
                     file.file_s3_key
                   );

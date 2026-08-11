@@ -15,7 +15,8 @@ Polyglot.io is a full-stack language learning app focused on lessons, synchroniz
 - Docker + Docker Compose (for MySQL)
 - OpenAI API key (required for OpenAI-only operations and current TTS;
   optional for supported Agent CLI operations when tmux runtime is enabled)
-- AWS S3 credentials (required for uploads and file-based lessons)
+- AWS S3 or Cloudflare R2 credentials (required for uploads and file-based
+  lessons)
 - tmux and an Agent CLI such as Codex (optional, for backend-managed agent sessions)
 
 ### 2) Clone and install
@@ -59,14 +60,32 @@ A dedicated TTS provider is planned with `TTS_PROVIDER=auto|openai|system`.
 Linux); `auto` will retain OpenAI and fall back to system TTS when it is ready.
 See [`docs/plans/tts-provider.md`](docs/plans/tts-provider.md).
 
-In `backend/.env`, also set your AWS S3 credentials:
+In `backend/.env`, select AWS S3 or Cloudflare R2. AWS S3 remains the default,
+and existing `AWS_*` variables remain backward compatible:
 
 ```env
-AWS_REGION=your-aws-region
-AWS_ACCESS_KEY_ID=your-access-key
-AWS_SECRET_ACCESS_KEY=your-secret-key
-AWS_S3_BUCKET_NAME=your-bucket
+OBJECT_STORAGE_PROVIDER=aws_s3
+OBJECT_STORAGE_REGION=us-east-1
+OBJECT_STORAGE_BUCKET=your-bucket
+OBJECT_STORAGE_ACCESS_KEY_ID=your-access-key
+OBJECT_STORAGE_SECRET_ACCESS_KEY=your-secret-key
 ```
+
+For Cloudflare R2, use its S3-compatible account endpoint:
+
+```env
+OBJECT_STORAGE_PROVIDER=r2
+OBJECT_STORAGE_ENDPOINT=https://your-account-id.r2.cloudflarestorage.com
+OBJECT_STORAGE_REGION=auto
+OBJECT_STORAGE_BUCKET=your-r2-bucket
+OBJECT_STORAGE_ACCESS_KEY_ID=your-r2-access-key
+OBJECT_STORAGE_SECRET_ACCESS_KEY=your-r2-secret-key
+```
+
+Only one provider is active per backend process. The legacy
+`/api/s3/upload-file` route is retained for frontend compatibility, but it uses
+the configured provider. Switching provider does not copy existing objects;
+copy and verify them before cutover.
 
 ### 4) Start database and apply migrations
 
@@ -169,7 +188,7 @@ yarn format:check
 
 - Backend: Node.js, Express, TypeScript, Prisma, MySQL
 - Frontend: React, TypeScript, Vite, Tailwind, Radix UI
-- Infra: Docker Compose, AWS S3
+- Infra: Docker Compose, AWS S3 or Cloudflare R2
 - AI: OpenAI API or configured Agent CLI; TTS provider currently OpenAI
 
 ## Project Structure
