@@ -31,7 +31,8 @@
 Chưa làm:
 
 - Kiểm thử/chỉnh rule tách từ English cho contraction và từ ghép.
-- Xác nhận IPA, TTS `en-US` và nội dung MCP không còn giả định hiragana.
+- Xác nhận IPA và nội dung MCP không còn giả định hiragana; triển khai system
+  TTS `en-US` theo kế hoạch `tts-provider.md`.
 - Chuẩn hóa các thông báo lỗi do backend trả về để dịch theo locale (các nhãn
   và nội dung tĩnh của trang/dialog frontend đã chuyển sang i18n).
 - Chạy đầy đủ acceptance test cho dữ liệu, điểm và biểu đồ English.
@@ -117,7 +118,8 @@ Tiêu chí chấp nhận:
   áp dụng.
 - Trang đọc văn bản, video và manga hiển thị từ có thể bấm, bản dịch câu, tiến
   độ và nút hoàn thành như các ngôn ngữ đang hỗ trợ.
-- TTS dùng `en-US`; lỗi TTS không làm mất nội dung hoặc tiến độ bài.
+- TTS dùng `en-US`; provider có thể là OpenAI hoặc system, không phải Agent
+  CLI/tmux. Lỗi TTS không làm mất nội dung hoặc tiến độ bài.
 
 ### US-EN-03: Học và quản lý từ tiếng Anh
 
@@ -182,14 +184,14 @@ Tiêu chí chấp nhận:
 
 ## 7. Tác động hệ thống dự kiến
 
-| Khu vực      | Thay đổi                                                                            |
-| ------------ | ----------------------------------------------------------------------------------- |
-| Cấu hình     | Đã bật `en` trong `backend/src/services/configService.ts`                           |
-| AI splitting | Thêm quy tắc tiếng Anh rõ ràng trong `sentenceSplitterAgent`                        |
-| Phát âm      | Xác nhận English luôn dùng IPA trong splitter và pronunciation agent                |
-| MCP          | Thay hướng dẫn hiragana cố định bằng hướng dẫn theo ngôn ngữ                        |
-| Frontend     | Đã thêm English mặc định và i18n `en`/`vi` cho các trang và dialog chính               |
-| Dữ liệu      | Không cần migration nếu tiếp tục dùng schema hiện tại                               |
+| Khu vực      | Thay đổi                                                                 |
+| ------------ | ------------------------------------------------------------------------ |
+| Cấu hình     | Đã bật `en` trong `backend/src/services/configService.ts`                |
+| AI splitting | Thêm quy tắc tiếng Anh rõ ràng trong `sentenceSplitterAgent`             |
+| Phát âm      | Xác nhận IPA; triển khai TTS provider OpenAI/system với locale `en-US`   |
+| MCP          | Thay hướng dẫn hiragana cố định bằng hướng dẫn theo ngôn ngữ             |
+| Frontend     | Đã thêm English mặc định và i18n `en`/`vi` cho các trang và dialog chính |
+| Dữ liệu      | Không cần migration nếu tiếp tục dùng schema hiện tại                    |
 
 ## 8. Kiểm thử chấp nhận đầu-cuối
 

@@ -34,8 +34,11 @@
   `codex login`); `api_key` tiếp tục dùng mapping environment chuẩn. Vì vậy key
   OpenAI sai không bị truyền tiếp vào Codex fallback ở chế độ login.
 - `AI_PROVIDER=auto|openai|agent_cli` là điểm chọn execution backend tập trung.
-  Fallback Agent CLI hiện hỗ trợ generate lesson, phát âm từ và dịch câu; Vision
-  và TTS vẫn cần OpenAI API.
+  Fallback Agent CLI hiện hỗ trợ generate lesson, phát âm từ, dịch câu và dịch
+  từ. Vision vẫn cần OpenAI API.
+- TTS được tách thành provider riêng theo kế hoạch `tts-provider.md`. Agent CLI
+  chỉ tạo text/metadata và tmux chỉ quản lý process; không dùng chúng như speech
+  engine hoặc kênh truyền binary audio.
 
 Chưa làm:
 
@@ -87,6 +90,8 @@ Giả định cho MVP:
 - Windows/WSL, mobile terminal và chia sẻ phiên giữa nhiều tài khoản.
 - Agent tự ý mua dịch vụ, tải binary, sửa cấu hình hệ thống hoặc truy cập shell
   ngoài tiến trình được cấu hình.
+- Sinh TTS audio bằng cách yêu cầu Agent CLI chạy lệnh và ghi file; tính năng
+  này thuộc dedicated TTS provider.
 
 ## 4. Đối tượng và user stories
 

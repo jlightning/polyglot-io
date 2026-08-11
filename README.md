@@ -13,8 +13,8 @@ Polyglot.io is a full-stack language learning app focused on lessons, synchroniz
 - Node.js `>=18`
 - Yarn `>=1.22`
 - Docker + Docker Compose (for MySQL)
-- OpenAI API key (required for direct translations, lesson generation, and TTS;
-  optional for backend startup when the tmux Agent runtime is enabled)
+- OpenAI API key (required for OpenAI-only operations and current TTS;
+  optional for supported Agent CLI operations when tmux runtime is enabled)
 - AWS S3 credentials (required for uploads and file-based lessons)
 - tmux and an Agent CLI such as Codex (optional, for backend-managed agent sessions)
 
@@ -47,11 +47,17 @@ falls back to the configured Agent CLI batch mode when the key is missing or
 OpenAI rejects it with HTTP 401. The fallback runs in an isolated tmux socket,
 validates structured output, and stores the generated sentence/word analysis.
 
-AI execution is selected centrally with `AI_PROVIDER=auto|openai|agent_cli`.
+AI text execution is selected centrally with `AI_PROVIDER=auto|openai|agent_cli`.
 `auto` prefers the OpenAI API and falls back to Agent CLI when the key is absent
-or rejected with 401. Lesson generation, word pronunciation, and sentence
-translation currently support Agent CLI execution. Image extraction and TTS
-still require the OpenAI API.
+or rejected with 401. Lesson generation, word pronunciation, sentence
+translation, and word translation support Agent CLI execution. Image extraction
+still requires OpenAI. TTS currently requires OpenAI and is intentionally not
+run through Agent CLI/tmux because those components do not synthesize audio.
+
+A dedicated TTS provider is planned with `TTS_PROVIDER=auto|openai|system`.
+`system` will use an allowlisted local speech engine (macOS `say`, and Piper on
+Linux); `auto` will retain OpenAI and fall back to system TTS when it is ready.
+See [`docs/plans/tts-provider.md`](docs/plans/tts-provider.md).
 
 In `backend/.env`, also set your AWS S3 credentials:
 
@@ -129,7 +135,8 @@ returns the session status. Use `GET /api/agent-sessions` to list sessions and
 - Create text, subtitle, manga (OCR), manual, and AI-generated lessons
 - Watch videos with synchronized subtitles and clickable words
 - Mark words with difficulty levels and personal notes
-- Translate sentences and generate speech for words/sentences (OpenAI TTS)
+- Translate sentences and generate speech for words/sentences (currently OpenAI
+  TTS; local system provider planned)
 - Track lesson progress, word history, and learning charts
 - Import vocabulary from LingQ
 
@@ -163,7 +170,7 @@ yarn format:check
 - Backend: Node.js, Express, TypeScript, Prisma, MySQL
 - Frontend: React, TypeScript, Vite, Tailwind, Radix UI
 - Infra: Docker Compose, AWS S3
-- AI: OpenAI API
+- AI: OpenAI API or configured Agent CLI; TTS provider currently OpenAI
 
 ## Project Structure
 

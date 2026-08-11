@@ -7,16 +7,18 @@ của các tính năng Polyglot.io.
 | -------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ----------------------------------- |
 | [Học tiếng Anh](learn-english.md)                        | Mở tiếng Anh như một ngôn ngữ học đầy đủ trên các luồng bài học, từ vựng, thống kê và MCP | Đã bật English; còn kiểm thử AI/MCP |
 | [Chạy Agent CLI bằng tmux](tmux-agent-cli.md)            | Backend quản lý phiên Agent CLI cục bộ bằng tmux; CLI và API key lấy từ environment       | Đã hoàn thành MVP backend           |
+| [TTS Provider](tts-provider.md)                          | Giữ OpenAI và bổ sung system TTS có thể chọn/fallback; Agent CLI không phải speech engine | Đề xuất                             |
 | [Object Storage: AWS S3 và Cloudflare R2](r2-storage.md) | Chuẩn hóa storage provider để mỗi môi trường có thể chọn AWS S3 hoặc R2                   | Đề xuất                             |
 
 ## Thứ tự khuyến nghị
 
-1. Hoàn thành kiểm thử AI splitting, IPA, TTS và MCP cho English.
+1. Triển khai TTS provider `auto|openai|system` và kiểm thử `en-US`.
 2. Kết nối Agent CLI với MCP của Polyglot để agent có thể đọc bài học và cập
    nhật từ vựng theo đúng tài khoản người dùng.
 3. Hoàn thiện kiểm thử tích hợp WebSocket terminal và vòng đời tmux trong CI.
 4. Kế hoạch object storage độc lập với các tính năng trên và có thể triển khai
    song song; AWS S3 vẫn được hỗ trợ, R2 là provider bổ sung.
+5. TTS là provider riêng; không gắn binary audio vào Agent CLI hoặc tmux.
 
 ## Thay đổi đã hoàn thành
 
