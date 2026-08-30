@@ -124,10 +124,13 @@ const WordsPage: React.FC = () => {
     () => searchParams.get('search') || ''
   );
   const [difficultyFilter, setDifficultyFilter] = useState<number[]>(() => {
-    if (!searchParams.has('mark')) {
-      return [...ALL_DIFFICULTY_MARKS];
-    }
     const hasLesson = !!searchParams.get('lessonId');
+    const defaultMarks = hasLesson
+      ? [-1, ...ALL_DIFFICULTY_MARKS]
+      : [...ALL_DIFFICULTY_MARKS];
+    if (!searchParams.has('mark')) {
+      return defaultMarks;
+    }
     const mark = searchParams.get('mark') || '';
     const parsed = mark
       .split(',')
@@ -138,7 +141,7 @@ const WordsPage: React.FC = () => {
         n => !Number.isNaN(n) && ((n >= 0 && n <= 5) || (n === -1 && hasLesson))
       );
     if (parsed.length === 0) {
-      return [...ALL_DIFFICULTY_MARKS];
+      return defaultMarks;
     }
     return [...new Set(parsed)].sort((a, b) => a - b);
   });
@@ -201,7 +204,7 @@ const WordsPage: React.FC = () => {
     direction: 'asc' | 'desc' = 'desc',
     filterLessonId: number | null = null
   ) => {
-    if (!axiosInstance) return;
+    if (!axiosInstance || !selectedLanguage) return;
 
     try {
       setLoading(true);
@@ -210,6 +213,7 @@ const WordsPage: React.FC = () => {
         limit: '50',
         sortBy: sort,
         sortOrder: direction,
+        language: selectedLanguage,
       });
 
       const allSelected =
@@ -228,10 +232,6 @@ const WordsPage: React.FC = () => {
             .sort((a, b) => a - b)
             .join(',')
         );
-      }
-
-      if (selectedLanguage) {
-        params.append('language', selectedLanguage);
       }
 
       if (search) {
@@ -253,30 +253,33 @@ const WordsPage: React.FC = () => {
         seedWordMarks(
           wordUserMarks.map(wm => ({ word: wm.word.word, mark: wm.mark }))
         );
-        if (selectedLanguage) {
-          void addWords(
-            [
-              ...new Set(
-                wordUserMarks.flatMap(wm =>
-                  wm.word.sentences.flatMap(s => s.split_text ?? [])
-                )
-              ),
-            ],
-            selectedLanguage
-          );
-        }
+        void addWords(
+          [
+            ...new Set(
+              wordUserMarks.flatMap(wm =>
+                wm.word.sentences.flatMap(s => s.split_text ?? [])
+              )
+            ),
+          ],
+          selectedLanguage
+        );
       }
     } catch (error) {
       console.error('Error fetching words:', error);
+      const message = axios.isAxiosError(error)
+        ? String(error.response?.data?.message || '')
+        : '';
+      // Only clear lesson filter on lesson-specific failures — not e.g. missing language
       if (
         axios.isAxiosError(error) &&
-        (error.response?.status === 404 || error.response?.status === 400) &&
-        filterLessonId !== null
+        filterLessonId !== null &&
+        (error.response?.status === 404 ||
+          (error.response?.status === 400 && /lesson/i.test(message)))
       ) {
         setLessonId(null);
         setSelectedLessonTitle(null);
         setLessonFilterError(
-          error.response.data?.message ||
+          message ||
             'Lesson filter cleared: lesson not found or language mismatch'
         );
       }
