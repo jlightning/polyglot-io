@@ -9,6 +9,7 @@ export const DIFFICULTY_COLORS = {
 } as const;
 
 export const DIFFICULTY_LABELS = {
+  [-1]: 'Unmarked',
   0: 'Ignore',
   1: "Don't remember",
   2: 'Hard to remember',

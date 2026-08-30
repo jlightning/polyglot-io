@@ -103,6 +103,10 @@ const DIFFICULTY_OPTIONS = ALL_DIFFICULTY_MARKS.map(mark => ({
   value: mark,
   label: `${mark}. ${getDifficultyLabel(mark)}`,
 }));
+const UNMARKED_OPTION = {
+  value: -1,
+  label: `-1. ${getDifficultyLabel(-1)}`,
+};
 
 const WordsPage: React.FC = () => {
   const { axiosInstance } = useAuth();
@@ -123,13 +127,16 @@ const WordsPage: React.FC = () => {
     if (!searchParams.has('mark')) {
       return [...ALL_DIFFICULTY_MARKS];
     }
+    const hasLesson = !!searchParams.get('lessonId');
     const mark = searchParams.get('mark') || '';
     const parsed = mark
       .split(',')
       .map(part => part.trim())
       .filter(part => part !== '')
       .map(part => parseInt(part, 10))
-      .filter(n => !Number.isNaN(n) && n >= 0 && n <= 5);
+      .filter(
+        n => !Number.isNaN(n) && ((n >= 0 && n <= 5) || (n === -1 && hasLesson))
+      );
     if (parsed.length === 0) {
       return [...ALL_DIFFICULTY_MARKS];
     }
@@ -207,8 +214,12 @@ const WordsPage: React.FC = () => {
 
       const allSelected =
         difficulties.length === 0 ||
-        (difficulties.length === ALL_DIFFICULTY_MARKS.length &&
-          ALL_DIFFICULTY_MARKS.every(mark => difficulties.includes(mark)));
+        (filterLessonId !== null
+          ? difficulties.length === ALL_DIFFICULTY_MARKS.length + 1 &&
+            ALL_DIFFICULTY_MARKS.every(mark => difficulties.includes(mark)) &&
+            difficulties.includes(-1)
+          : difficulties.length === ALL_DIFFICULTY_MARKS.length &&
+            ALL_DIFFICULTY_MARKS.every(mark => difficulties.includes(mark)));
       if (!allSelected) {
         params.append(
           'mark',
@@ -281,8 +292,12 @@ const WordsPage: React.FC = () => {
     }
     const allDifficultiesSelected =
       difficultyFilter.length === 0 ||
-      (difficultyFilter.length === ALL_DIFFICULTY_MARKS.length &&
-        ALL_DIFFICULTY_MARKS.every(mark => difficultyFilter.includes(mark)));
+      (lessonId !== null
+        ? difficultyFilter.length === ALL_DIFFICULTY_MARKS.length + 1 &&
+          ALL_DIFFICULTY_MARKS.every(mark => difficultyFilter.includes(mark)) &&
+          difficultyFilter.includes(-1)
+        : difficultyFilter.length === ALL_DIFFICULTY_MARKS.length &&
+          ALL_DIFFICULTY_MARKS.every(mark => difficultyFilter.includes(mark)));
     if (!allDifficultiesSelected) {
       next.set(
         'mark',
@@ -475,10 +490,30 @@ const WordsPage: React.FC = () => {
     setCurrentPage(1);
   };
 
+  // -1 (Unmarked) only valid with a lesson; drop it when lesson cleared
+  useEffect(() => {
+    if (lessonId !== null) return;
+    setDifficultyFilter(prev => {
+      if (!prev.includes(-1)) return prev;
+      const next = prev.filter(m => m !== -1);
+      return next.length === 0 ? [...ALL_DIFFICULTY_MARKS] : next;
+    });
+  }, [lessonId]);
+
+  const visibleDifficultyOptions =
+    lessonId !== null
+      ? [UNMARKED_OPTION, ...DIFFICULTY_OPTIONS]
+      : DIFFICULTY_OPTIONS;
+
   const allDifficultiesSelected =
     difficultyFilter.length === 0 ||
-    (difficultyFilter.length === ALL_DIFFICULTY_MARKS.length &&
-      ALL_DIFFICULTY_MARKS.every(mark => difficultyFilter.includes(mark)));
+    (lessonId !== null
+      ? difficultyFilter.length === ALL_DIFFICULTY_MARKS.length + 1 &&
+        ALL_DIFFICULTY_MARKS.every(mark => difficultyFilter.includes(mark)) &&
+        difficultyFilter.includes(-1)
+      : difficultyFilter.length === ALL_DIFFICULTY_MARKS.length &&
+        ALL_DIFFICULTY_MARKS.every(mark => difficultyFilter.includes(mark)) &&
+        !difficultyFilter.includes(-1));
   const difficultyTriggerLabel = allDifficultiesSelected
     ? 'Difficulties'
     : difficultyFilter.join(', ');
@@ -683,7 +718,7 @@ const WordsPage: React.FC = () => {
             style={{ width: '260px', padding: 'var(--space-2)' }}
           >
             <Flex direction="column" gap="2">
-              {DIFFICULTY_OPTIONS.map(option => {
+              {visibleDifficultyOptions.map(option => {
                 const checked = difficultyFilter.includes(option.value);
                 const checkboxId = `difficulty-mark-${option.value}`;
                 return (

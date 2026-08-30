@@ -216,8 +216,8 @@ export class WordService {
 
     try {
       let query = withKysely(ctx)
-        .selectFrom('word_user_mark as wum')
-        .innerJoin('word as w', 'w.id', 'wum.word_id')
+        .selectFrom('word as w')
+        .leftJoin('word_user_mark as wum', 'w.id', 'wum.word_id')
         .innerJoin(
           eb =>
             eb
@@ -232,15 +232,20 @@ export class WordService {
               )
               .groupBy('word_id')
               .as('word_sentence_count'),
-          join => join.onRef('word_sentence_count.word_id', '=', 'wum.word_id')
+          join => join.onRef('word_sentence_count.word_id', '=', 'w.id')
         )
-        .where('wum.user_id', '=', userId)
         .where('w.language_code', '=', languageFilter);
 
       const skip = (page - 1) * limit;
 
       if (markFilters !== undefined && markFilters.length > 0) {
-        query = query.where('mark', 'in', markFilters);
+        if (markFilters.includes(-1)) {
+          query = query.where(eb =>
+            eb.or([eb('mark', 'in', markFilters), eb('wum.id', 'is', null)])
+          );
+        } else {
+          query = query.where('mark', 'in', markFilters);
+        }
       }
       if (words && words.length > 0) {
         query = query.where('w.word', 'in', words);
@@ -250,7 +255,7 @@ export class WordService {
       if (lessonId !== undefined) {
         query = query.where(eb =>
           eb(
-            'wum.word_id',
+            'w.id',
             'in',
             eb
               .selectFrom('sentence_word')
@@ -259,6 +264,8 @@ export class WordService {
               .where('sentence.lesson_id', '=', lessonId)
           )
         );
+      } else {
+        query = query.where('wum.user_id', '=', userId);
       }
 
       switch (sortBy) {
@@ -288,26 +295,31 @@ export class WordService {
         )?.total || 0
       );
       const pageData = await query
-        .select(['wum.id', 'wum.word_id', 'word_sentence_count.sentence_count'])
+        .select([
+          'wum.id',
+          'w.id as word_id',
+          'word_sentence_count.sentence_count',
+        ])
         .limit(limit)
         .offset(skip)
         .execute();
 
-      const wordUserMarks = await ctx.prisma.wordUserMark.findMany({
+      const wordRecords = await ctx.prisma.word.findMany({
         where: {
-          id: { in: pageData.map(i => i.id) },
+          id: { in: pageData.map(p => p.word_id) },
         },
         include: {
-          word: {
-            include: {
-              wordTranslations: {
-                where: {
-                  language_code: 'en', // English translations
-                },
-              },
-              wordPronunciations: true, // Include all pronunciations
+          wordUserMarks: {
+            where: {
+              user_id: userId,
             },
           },
+          wordTranslations: {
+            where: {
+              language_code: 'en', // English translations
+            },
+          },
+          wordPronunciations: true, // Include all pronunciations
         },
       });
 
@@ -339,12 +351,12 @@ export class WordService {
         .execute();
 
       // Prisma `in` does not preserve order — re-sort to match pageData
-      const pageOrder = new Map(pageData.map((p, i) => [p.id, i]));
-      const transformedData = wordUserMarks
+      const pageOrder = new Map(pageData.map((p, i) => [Number(p.word_id), i]));
+      const transformedData = wordRecords
         .sort((a, b) => (pageOrder.get(a.id) ?? 0) - (pageOrder.get(b.id) ?? 0))
-        .map(wordMark => {
+        .map(wordRecord => {
           const sentences = sentenceDataFromDb
-            .filter(i => Number(i.word_id) === Number(wordMark.word.id))
+            .filter(i => Number(i.word_id) === Number(wordRecord.id))
             .map(sw => ({
               id: sw.id,
               original_text: sw.original_text,
@@ -370,25 +382,37 @@ export class WordService {
           const lessons = Array.from(lessonMap.values()).slice(0, 3); // Limit to 3 lessons
 
           // Transform translations and pronunciations
-          const translations = wordMark.word.wordTranslations.map(wt => ({
-            word: wordMark.word.word,
+          const translations = wordRecord.wordTranslations.map(wt => ({
+            word: wordRecord.word,
             translation: wt.translation,
           }));
 
-          const pronunciations = wordMark.word.wordPronunciations.map(wp => ({
-            word: wordMark.word.word,
+          const pronunciations = wordRecord.wordPronunciations.map(wp => ({
+            word: wordRecord.word,
             pronunciation: wp.pronunciation,
             pronunciationType: wp.pronunciation_type || 'unknown',
           }));
 
+          const wordMark = wordRecord.wordUserMarks[0] ?? {
+            id: -wordRecord.id,
+            user_id: userId,
+            word_id: wordRecord.id,
+            note: '',
+            mark: -1,
+            created_at: new Date(0),
+            updated_at: new Date(0),
+            source: 'lesson' as const,
+          };
+
           return {
             ...wordMark,
             word: {
-              ...wordMark.word,
+              ...wordRecord,
               sentences: sentences.slice(0, 3), // Limit to 3 sentences
               totalSentenceCount:
                 Number(
-                  pageData.find(p => p.id === wordMark.id)?.sentence_count
+                  pageData.find(p => Number(p.word_id) === wordRecord.id)
+                    ?.sentence_count
                 ) || 0,
               lessons,
               translations,

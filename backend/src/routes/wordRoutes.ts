@@ -158,10 +158,12 @@ router.get('/marks/details', async (req: Request, res: Response) => {
         const trimmed = part.trim();
         if (trimmed === '') continue;
         const parsed = parseInt(trimmed, 10);
-        if (Number.isNaN(parsed) || parsed < 0 || parsed > 5) {
+        // -1 = Unmarked (filter-only; requires lessonId)
+        if (Number.isNaN(parsed) || parsed < -1 || parsed > 5) {
           return res.status(400).json({
             success: false,
-            message: 'Mark filter values must be integers between 0 and 5',
+            message:
+              'Mark filter values must be integers between -1 and 5 (-1 = Unmarked)',
           });
         }
         if (!markFilters.includes(parsed)) {
@@ -196,6 +198,13 @@ router.get('/marks/details', async (req: Request, res: Response) => {
           message: 'Lesson language must match the language filter',
         });
       }
+    }
+
+    if (markFilters?.includes(-1) && lessonId === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mark filter -1 (Unmarked) requires lessonId',
+      });
     }
 
     const result = await ctx.wordService.getUserWordMarksWithDetails(
