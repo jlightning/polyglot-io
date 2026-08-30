@@ -64,7 +64,7 @@ interface EditableLesson {
   createdAt: string;
 }
 
-const SENTENCES_PER_PAGE = 5;
+const SENTENCES_PER_PAGE = 10;
 
 const LessonViewPage: React.FC = () => {
   const { lessonId } = useParams<{ lessonId: string }>();
@@ -561,15 +561,15 @@ const LessonViewPage: React.FC = () => {
 
       {/* Sentences */}
       <Box mb="6">
-        <Flex direction="column" gap="4">
+        <Flex direction="column" gap="2">
           {lesson.sentences.length === 0 && lesson.lessonType === 'manual' ? (
             <Text size="2" color="gray">
               No sentences yet. Add your first sentence above.
             </Text>
           ) : (
             lesson.sentences.map((sentence, index) => (
-              <Card key={sentence.id} style={{ padding: '16px' }}>
-                <Flex direction="column" gap="3">
+              <Card key={sentence.id} style={{ padding: '10px 12px' }}>
+                <Flex direction="column" gap="2">
                   <Flex align="center" justify="between">
                     <Text size="2" color="gray">
                       Sentence{' '}
@@ -610,7 +610,7 @@ const LessonViewPage: React.FC = () => {
 
                   <Box
                     style={{
-                      lineHeight: '1.6',
+                      lineHeight: '1.45',
                       fontSize: 'var(--font-size-4)',
                     }}
                   >
@@ -623,7 +623,7 @@ const LessonViewPage: React.FC = () => {
                         className="word-badge"
                       />
                     ) : (
-                      <Text size="4" style={{ lineHeight: '1.6' }}>
+                      <Text size="4" style={{ lineHeight: '1.45' }}>
                         {sentence.original_text}
                       </Text>
                     )}
@@ -633,7 +633,7 @@ const LessonViewPage: React.FC = () => {
                   <Box>
                     <MyButton
                       variant="soft"
-                      size="2"
+                      size="1"
                       onClick={() => toggleTranslation(sentence.id)}
                       disabled={loadingTranslations[sentence.id]}
                       style={{}}
@@ -647,8 +647,8 @@ const LessonViewPage: React.FC = () => {
 
                     {translations[sentence.id] && (
                       <Box
-                        mt="3"
-                        p="3"
+                        mt="2"
+                        p="2"
                         style={{
                           backgroundColor: 'var(--gray-2)',
                           borderRadius: '8px',
