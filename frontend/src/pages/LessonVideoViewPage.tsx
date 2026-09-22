@@ -980,7 +980,11 @@ const LessonVideoViewPage: React.FC = () => {
     const handleKeydown = (event: KeyboardEvent) => {
       // Space/Enter toggle play if video is loaded and no input/button is focused
       const target = event.target as HTMLElement;
-      if (  (event.code === 'Space' ||    event.key === 'Enter') &&  videoRef.current &&  !['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(target?.tagName)) {
+      if (
+        (event.code === 'Space' || event.key === 'Enter') &&
+        videoRef.current &&
+        !['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(target?.tagName)
+      ) {
         event.preventDefault();
         handlePlayPause();
       }
