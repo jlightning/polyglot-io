@@ -978,14 +978,9 @@ const LessonVideoViewPage: React.FC = () => {
   // Keyboard controls for video playback
   useEffect(() => {
     const handleKeydown = (event: KeyboardEvent) => {
-      // Only handle spacebar if video is loaded and no input is focused
-      if (
-        event.code === 'Space' &&
-        videoRef.current &&
-        !['INPUT', 'TEXTAREA', 'SELECT'].includes(
-          (event.target as HTMLElement)?.tagName
-        )
-      ) {
+      // Space/Enter toggle play if video is loaded and no input/button is focused
+      const target = event.target as HTMLElement;
+      if (  (event.code === 'Space' ||    event.key === 'Enter') &&  videoRef.current &&  !['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(target?.tagName)) {
         event.preventDefault();
         handlePlayPause();
       }
