@@ -718,29 +718,48 @@ const WordsPage: React.FC = () => {
           </Popover.Trigger>
           <Popover.Content
             align="start"
-            style={{ width: '260px', padding: 'var(--space-2)' }}
+            style={{ width: '300px', padding: 'var(--space-2)' }}
           >
             <Flex direction="column" gap="2">
               {visibleDifficultyOptions.map(option => {
                 const checked = difficultyFilter.includes(option.value);
                 const checkboxId = `difficulty-mark-${option.value}`;
                 return (
-                  <Flex key={option.value} align="center" gap="2">
-                    <Checkbox
-                      id={checkboxId}
-                      checked={checked}
-                      onCheckedChange={value =>
-                        handleDifficultyToggle(option.value, value === true)
-                      }
-                    />
-                    <Text
-                      size="2"
-                      as="label"
-                      htmlFor={checkboxId}
-                      style={{ cursor: 'pointer' }}
+                  <Flex
+                    key={option.value}
+                    align="center"
+                    gap="2"
+                    justify="between"
+                  >
+                    <Flex align="center" gap="2">
+                      <Checkbox
+                        id={checkboxId}
+                        checked={checked}
+                        onCheckedChange={value =>
+                          handleDifficultyToggle(option.value, value === true)
+                        }
+                      />
+                      <Text
+                        size="2"
+                        as="label"
+                        htmlFor={checkboxId}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        {option.label}
+                      </Text>
+                    </Flex>
+                    <MyButton
+                      size="1"
+                      variant="ghost"
+                      color="gray"
+                      style={{ marginRight: 'var(--space-1)' }}
+                      onClick={() => {
+                        setDifficultyFilter([option.value]);
+                        setCurrentPage(1);
+                      }}
                     >
-                      {option.label}
-                    </Text>
+                      Just this
+                    </MyButton>
                   </Flex>
                 );
               })}
