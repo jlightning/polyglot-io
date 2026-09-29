@@ -38,6 +38,7 @@ import {
   getDifficultyColor,
 } from '../constants/difficultyColors';
 import axios from 'axios';
+import dayjs from 'dayjs';
 
 interface Word {
   id: number;
@@ -1067,7 +1068,7 @@ const WordsPage: React.FC = () => {
                     {/* Last Updated */}
                     <Table.Cell>
                       <Text size="2" color="gray">
-                        {new Date(wordMark.updated_at).toLocaleDateString()}
+                        {dayjs(wordMark.updated_at).format('DD/MM/YYYY')}
                       </Text>
                     </Table.Cell>
                   </Table.Row>

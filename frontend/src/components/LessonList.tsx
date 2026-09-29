@@ -425,7 +425,7 @@ const LessonList: React.FC<LessonListProps> = ({
                 </Flex>
 
                 <Text size="1" color="gray">
-                  Created: {dayjs(lesson.createdAt).format('MM/DD/YYYY')}
+                  Created: {dayjs(lesson.createdAt).format('DD/MM/YYYY')}
                 </Text>
 
                 {lesson.createdWithPrompt && (

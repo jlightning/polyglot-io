@@ -70,8 +70,8 @@ function useTimezone() {
 }
 
 function formatRangeLabel(startDate: string, endDate: string) {
-  const a = dayjs(startDate).format('MMM D, YYYY');
-  const b = dayjs(endDate).format('MMM D, YYYY');
+  const a = dayjs(startDate).format('DD/MM/YYYY');
+  const b = dayjs(endDate).format('DD/MM/YYYY');
   return `${a} – ${b}`;
 }
 
@@ -374,7 +374,7 @@ const ChartsPage: React.FC = () => {
                   dataKey="date"
                   tick={{ fontSize: 11, fill: 'var(--gray-11)' }}
                   minTickGap={28}
-                  tickFormatter={v => dayjs(v).format('MMM D')}
+                  tickFormatter={v => dayjs(v).format('DD/MM/YYYY')}
                 />
                 <YAxis
                   tick={{ fontSize: 11, fill: 'var(--gray-11)' }}
@@ -386,7 +386,7 @@ const ChartsPage: React.FC = () => {
                     border: '1px solid var(--gray-6)',
                     borderRadius: 6,
                   }}
-                  labelFormatter={v => dayjs(v as string).format('MMM D, YYYY')}
+                  labelFormatter={v => dayjs(v as string).format('DD/MM/YYYY')}
                 />
                 <ReferenceLine
                   y={dailyScoreTarget}
@@ -448,7 +448,7 @@ const ChartsPage: React.FC = () => {
                   dataKey="date"
                   tick={{ fontSize: 11, fill: 'var(--gray-11)' }}
                   minTickGap={28}
-                  tickFormatter={v => dayjs(v).format('MMM D')}
+                  tickFormatter={v => dayjs(v).format('DD/MM/YYYY')}
                 />
                 <YAxis
                   tick={{ fontSize: 11, fill: 'var(--gray-11)' }}
@@ -460,7 +460,7 @@ const ChartsPage: React.FC = () => {
                     border: '1px solid var(--gray-6)',
                     borderRadius: 6,
                   }}
-                  labelFormatter={v => dayjs(v as string).format('MMM D, YYYY')}
+                  labelFormatter={v => dayjs(v as string).format('DD/MM/YYYY')}
                 />
                 <Area
                   type="monotone"
@@ -535,7 +535,7 @@ const ChartsPage: React.FC = () => {
                       dataKey="date"
                       tick={{ fontSize: 10, fill: 'var(--gray-11)' }}
                       minTickGap={28}
-                      tickFormatter={v => dayjs(v).format('MMM D')}
+                      tickFormatter={v => dayjs(v).format('DD/MM/YYYY')}
                     />
                     <YAxis
                       tick={{ fontSize: 10, fill: 'var(--gray-11)' }}
@@ -548,7 +548,7 @@ const ChartsPage: React.FC = () => {
                         borderRadius: 6,
                       }}
                       labelFormatter={v =>
-                        dayjs(v as string).format('MMM D, YYYY')
+                        dayjs(v as string).format('DD/MM/YYYY')
                       }
                     />
                     <Area
@@ -604,7 +604,7 @@ const ChartsPage: React.FC = () => {
                   dataKey="date"
                   tick={{ fontSize: 11, fill: 'var(--gray-11)' }}
                   minTickGap={28}
-                  tickFormatter={v => dayjs(v).format('MMM D')}
+                  tickFormatter={v => dayjs(v).format('DD/MM/YYYY')}
                 />
                 <YAxis
                   tick={{ fontSize: 11, fill: 'var(--gray-11)' }}
@@ -616,7 +616,7 @@ const ChartsPage: React.FC = () => {
                     border: '1px solid var(--gray-6)',
                     borderRadius: 6,
                   }}
-                  labelFormatter={v => dayjs(v as string).format('MMM D, YYYY')}
+                  labelFormatter={v => dayjs(v as string).format('DD/MM/YYYY')}
                 />
                 <Bar
                   dataKey="value"
@@ -669,7 +669,7 @@ const ChartsPage: React.FC = () => {
                   dataKey="date"
                   tick={{ fontSize: 11, fill: 'var(--gray-11)' }}
                   minTickGap={28}
-                  tickFormatter={v => dayjs(v).format('MMM D')}
+                  tickFormatter={v => dayjs(v).format('DD/MM/YYYY')}
                 />
                 <YAxis
                   tick={{ fontSize: 11, fill: 'var(--gray-11)' }}
@@ -681,7 +681,7 @@ const ChartsPage: React.FC = () => {
                     border: '1px solid var(--gray-6)',
                     borderRadius: 6,
                   }}
-                  labelFormatter={v => dayjs(v as string).format('MMM D, YYYY')}
+                  labelFormatter={v => dayjs(v as string).format('DD/MM/YYYY')}
                 />
                 <Bar
                   dataKey="value"

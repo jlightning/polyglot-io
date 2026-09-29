@@ -14,6 +14,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useUserSettings } from '../contexts/UserSettingContext';
 import LanguageSwitcher from './LanguageSwitcher';
+import dayjs from 'dayjs';
 
 interface SidebarProps {}
 
@@ -191,7 +192,7 @@ const Sidebar: React.FC<SidebarProps> = () => {
                         flexDirection: 'column',
                         justifyContent: 'flex-end',
                       }}
-                      title={`${new Date(day.date).toLocaleDateString('en', { weekday: 'long', month: 'short', day: 'numeric' })}: ${totalScore} pts${backfilledAmount > 0 ? ` (${actualScore} actual + ${backfilledAmount} backfilled)` : ''}`}
+                      title={`${dayjs(day.date).format('DD/MM/YYYY')}: ${totalScore} pts${backfilledAmount > 0 ? ` (${actualScore} actual + ${backfilledAmount} backfilled)` : ''}`}
                     >
                       {/* Zero score indicator */}
                       {totalScore === 0 ? (

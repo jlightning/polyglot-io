@@ -133,7 +133,7 @@ const WordActionHistoryDialog: React.FC<WordActionHistoryDialogProps> = ({
                       )}
                     </Text>
                     <Text size="1" color="gray" mt="1">
-                      {dayjs(entry.created_at).format('YYYY-MM-DD HH:mm:ss')}
+                      {dayjs(entry.created_at).format('DD/MM/YYYY HH:mm:ss')}
                     </Text>
                   </Box>
                 ))}

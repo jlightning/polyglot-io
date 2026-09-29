@@ -442,7 +442,7 @@ const WordSidebar: React.FC<WordSidebarProps> = ({
       {updatedAt && (
         <Box>
           <Text size="1" color="gray" mt="2">
-            Last updated: {dayjs(updatedAt).format('YYYY-MM-DD HH:mm:ss')}
+            Last updated: {dayjs(updatedAt).format('DD/MM/YYYY HH:mm:ss')}
           </Text>
         </Box>
       )}
