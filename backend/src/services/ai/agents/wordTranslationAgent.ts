@@ -44,5 +44,5 @@ export const wordTranslationAgent = new Agent({
   modelSettings: {
     reasoning: { effort: 'high' },
   },
-  model: OPENAI_MODEL.GPT_56_LUNA,
+  model: OPENAI_MODEL.GPT_6_LUNA,
 });

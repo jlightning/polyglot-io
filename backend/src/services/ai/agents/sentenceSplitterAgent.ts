@@ -127,5 +127,5 @@ export const sentenceSplitterAgent = new Agent({
   modelSettings: {
     reasoning: { effort: 'medium' },
   },
-  model: OPENAI_MODEL.GPT_56_TERRA,
+  model: OPENAI_MODEL.GPT_6_SOL,
 });

@@ -15,5 +15,5 @@ export const removeWeirdSpacingAgent = new Agent({
   modelSettings: {
     reasoning: { effort: 'medium' },
   },
-  model: OPENAI_MODEL.GPT_56_LUNA,
+  model: OPENAI_MODEL.GPT_6_LUNA,
 });

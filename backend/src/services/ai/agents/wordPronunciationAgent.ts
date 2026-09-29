@@ -68,5 +68,5 @@ export const wordPronunciationAgent = new Agent({
   modelSettings: {
     reasoning: { effort: 'low' },
   },
-  model: OPENAI_MODEL.GPT_56_LUNA,
+  model: OPENAI_MODEL.GPT_6_LUNA,
 });
