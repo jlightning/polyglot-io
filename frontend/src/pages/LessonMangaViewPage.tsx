@@ -5,7 +5,7 @@ import React, {
   useCallback,
   useMemo,
 } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { Flex, Heading, Text, Box, Card, Badge } from '@radix-ui/themes';
 import MyButton from '../components/MyButton';
 
@@ -61,7 +61,6 @@ const SENTENCES_PER_PAGE = 100;
 
 const LessonMangaViewPage: React.FC = () => {
   const { lessonId } = useParams<{ lessonId: string }>();
-  const navigate = useNavigate();
   const { axiosInstance, isAuthenticated, isLoading: authLoading } = useAuth();
   const { seedWordMarks } = useWordMark();
   const { openWordSidebar, setWordSidebarLanguage } = useWordSidebar();
@@ -728,8 +727,8 @@ const LessonMangaViewPage: React.FC = () => {
       >
         <Box style={{ padding: '16px 24px' }}>
           <Flex direction="column" gap="4">
-            <MyButton variant="ghost" onClick={() => navigate('/lessons')}>
-              ← Back to Lessons
+            <MyButton variant="ghost" asChild>
+              <Link to="/lessons">← Back to Lessons</Link>
             </MyButton>
             <Flex
               direction="column"
@@ -772,19 +771,13 @@ const LessonMangaViewPage: React.FC = () => {
         <Box style={{ padding: '12px 24px', flexShrink: 0 }}>
           <Flex direction="column" gap="2">
             <Flex align="center" justify="between">
-              <MyButton
-                variant="ghost"
-                size="2"
-                onClick={() => navigate('/lessons')}
-              >
-                ← Back to Lessons
+              <MyButton variant="ghost" size="2" asChild>
+                <Link to="/lessons">← Back to Lessons</Link>
               </MyButton>
-              <MyButton
-                variant="soft"
-                size="2"
-                onClick={() => navigate(`/words?lessonId=${lessonId}`)}
-              >
-                Words in this lesson
+              <MyButton variant="soft" size="2" asChild>
+                <Link to={`/words?lessonId=${lessonId}`}>
+                  Words in this lesson
+                </Link>
               </MyButton>
             </Flex>
             <Flex align="center" gap="2">
@@ -1263,12 +1256,8 @@ const LessonMangaViewPage: React.FC = () => {
                                 Great job! You have successfully completed this
                                 lesson. 🎉
                               </Text>
-                              <MyButton
-                                size="2"
-                                variant="soft"
-                                onClick={() => navigate('/lessons')}
-                              >
-                                Back to Lessons
+                              <MyButton size="2" variant="soft" asChild>
+                                <Link to="/lessons">Back to Lessons</Link>
                               </MyButton>
                             </Flex>
                           </Box>

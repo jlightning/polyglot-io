@@ -2,3 +2,4 @@
 alwaysApply: false
 ---
 - Need to add cursor to Button otherwise cursor icon doesn't show when hover
+- A click that changes route must be a React Router `Link` (`<a href>`), usually `MyButton asChild` wrapping `Link`. Do not use `onClick` + `navigate()` for that. `navigate()` is only for non-click redirects (after upload, auto-redirect, language select). Disabled actions stay a `MyButton` with `disabled` and no href. Pagination and manga page flips stay buttons.

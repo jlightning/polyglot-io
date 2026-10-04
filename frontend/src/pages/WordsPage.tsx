@@ -9,7 +9,6 @@ import {
   Table,
   Heading,
   Card,
-  Link,
   Dialog,
   Tabs,
   Popover,
@@ -26,7 +25,7 @@ import {
   CaretDownIcon,
   ChevronDownIcon,
 } from '@radix-ui/react-icons';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import Pagination from '../components/Pagination';
@@ -114,7 +113,6 @@ const WordsPage: React.FC = () => {
   const { selectedLanguage } = useLanguage();
   const { openWordSidebar } = useWordSidebar();
   const { addWords, seedWordMarks } = useWordMark();
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [words, setWords] = useState<WordUserMark[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1045,7 +1043,7 @@ const WordsPage: React.FC = () => {
                           wordMark.word.lessons.map((lesson, index) => (
                             <Link
                               key={lesson.id}
-                              onClick={() => navigate(`/lessons/${lesson.id}`)}
+                              to={`/lessons/${lesson.id}`}
                               style={{ cursor: 'pointer' }}
                             >
                               <Text size="2" color="blue">

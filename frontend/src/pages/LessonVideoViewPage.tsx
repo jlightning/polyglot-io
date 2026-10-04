@@ -6,7 +6,7 @@ import React, {
   useCallback,
   useMemo,
 } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { Flex, Heading, Text, Box, Card, Badge } from '@radix-ui/themes';
 import MyButton from '../components/MyButton';
 
@@ -81,7 +81,6 @@ const LessonVideoSentencesFooter: React.FC<{
   onToggleTranslation: (sentenceId: number) => void;
   onRetime: (sentence: Sentence) => void;
   onFinishLesson: () => void;
-  onBackToLessons: () => void;
 }> = ({
   previousSentences,
   activeSentences,
@@ -99,7 +98,6 @@ const LessonVideoSentencesFooter: React.FC<{
   onToggleTranslation,
   onRetime,
   onFinishLesson,
-  onBackToLessons,
 }) => (
   <Box style={{ backgroundColor: 'var(--gray-1)' }}>
     <Box
@@ -292,8 +290,8 @@ const LessonVideoSentencesFooter: React.FC<{
             <Text size="2" color="green" style={{ textAlign: 'center' }}>
               Great job! You have successfully completed this lesson. 🎉
             </Text>
-            <MyButton size="2" variant="soft" onClick={onBackToLessons}>
-              Back to Lessons
+            <MyButton size="2" variant="soft" asChild>
+              <Link to="/lessons">Back to Lessons</Link>
             </MyButton>
           </Flex>
         </Box>
@@ -304,7 +302,6 @@ const LessonVideoSentencesFooter: React.FC<{
 
 const LessonVideoViewPage: React.FC = () => {
   const { lessonId } = useParams<{ lessonId: string }>();
-  const navigate = useNavigate();
   const { axiosInstance, isAuthenticated, isLoading: authLoading } = useAuth();
   const { getWordMark, seedWordMarks } = useWordMark();
   const { openWordSidebar, setWordSidebarLanguage, setSidebarFooter } =
@@ -1213,7 +1210,6 @@ const LessonVideoViewPage: React.FC = () => {
           setIsRetimeDialogOpen(true);
         }}
         onFinishLesson={handleFinishLesson}
-        onBackToLessons={() => navigate('/lessons')}
       />
     );
     return () => setSidebarFooter(null);
@@ -1372,8 +1368,8 @@ const LessonVideoViewPage: React.FC = () => {
       >
         <Box style={{ padding: '16px 24px' }}>
           <Flex direction="column" gap="4">
-            <MyButton variant="ghost" onClick={() => navigate('/lessons')}>
-              ← Back to Lessons
+            <MyButton variant="ghost" asChild>
+              <Link to="/lessons">← Back to Lessons</Link>
             </MyButton>
             <Flex
               direction="column"
@@ -1396,19 +1392,13 @@ const LessonVideoViewPage: React.FC = () => {
       <Box style={{ padding: '12px 24px', flexShrink: 0 }}>
         <Flex direction="column" gap="2">
           <Flex align="center" justify="between">
-            <MyButton
-              variant="ghost"
-              size="2"
-              onClick={() => navigate('/lessons')}
-            >
-              ← Back to Lessons
+            <MyButton variant="ghost" size="2" asChild>
+              <Link to="/lessons">← Back to Lessons</Link>
             </MyButton>
-            <MyButton
-              variant="soft"
-              size="2"
-              onClick={() => navigate(`/words?lessonId=${lessonId}`)}
-            >
-              Words in this lesson
+            <MyButton variant="soft" size="2" asChild>
+              <Link to={`/words?lessonId=${lessonId}`}>
+                Words in this lesson
+              </Link>
             </MyButton>
           </Flex>
           <Flex align="center" gap="2">

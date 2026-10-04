@@ -9,7 +9,7 @@ import {
   DashboardIcon,
   CodeIcon,
 } from '@radix-ui/react-icons';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useUserSettings } from '../contexts/UserSettingContext';
@@ -31,7 +31,6 @@ const Sidebar: React.FC<SidebarProps> = () => {
   const { dailyScoreTarget } = useUserSettings();
   const { selectedLanguage } = useLanguage();
   const location = useLocation();
-  const navigate = useNavigate();
 
   const handleLogout = () => {
     logout();
@@ -278,34 +277,42 @@ const Sidebar: React.FC<SidebarProps> = () => {
           <MyButton
             variant={isLessonsActive ? 'solid' : 'soft'}
             style={{ justifyContent: 'flex-start' }}
-            onClick={() => navigate('/lessons')}
+            asChild
           >
-            <ReaderIcon />
-            Lessons
+            <Link to="/lessons">
+              <ReaderIcon />
+              Lessons
+            </Link>
           </MyButton>
           <MyButton
             variant={isWordsActive ? 'solid' : 'soft'}
             style={{ justifyContent: 'flex-start' }}
-            onClick={() => navigate('/words')}
+            asChild
           >
-            <BookmarkIcon />
-            Words
+            <Link to="/words">
+              <BookmarkIcon />
+              Words
+            </Link>
           </MyButton>
           <MyButton
             variant={isChartsActive ? 'solid' : 'soft'}
             style={{ justifyContent: 'flex-start' }}
-            onClick={() => navigate('/charts')}
+            asChild
           >
-            <DashboardIcon />
-            Charts
+            <Link to="/charts">
+              <DashboardIcon />
+              Charts
+            </Link>
           </MyButton>
           <MyButton
             variant={isMcpActive ? 'solid' : 'soft'}
             style={{ justifyContent: 'flex-start' }}
-            onClick={() => navigate('/mcp')}
+            asChild
           >
-            <CodeIcon />
-            MCP
+            <Link to="/mcp">
+              <CodeIcon />
+              MCP
+            </Link>
           </MyButton>
         </Flex>
       </Box>
@@ -316,10 +323,12 @@ const Sidebar: React.FC<SidebarProps> = () => {
           <MyButton
             variant={isSettingsActive ? 'solid' : 'soft'}
             style={{ width: '100%', justifyContent: 'flex-start' }}
-            onClick={() => navigate('/settings')}
+            asChild
           >
-            <GearIcon />
-            Settings
+            <Link to="/settings">
+              <GearIcon />
+              Settings
+            </Link>
           </MyButton>
           <MyButton
             variant="ghost"

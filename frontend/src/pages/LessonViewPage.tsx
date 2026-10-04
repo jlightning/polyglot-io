@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import {
   Container,
   Flex,
@@ -417,8 +417,8 @@ const LessonViewPage: React.FC = () => {
     return (
       <Container size="4" p="4">
         <Flex direction="column" gap="4">
-          <MyButton variant="ghost" onClick={() => navigate('/lessons')}>
-            ← Back to Lessons
+          <MyButton variant="ghost" asChild>
+            <Link to="/lessons">← Back to Lessons</Link>
           </MyButton>
           <Flex
             direction="column"
@@ -446,8 +446,8 @@ const LessonViewPage: React.FC = () => {
     >
       {/* Header */}
       <Flex direction="column" gap="4" mb="6">
-        <MyButton variant="ghost" onClick={() => navigate('/lessons')}>
-          ← Back to Lessons
+        <MyButton variant="ghost" asChild>
+          <Link to="/lessons">← Back to Lessons</Link>
         </MyButton>
         <Flex align="center" gap="3" justify="between">
           <Flex align="center" gap="3">
@@ -456,26 +456,19 @@ const LessonViewPage: React.FC = () => {
           </Flex>
           <Flex gap="3">
             {lesson?.lessonType !== 'manga' && (
-              <MyButton
-                variant="soft"
-                onClick={() => navigate(`/lessons/${lessonId}/video`)}
-              >
-                Video View
+              <MyButton variant="soft" asChild>
+                <Link to={`/lessons/${lessonId}/video`}>Video View</Link>
               </MyButton>
             )}
             {lesson?.lessonType === 'manga' && (
-              <MyButton
-                variant="soft"
-                onClick={() => navigate(`/lessons/${lessonId}/manga`)}
-              >
-                Manga View
+              <MyButton variant="soft" asChild>
+                <Link to={`/lessons/${lessonId}/manga`}>Manga View</Link>
               </MyButton>
             )}
-            <MyButton
-              variant="soft"
-              onClick={() => navigate(`/words?lessonId=${lessonId}`)}
-            >
-              Words in this lesson
+            <MyButton variant="soft" asChild>
+              <Link to={`/words?lessonId=${lessonId}`}>
+                Words in this lesson
+              </Link>
             </MyButton>
             <MyButton variant="soft" onClick={() => setIsEditDialogOpen(true)}>
               Edit Lesson

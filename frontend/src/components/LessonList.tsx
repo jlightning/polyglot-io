@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import {
   Card,
   Text,
@@ -66,8 +66,6 @@ const LessonList: React.FC<LessonListProps> = ({
   const [deletingLessonId, setDeletingLessonId] = useState<number | null>(null);
   const [pinningLessonId, setPinningLessonId] = useState<number | null>(null);
   const { axiosInstance, isAuthenticated } = useAuth();
-  const navigate = useNavigate();
-
   const fetchLessons = useCallback(async () => {
     if (!selectedLanguage) {
       setLoading(false);
@@ -453,33 +451,38 @@ const LessonList: React.FC<LessonListProps> = ({
                 )}
 
                 <Flex gap="2" mt="3">
-                  <MyButton
-                    variant="soft"
-                    size="2"
-                    disabled={lesson.processingStatus !== 'completed'}
-                    onClick={() => navigate(`/lessons/${lesson.id}`)}
-                  >
-                    <EyeOpenIcon />
-                    View Lesson
-                  </MyButton>
-                  <MyButton
-                    variant="soft"
-                    size="2"
-                    onClick={() => navigate(`/words?lessonId=${lesson.id}`)}
-                  >
-                    Words in this lesson
-                  </MyButton>
-                  {lesson.lessonType === 'subtitle' && (
-                    <MyButton
-                      variant="soft"
-                      size="2"
-                      disabled={lesson.processingStatus !== 'completed'}
-                      onClick={() => navigate(`/lessons/${lesson.id}/video`)}
-                    >
-                      <VideoIcon />
-                      View Lesson with Video
+                  {lesson.processingStatus !== 'completed' ? (
+                    <MyButton variant="soft" size="2" disabled>
+                      <EyeOpenIcon />
+                      View Lesson
+                    </MyButton>
+                  ) : (
+                    <MyButton variant="soft" size="2" asChild>
+                      <Link to={`/lessons/${lesson.id}`}>
+                        <EyeOpenIcon />
+                        View Lesson
+                      </Link>
                     </MyButton>
                   )}
+                  <MyButton variant="soft" size="2" asChild>
+                    <Link to={`/words?lessonId=${lesson.id}`}>
+                      Words in this lesson
+                    </Link>
+                  </MyButton>
+                  {lesson.lessonType === 'subtitle' &&
+                    (lesson.processingStatus !== 'completed' ? (
+                      <MyButton variant="soft" size="2" disabled>
+                        <VideoIcon />
+                        View Lesson with Video
+                      </MyButton>
+                    ) : (
+                      <MyButton variant="soft" size="2" asChild>
+                        <Link to={`/lessons/${lesson.id}/video`}>
+                          <VideoIcon />
+                          View Lesson with Video
+                        </Link>
+                      </MyButton>
+                    ))}
                   {(lesson.hasUnsplitSentences ||
                     lesson.isSplittingSentences) && (
                     <MyButton
