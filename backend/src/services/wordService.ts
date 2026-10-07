@@ -273,14 +273,13 @@ export class WordService {
           query = query.orderBy('w.word', sortOrder);
           break;
         case 'mark':
-          query = query.orderBy('wum.mark', sortOrder);
+          query = query.orderBy('wum.mark', sortOrder).orderBy('w.id', 'desc');
           break;
 
         case 'sentence_count':
-          query = query.orderBy(
-            'word_sentence_count.sentence_count',
-            sortOrder
-          );
+          query = query
+            .orderBy('word_sentence_count.sentence_count', sortOrder)
+            .orderBy('w.id', 'desc');
           break;
         case 'updated_at':
         default:
