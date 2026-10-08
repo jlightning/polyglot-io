@@ -9,7 +9,7 @@ import React, {
 import axios from 'axios';
 import { useAuth } from './AuthContext';
 import { useLanguage } from './LanguageContext';
-import { useI18n } from '../i18n';
+import { isUiLanguage, useI18n } from '../i18n';
 
 interface UserSettings {
   DAILY_SCORE_TARGET: string;
@@ -80,7 +80,7 @@ export const UserSettingProvider: React.FC<UserSettingProviderProps> = ({
         );
         setDailyScoreTarget(dailyScoreTargetValue || 200);
         const uiLanguage = response.data.settings.UI_LANGUAGE;
-        if (uiLanguage === 'en' || uiLanguage === 'vi') {
+        if (isUiLanguage(uiLanguage)) {
           setUiLanguage(uiLanguage);
         }
       }
@@ -126,7 +126,7 @@ export const UserSettingProvider: React.FC<UserSettingProviderProps> = ({
               setDailyScoreTarget(newValue);
             }
           }
-          if (key === 'UI_LANGUAGE' && (value === 'en' || value === 'vi')) {
+          if (key === 'UI_LANGUAGE' && isUiLanguage(value)) {
             setUiLanguage(value);
           }
           // Refresh settings

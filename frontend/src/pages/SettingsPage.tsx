@@ -12,7 +12,7 @@ import { useUserSettings } from '../contexts/UserSettingContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { ALLOWED_SCORE_TARGETS } from '../constants/scoreConstants';
-import { useI18n, type MessagePath } from '../i18n';
+import { isUiLanguage, useI18n, type MessagePath } from '../i18n';
 
 const scoreDifficultyPath: Record<
   (typeof ALLOWED_SCORE_TARGETS)[number],
@@ -48,7 +48,7 @@ const SettingsPage: React.FC = () => {
   }, [dailyScoreTarget]);
 
   const handleLanguageChange = async (value: string) => {
-    if (value !== 'en' && value !== 'vi') return;
+    if (!isUiLanguage(value)) return;
     const previous = uiLanguage;
     setUiLanguage(value);
     setSavingLanguage(true);
@@ -141,6 +141,7 @@ const SettingsPage: React.FC = () => {
                   <Select.Item value="vi">
                     {t('settings.vietnamese')}
                   </Select.Item>
+                  <Select.Item value="zh">{t('settings.chinese')}</Select.Item>
                 </Select.Content>
               </Select.Root>
             </Box>

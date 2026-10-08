@@ -73,6 +73,7 @@
     "siteLanguageHelp": "Language used for the site interface. This applies to your account, not a learning language.",
     "english": "English",
     "vietnamese": "Tiếng Việt",
+    "chinese": "中文",
     "scoreTarget": "Daily score target",
     "scoreHelp": "Daily word score goal for the current language.",
     "scoreAria": "Daily score target"

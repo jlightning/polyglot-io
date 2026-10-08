@@ -1,4 +1,5 @@
 import { Agent } from '@openai/agents';
+import { TRANSLATION_LANGUAGE_NAMES } from '../../consts';
 import { OPENAI_MODEL } from '../consts';
 import { BaseAgentContext } from './index';
 import z from 'zod';
@@ -13,6 +14,7 @@ export const wordTranslationAgent = new Agent({
     agent: unknown
   ) => {
     const { languageCode, languageName, word, targetLanguage } = ctx.context;
+    const targetName = TRANSLATION_LANGUAGE_NAMES[targetLanguage] ?? 'English';
 
     const languageRules = new LanguageRule({
       ja: [
@@ -26,7 +28,7 @@ export const wordTranslationAgent = new Agent({
       `The word "${word}" is in ${languageName} (language code: ${languageCode}).`,
       '',
       'Your task is to:',
-      `1. Provide accurate ${targetLanguage} translations for the word "${word}"`,
+      `1. Provide accurate ${targetName} translations for the word "${word}"`,
       '2. Include multiple translations if the word has different meanings or contexts',
       '',
       'Guidelines:',

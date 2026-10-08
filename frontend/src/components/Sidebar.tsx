@@ -14,7 +14,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useUserSettings } from '../contexts/UserSettingContext';
 import LanguageSwitcher from './LanguageSwitcher';
-import { useI18n } from '../i18n';
+import { isUiLanguage, useI18n } from '../i18n';
 import dayjs from 'dayjs';
 
 interface SidebarProps {}
@@ -255,11 +255,16 @@ const Sidebar: React.FC<SidebarProps> = () => {
                       )}
                     </Box>
                     <Text size="1" color="gray" style={{ fontSize: '10px' }}>
-                      {new Date(day.date)
-                        .toLocaleDateString(uiLanguage === 'vi' ? 'vi' : 'en', {
-                          weekday: 'short',
-                        })
-                        .slice(0, 1)}
+                      {uiLanguage === 'zh'
+                        ? new Date(day.date).toLocaleDateString('zh-CN', {
+                            weekday: 'narrow',
+                          })
+                        : new Date(day.date)
+                            .toLocaleDateString(
+                              uiLanguage === 'vi' ? 'vi' : 'en',
+                              { weekday: 'short' }
+                            )
+                            .slice(0, 1)}
                     </Text>
                   </Flex>
                 );
@@ -347,7 +352,7 @@ const Sidebar: React.FC<SidebarProps> = () => {
             value={uiLanguage}
             disabled={savingUiLanguage}
             onValueChange={async value => {
-              if ((value !== 'en' && value !== 'vi') || value === uiLanguage) {
+              if (!isUiLanguage(value) || value === uiLanguage) {
                 return;
               }
               const previous = uiLanguage;
@@ -367,6 +372,7 @@ const Sidebar: React.FC<SidebarProps> = () => {
             <Select.Content>
               <Select.Item value="en">{t('settings.english')}</Select.Item>
               <Select.Item value="vi">{t('settings.vietnamese')}</Select.Item>
+              <Select.Item value="zh">{t('settings.chinese')}</Select.Item>
             </Select.Content>
           </Select.Root>
           <MyButton

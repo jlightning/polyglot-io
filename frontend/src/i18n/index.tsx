@@ -8,8 +8,12 @@ import React, {
 } from 'react';
 import en from './en.json';
 import vi from './vi.json';
+import zh from './zh.json';
 
-export type UiLanguage = 'en' | 'vi';
+export type UiLanguage = 'en' | 'vi' | 'zh';
+
+export const isUiLanguage = (value: string): value is UiLanguage =>
+  value === 'en' || value === 'vi' || value === 'zh';
 export type Messages = typeof en;
 
 export type MessagePath = {
@@ -20,7 +24,7 @@ export type MessagePath = {
   }[keyof Messages[Group]];
 }[keyof Messages];
 
-const dictionaries: Record<UiLanguage, Messages> = { en, vi };
+const dictionaries: Record<UiLanguage, Messages> = { en, vi, zh };
 
 const STORAGE_KEY = 'polyglotio_ui_language';
 
@@ -46,7 +50,7 @@ export const translationTarget = (
   uiLanguage: string | undefined,
   studyLanguage: string | undefined
 ): UiLanguage => {
-  if (uiLanguage !== 'en' && uiLanguage !== 'vi') return 'en';
+  if (!uiLanguage || !isUiLanguage(uiLanguage)) return 'en';
   if (studyLanguage && uiLanguage === studyLanguage) return 'en';
   return uiLanguage;
 };
@@ -71,7 +75,7 @@ export const UiLanguageProvider: React.FC<UiLanguageProviderProps> = ({
   const [uiLanguage, setUiLanguageState] = useState<UiLanguage>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored === 'vi' || stored === 'en') return stored;
+      if (stored && isUiLanguage(stored)) return stored;
     } catch (error) {
       console.warn('Failed to read UI language', error);
     }
