@@ -33,6 +33,12 @@ export const sentenceSplitterAgent = new Agent({
         '- For spelled-out numbers written as one chunk before a fused counter/unit, split quantity from unit (e.g. "오백년" → "오백" + "년"). When the numeral word and counter are separated by spacing, keep them as distinct words per the spaced form (e.g. "한 개" → "한" + "개").',
         '- Also provide pronunciation in romanized form (romanization)',
       ],
+      en: [
+        '- Split on spaces and punctuation. Keep each dictionary word as one unit.',
+        '- Keep contractions as one word (e.g. "don\'t", "I\'m", "they\'re").',
+        '- Keep hyphenated compounds as one word when they are a single term (e.g. "well-known").',
+        '- Also provide pronunciation in IPA.',
+      ],
       ja: [
         '- Keep て、た、ない、ちゃう、ば、ている/てる、ておく/とく、ます/ません/ました/ましょう、られる/れる、させる/せる、たら/なら、ないで form of word as 1 word (do not split the auxiliary from the verb stem):',
         '  - "食べて" is one word, not "食べ" + "て"',

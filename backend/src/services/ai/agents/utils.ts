@@ -1,4 +1,4 @@
-export type LanguageKey = 'ja' | 'ko' | 'zh' | 'other';
+export type LanguageKey = 'ja' | 'ko' | 'zh' | 'en' | 'other';
 
 export const languageMap = {
   japanese: 'ja',

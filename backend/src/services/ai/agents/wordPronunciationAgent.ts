@@ -27,6 +27,12 @@ export const wordPronunciationAgent = new Agent({
           instruction: 'Provide pronunciation in romanized form (romanization)',
           type: 'romanization' as PronunciationType,
         };
+      } else if (lowerLang.includes('english') || lowerLang === 'en') {
+        return {
+          instruction:
+            'Provide pronunciation in IPA (International Phonetic Alphabet)',
+          type: 'ipa' as PronunciationType,
+        };
       } else if (lowerLang.includes('chinese') || lowerLang === 'zh') {
         return {
           instruction:
