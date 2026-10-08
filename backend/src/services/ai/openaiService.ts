@@ -464,7 +464,8 @@ export class OpenAIService {
     ctx: Context,
     targetSentence: string,
     contextSentences: string[],
-    sourceLanguage: string
+    sourceLanguage: string,
+    targetLanguage: string = 'en'
   ): Promise<string> {
     if (!targetSentence || targetSentence.trim().length === 0) {
       throw new Error('Target sentence cannot be empty');
@@ -477,6 +478,7 @@ export class OpenAIService {
         ...this.agentContext(ctx, sourceLanguage),
         targetSentence,
         contextSentences,
+        targetLanguage,
       },
     });
     if (!result) {

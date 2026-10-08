@@ -1,3 +1,4 @@
+import { SUPPORTED_TRANSLATION_LANGUAGES } from './consts';
 import type { Context } from './index';
 
 // Default settings values
@@ -18,8 +19,6 @@ const ALLOWED_DAILY_SCORE_TARGETS = [
   '1000',
   '2000',
 ];
-
-const ALLOWED_UI_LANGUAGES = ['en', 'vi'];
 
 export interface UserSettings {
   DAILY_SCORE_TARGET: string;
@@ -102,10 +101,13 @@ export class UserSettingService {
         }
       }
 
-      if (key === 'UI_LANGUAGE' && !ALLOWED_UI_LANGUAGES.includes(value)) {
+      if (
+        key === 'UI_LANGUAGE' &&
+        !SUPPORTED_TRANSLATION_LANGUAGES.includes(value)
+      ) {
         return {
           success: false,
-          message: `Invalid value for UI_LANGUAGE. Allowed values: ${ALLOWED_UI_LANGUAGES.join(', ')}`,
+          message: `Invalid value for UI_LANGUAGE. Allowed values: ${SUPPORTED_TRANSLATION_LANGUAGES.join(', ')}`,
         };
       }
 

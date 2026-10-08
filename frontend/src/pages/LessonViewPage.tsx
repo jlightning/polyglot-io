@@ -20,7 +20,7 @@ import LessonEditDialog from '../components/LessonEditDialog';
 import SentenceAudioPlayer from '../components/SentenceAudioPlayer';
 import SentenceReConstructor from '../components/SentenceReConstructor';
 import TTSPlayButton from '../components/TTSPlayButton';
-import { useI18n } from '../i18n';
+import { translationTarget, useI18n } from '../i18n';
 
 interface Sentence {
   id: number;
@@ -67,7 +67,7 @@ interface EditableLesson {
 const SENTENCES_PER_PAGE = 10;
 
 const LessonViewPage: React.FC = () => {
-  const { t } = useI18n();
+  const { t, uiLanguage } = useI18n();
   const { lessonId } = useParams<{ lessonId: string }>();
 
   const navigate = useNavigate();
@@ -84,6 +84,10 @@ const LessonViewPage: React.FC = () => {
   const [loadingTranslations, setLoadingTranslations] = useState<{
     [key: number]: boolean;
   }>({});
+
+  useEffect(() => {
+    setTranslations({});
+  }, [uiLanguage]);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [progressLoaded, setProgressLoaded] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -353,7 +357,12 @@ const LessonViewPage: React.FC = () => {
       setLoadingTranslations(prev => ({ ...prev, [sentenceId]: true }));
 
       const response = await axiosInstance.get(
-        `/api/lessons/sentences/${sentenceId}/translation`
+        `/api/lessons/sentences/${sentenceId}/translation`,
+        {
+          params: {
+            targetLanguage: translationTarget(uiLanguage, lesson?.languageCode),
+          },
+        }
       );
 
       if (response.data.success) {

@@ -15,7 +15,7 @@ import { useWordMark } from '../contexts/WordMarkContext';
 import { useWordSidebar } from '../contexts/WordSidebarContext';
 import SentenceReConstructor from '../components/SentenceReConstructor';
 import SentenceRetimeDialog from '../components/SentenceRetimeDialog';
-import { useI18n } from '../i18n';
+import { translationTarget, useI18n } from '../i18n';
 
 interface Sentence {
   id: number;
@@ -307,7 +307,7 @@ const LessonVideoSentencesFooter: React.FC<{
 };
 
 const LessonVideoViewPage: React.FC = () => {
-  const { t } = useI18n();
+  const { t, uiLanguage } = useI18n();
   const { lessonId } = useParams<{ lessonId: string }>();
   const { axiosInstance, isAuthenticated, isLoading: authLoading } = useAuth();
   const { getWordMark, seedWordMarks } = useWordMark();
@@ -359,6 +359,10 @@ const LessonVideoViewPage: React.FC = () => {
   const [loadingTranslations, setLoadingTranslations] = useState<{
     [key: number]: boolean;
   }>({});
+
+  useEffect(() => {
+    setTranslations({});
+  }, [uiLanguage]);
 
   // Video overlay state
   const [showSentenceOverlay, setShowSentenceOverlay] = useState(true);
@@ -1075,7 +1079,12 @@ const LessonVideoViewPage: React.FC = () => {
       setLoadingTranslations(prev => ({ ...prev, [sentenceId]: true }));
 
       const response = await axiosInstance.get(
-        `/api/lessons/sentences/${sentenceId}/translation`
+        `/api/lessons/sentences/${sentenceId}/translation`,
+        {
+          params: {
+            targetLanguage: translationTarget(uiLanguage, lesson?.languageCode),
+          },
+        }
       );
 
       if (response.data.success) {

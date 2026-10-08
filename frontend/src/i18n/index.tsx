@@ -42,6 +42,15 @@ export const useI18n = () => {
   return context;
 };
 
+export const translationTarget = (
+  uiLanguage: string | undefined,
+  studyLanguage: string | undefined
+): UiLanguage => {
+  if (uiLanguage !== 'en' && uiLanguage !== 'vi') return 'en';
+  if (studyLanguage && uiLanguage === studyLanguage) return 'en';
+  return uiLanguage;
+};
+
 export const difficultyPath = (mark: number): MessagePath => {
   if (mark === -1) return 'difficulty.unmarked';
   if (mark === 0) return 'difficulty.ignore';

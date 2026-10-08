@@ -13,7 +13,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useWordMark } from '../contexts/WordMarkContext';
 import { useWordSidebar } from '../contexts/WordSidebarContext';
 import SentenceReConstructor from '../components/SentenceReConstructor';
-import { useI18n } from '../i18n';
+import { translationTarget, useI18n } from '../i18n';
 
 interface Sentence {
   id: number;
@@ -60,7 +60,7 @@ interface Lesson {
 const SENTENCES_PER_PAGE = 100;
 
 const LessonMangaViewPage: React.FC = () => {
-  const { t } = useI18n();
+  const { t, uiLanguage } = useI18n();
   const { lessonId } = useParams<{ lessonId: string }>();
   const { axiosInstance, isAuthenticated, isLoading: authLoading } = useAuth();
   const { seedWordMarks } = useWordMark();
@@ -93,6 +93,10 @@ const LessonMangaViewPage: React.FC = () => {
   const [loadingTranslations, setLoadingTranslations] = useState<{
     [key: number]: boolean;
   }>({});
+
+  useEffect(() => {
+    setTranslations({});
+  }, [uiLanguage]);
 
   const [deletingSentenceId, setDeletingSentenceId] = useState<number | null>(
     null
@@ -425,7 +429,12 @@ const LessonMangaViewPage: React.FC = () => {
       setLoadingTranslations(prev => ({ ...prev, [sentenceId]: true }));
 
       const response = await axiosInstance.get(
-        `/api/lessons/sentences/${sentenceId}/translation`
+        `/api/lessons/sentences/${sentenceId}/translation`,
+        {
+          params: {
+            targetLanguage: translationTarget(uiLanguage, lesson?.languageCode),
+          },
+        }
       );
 
       if (response.data.success) {
