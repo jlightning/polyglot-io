@@ -75,7 +75,7 @@ yarn dev
 
 ## Languages
 
-Study languages are Japanese, Korean, English, and Chinese.
+Study languages are Japanese, Korean, English, Chinese, and Vietnamese.
 
 The site interface is English, Vietnamese (`vi`), or Chinese (`zh`). That setting is stored on the account with no study language. The login page keeps the last choice in the browser.
 

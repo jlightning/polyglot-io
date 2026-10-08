@@ -33,6 +33,12 @@ export const wordPronunciationAgent = new Agent({
             'Provide pronunciation in IPA (International Phonetic Alphabet)',
           type: 'ipa' as PronunciationType,
         };
+      } else if (lowerLang.includes('vietnamese') || lowerLang === 'vi') {
+        return {
+          instruction:
+            'Provide pronunciation in IPA (International Phonetic Alphabet)',
+          type: 'ipa' as PronunciationType,
+        };
       } else if (lowerLang.includes('chinese') || lowerLang === 'zh') {
         return {
           instruction:

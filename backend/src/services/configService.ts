@@ -38,6 +38,13 @@ export class ConfigService {
       tag: 'zh-CN',
       enabled: true,
     },
+    {
+      code: 'vi',
+      name: 'Vietnamese',
+      localName: 'Tiếng Việt',
+      tag: 'vi-VN',
+      enabled: true,
+    },
   ];
 
   /**

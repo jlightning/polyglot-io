@@ -1,10 +1,11 @@
-export type LanguageKey = 'ja' | 'ko' | 'zh' | 'en' | 'other';
+export type LanguageKey = 'ja' | 'ko' | 'zh' | 'en' | 'vi' | 'other';
 
 export const languageMap = {
   japanese: 'ja',
   korean: 'ko',
   chinese: 'zh',
   mandarin: 'zh',
+  vietnamese: 'vi',
 };
 
 export class LanguageRule {

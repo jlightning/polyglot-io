@@ -41,6 +41,12 @@ export const sentenceSplitterAgent = new Agent({
         '- Keep hyphenated compounds as one word when they are a single term (e.g. "well-known").',
         '- Also provide pronunciation in IPA.',
       ],
+      vi: [
+        '- Group space-separated syllables into one dictionary word when they form a single meaning (e.g. "cảm ơn" is one word, not "cảm" + "ơn"; "xin chào", "học sinh", "Việt Nam" stay one word).',
+        '- Do not split a syllable into letters. Keep tone marks and diacritics on the syllable (e.g. "không", "ước").',
+        '- Keep a hyphenated form as one word when it is printed with a hyphen.',
+        '- Also provide pronunciation in IPA.',
+      ],
       ja: [
         '- Keep て、た、ない、ちゃう、ば、ている/てる、ておく/とく、ます/ません/ました/ましょう、られる/れる、させる/せる、たら/なら、ないで form of word as 1 word (do not split the auxiliary from the verb stem):',
         '  - "食べて" is one word, not "食べ" + "て"',
