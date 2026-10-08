@@ -7,3 +7,13 @@ export const TRANSLATION_LANGUAGE_NAMES: Record<string, string> = {
 export const SUPPORTED_TRANSLATION_LANGUAGES = Object.keys(
   TRANSLATION_LANGUAGE_NAMES
 );
+
+export const translationTarget = (
+  uiLanguage: string | undefined,
+  studyLanguage: string
+): string => {
+  const requested =
+    SUPPORTED_TRANSLATION_LANGUAGES.find(language => language === uiLanguage) ??
+    'en';
+  return requested === studyLanguage ? 'en' : requested;
+};

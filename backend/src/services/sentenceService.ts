@@ -1,5 +1,5 @@
 import z from 'zod';
-import { SUPPORTED_TRANSLATION_LANGUAGES } from './consts';
+import { translationTarget } from './consts';
 import type { Context } from './index';
 import { wrapInTransaction } from './db';
 
@@ -240,6 +240,12 @@ export class SentenceService {
     userId: number,
     orderById: 'asc' | 'desc' = 'asc'
   ): Promise<SentenceWithSplitText[]> {
+    const settings = await ctx.userSettingService.getUserSettings(ctx, userId);
+    const targetLanguage = translationTarget(
+      settings.UI_LANGUAGE,
+      languageCode
+    );
+
     const sentencesToProcess: Array<{
       id: number;
       original_text: string;
@@ -272,7 +278,7 @@ export class SentenceService {
             include: {
               wordTranslations: {
                 where: {
-                  language_code: 'en',
+                  language_code: targetLanguage,
                 },
               },
               wordPronunciations: true,
@@ -342,7 +348,8 @@ export class SentenceService {
             ctx,
             textsToProcess,
             languageCode,
-            userId
+            userId,
+            targetLanguage
           );
 
         const updatePromises = sentencesToProcess.map(
@@ -393,7 +400,7 @@ export class SentenceService {
                 ctx,
                 analysis.words,
                 languageCode,
-                'en',
+                targetLanguage,
                 sentence.id
               );
               await ctx.prisma.sentence.update({
@@ -736,11 +743,20 @@ export class SentenceService {
           .replace(/"/g, '＂');
       }
 
+      const settings = await ctx.userSettingService.getUserSettings(
+        ctx,
+        userId
+      );
+      const targetLanguage = translationTarget(
+        settings.UI_LANGUAGE,
+        lesson.language_code
+      );
       const analysis = await ctx.openaiService.splitSentenceAndTranslate(
         ctx,
         trimmedText,
         lesson.language_code,
-        userId
+        userId,
+        targetLanguage
       );
       const splitText = analysis.words.map(w => w.word);
 
@@ -760,7 +776,7 @@ export class SentenceService {
           ctx,
           analysis.words,
           lesson.language_code,
-          'en',
+          targetLanguage,
           sentence.id
         );
 
@@ -980,12 +996,21 @@ export class SentenceService {
         };
       }
 
+      const settings = await ctx.userSettingService.getUserSettings(
+        ctx,
+        userId
+      );
+      const targetLanguage = translationTarget(
+        settings.UI_LANGUAGE,
+        lesson.language_code
+      );
       const analyses =
         await ctx.openaiService.splitMultipleSentencesAndTranslate(
           ctx,
           trimmed,
           lesson.language_code,
-          userId
+          userId,
+          targetLanguage
         );
 
       await wrapInTransaction(ctx, async ctx => {
@@ -1012,7 +1037,7 @@ export class SentenceService {
               ctx,
               analysis.words,
               lesson.language_code,
-              'en',
+              targetLanguage,
               sentence.id
             );
           }
@@ -1147,12 +1172,10 @@ export class SentenceService {
         };
       }
 
-      const requested =
-        SUPPORTED_TRANSLATION_LANGUAGES.find(
-          language => language === targetLanguage
-        ) ?? 'en';
-      const resolvedLanguage =
-        requested === sentence.lesson.language_code ? 'en' : requested;
+      const resolvedLanguage = translationTarget(
+        targetLanguage,
+        sentence.lesson.language_code
+      );
 
       // Check if translation already exists
       const existingTranslation =
