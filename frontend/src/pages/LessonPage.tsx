@@ -16,7 +16,7 @@ import LessonList from '../components/LessonList';
 import LessonUpload from '../components/LessonUpload';
 
 const LessonPage: React.FC = () => {
-  const { t } = useI18n();
+  const { t, uiLanguage } = useI18n();
   const {
     selectedLanguage,
     languages,
@@ -63,10 +63,19 @@ const LessonPage: React.FC = () => {
                   const language = languages.find(
                     lang => lang.code === selectedLanguage
                   );
+                  const original =
+                    language?.localName ||
+                    language?.name ||
+                    selectedLanguage.toUpperCase();
+                  const localized = language
+                    ? new Intl.DisplayNames([uiLanguage], {
+                        type: 'language',
+                      }).of(language.code) || language.name
+                    : original;
                   const displayName =
-                    language?.localName && language.localName !== language.name
-                      ? `${language.localName} (${language.name})`
-                      : language?.name || selectedLanguage.toUpperCase();
+                    original === localized
+                      ? original
+                      : `${original} (${localized})`;
                   return t('lessons.showing', { name: displayName });
                 })()
               : t('lessons.loadingLanguage')}

@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { Box, Flex, Text, Separator } from '@radix-ui/themes';
+import React, { useEffect, useState } from 'react';
+import { Box, Flex, Text, Separator, Select } from '@radix-ui/themes';
 import MyButton from './MyButton';
 import {
   ReaderIcon,
@@ -29,9 +29,10 @@ const Sidebar: React.FC<SidebarProps> = () => {
     fetchUserStats,
     isAuthenticated,
   } = useAuth();
-  const { dailyScoreTarget } = useUserSettings();
+  const { dailyScoreTarget, updateUserSetting } = useUserSettings();
   const { selectedLanguage } = useLanguage();
-  const { t, uiLanguage } = useI18n();
+  const { t, uiLanguage, setUiLanguage } = useI18n();
+  const [savingUiLanguage, setSavingUiLanguage] = useState(false);
   const location = useLocation();
 
   const handleLogout = () => {
@@ -339,6 +340,35 @@ const Sidebar: React.FC<SidebarProps> = () => {
       {/* Footer */}
       <Box p="4">
         <Flex direction="column" gap="2">
+          <Text size="2" weight="medium" as="div">
+            {t('settings.siteLanguage')}
+          </Text>
+          <Select.Root
+            value={uiLanguage}
+            disabled={savingUiLanguage}
+            onValueChange={async value => {
+              if ((value !== 'en' && value !== 'vi') || value === uiLanguage) {
+                return;
+              }
+              const previous = uiLanguage;
+              setUiLanguage(value);
+              setSavingUiLanguage(true);
+              const result = await updateUserSetting('UI_LANGUAGE', value);
+              setSavingUiLanguage(false);
+              if (!result.success) {
+                setUiLanguage(previous);
+              }
+            }}
+          >
+            <Select.Trigger
+              style={{ width: '100%' }}
+              aria-label={t('settings.siteLanguage')}
+            />
+            <Select.Content>
+              <Select.Item value="en">{t('settings.english')}</Select.Item>
+              <Select.Item value="vi">{t('settings.vietnamese')}</Select.Item>
+            </Select.Content>
+          </Select.Root>
           <MyButton
             variant={isSettingsActive ? 'solid' : 'soft'}
             style={{ width: '100%', justifyContent: 'flex-start' }}
