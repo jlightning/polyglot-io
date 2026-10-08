@@ -1,4 +1,5 @@
 import { Agent } from '@openai/agents';
+import { TRANSLATION_LANGUAGE_NAMES } from '../../consts';
 import { OPENAI_MODEL } from '../consts';
 import { BaseAgentContext } from './index';
 import {
@@ -9,7 +10,7 @@ import z from 'zod';
 import { LanguageRule } from './utils';
 
 export type SentenceSplitterContext = BaseAgentContext &
-  CheckUserWordMarksContext & { sentence: string };
+  CheckUserWordMarksContext & { sentence: string; targetLanguage: string };
 
 export const sentenceSplitterAgent = new Agent({
   name: 'SentenceSplitterAgent',
@@ -17,7 +18,8 @@ export const sentenceSplitterAgent = new Agent({
     ctx: { context: SentenceSplitterContext },
     agent: unknown
   ) => {
-    const { languageCode, languageName } = ctx.context;
+    const { languageCode, languageName, targetLanguage } = ctx.context;
+    const targetName = TRANSLATION_LANGUAGE_NAMES[targetLanguage] ?? 'English';
 
     const languageRules = new LanguageRule({
       zh: [
@@ -101,6 +103,7 @@ export const sentenceSplitterAgent = new Agent({
       'Your task is to:',
       `1. Split the given sentence into individual meaningful words that make sense for a language learner (excluding punctuation marks)`,
       '2. Return the words as an array of strings in their original order of appearance',
+      `3. Provide one concise ${targetName} translation for each word`,
       '',
       'Guidelines:',
       '- Split compound words appropriately for the language',
@@ -119,7 +122,7 @@ export const sentenceSplitterAgent = new Agent({
     words: z.array(
       z.object({
         word: z.string(),
-        englishTranslation: z.string(),
+        translation: z.string(),
         pronunciation: z.string(),
         pronunciationType: z.enum([
           'hiragana',

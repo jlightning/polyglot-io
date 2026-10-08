@@ -98,6 +98,7 @@ export class OpenAIService {
           sentence,
           userId,
           prisma: ctx.prisma,
+          targetLanguage,
         },
       }
     );
@@ -128,7 +129,7 @@ export class OpenAIService {
           });
 
           // Translation: use first DB row if any, else call agent.
-          let translation = word.englishTranslation;
+          let translation = word.translation;
           if (!translation) {
             const translationResult = await runner.run(
               wordTranslationAgent,
@@ -394,7 +395,8 @@ export class OpenAIService {
     ctx: Context,
     sentences: string[],
     sourceLanguage: string,
-    userId: number
+    userId: number,
+    targetLanguage: string = 'en'
   ): Promise<SentenceAnalysis[]> {
     if (!sentences || sentences.length === 0) {
       return [];
@@ -408,7 +410,8 @@ export class OpenAIService {
             ctx,
             sentence,
             sourceLanguage,
-            userId
+            userId,
+            targetLanguage
           );
         })
       )
