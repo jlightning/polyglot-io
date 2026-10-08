@@ -50,7 +50,7 @@ router.put('/:key', authenticateToken, async (req, res) => {
     const { value, languageCode } = req.body;
 
     // Validate key
-    const allowedKeys = ['DAILY_SCORE_TARGET'];
+    const allowedKeys = ['DAILY_SCORE_TARGET', 'UI_LANGUAGE'];
     if (!key || !allowedKeys.includes(key)) {
       return res.status(400).json({
         success: false,

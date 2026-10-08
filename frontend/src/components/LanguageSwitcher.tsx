@@ -2,8 +2,10 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Select, Text, Flex } from '@radix-ui/themes';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useI18n } from '../i18n';
 
 const LanguageSwitcher: React.FC = () => {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const { selectedLanguage, setSelectedLanguage, languages, loading, error } =
     useLanguage();
@@ -17,7 +19,7 @@ const LanguageSwitcher: React.FC = () => {
     return (
       <Flex direction="column" gap="2">
         <Text size="2" color="gray">
-          Loading languages...
+          {t('languageSwitcher.loading')}
         </Text>
       </Flex>
     );
@@ -37,7 +39,7 @@ const LanguageSwitcher: React.FC = () => {
     return (
       <Flex direction="column" gap="2">
         <Text size="2" color="gray">
-          No languages available
+          {t('languageSwitcher.empty')}
         </Text>
       </Flex>
     );
@@ -49,7 +51,7 @@ const LanguageSwitcher: React.FC = () => {
         value={selectedLanguage}
         onValueChange={handleLanguageChange}
       >
-        <Select.Trigger placeholder="Select language" />
+        <Select.Trigger placeholder={t('languageSwitcher.placeholder')} />
         <Select.Content>
           <Select.Group>
             {languages.map(language => (

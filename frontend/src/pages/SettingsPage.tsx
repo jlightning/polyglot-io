@@ -8,22 +8,36 @@ import {
   Box,
   Select,
 } from '@radix-ui/themes';
-import MyButton from '../components/MyButton';
 import { useUserSettings } from '../contexts/UserSettingContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
-import {
-  ALLOWED_SCORE_TARGETS,
-  getScoreTargetDifficulty,
-} from '../constants/scoreConstants';
+import { ALLOWED_SCORE_TARGETS } from '../constants/scoreConstants';
+import { useI18n, type MessagePath } from '../i18n';
+
+const scoreDifficultyPath: Record<
+  (typeof ALLOWED_SCORE_TARGETS)[number],
+  MessagePath
+> = {
+  50: 'scoreDifficulty.50',
+  100: 'scoreDifficulty.100',
+  200: 'scoreDifficulty.200',
+  250: 'scoreDifficulty.250',
+  300: 'scoreDifficulty.300',
+  400: 'scoreDifficulty.400',
+  600: 'scoreDifficulty.600',
+  1000: 'scoreDifficulty.1000',
+  2000: 'scoreDifficulty.2000',
+};
 
 const SettingsPage: React.FC = () => {
   const { dailyScoreTarget, updateUserSetting } = useUserSettings();
   const { fetchUserStats } = useAuth();
   const { selectedLanguage } = useLanguage();
+  const { t, uiLanguage, setUiLanguage } = useI18n();
   const [selectedTarget, setSelectedTarget] =
     useState<number>(dailyScoreTarget);
-  const [isLoading, setIsLoading] = useState(false);
+  const [savingLanguage, setSavingLanguage] = useState(false);
+  const [savingScore, setSavingScore] = useState(false);
   const [message, setMessage] = useState<{
     text: string;
     type: 'success' | 'error';
@@ -33,45 +47,51 @@ const SettingsPage: React.FC = () => {
     setSelectedTarget(dailyScoreTarget);
   }, [dailyScoreTarget]);
 
-  const handleSave = async () => {
-    setIsLoading(true);
+  const handleLanguageChange = async (value: string) => {
+    if (value !== 'en' && value !== 'vi') return;
+    const previous = uiLanguage;
+    setUiLanguage(value);
+    setSavingLanguage(true);
     setMessage(null);
-
-    const result = await updateUserSetting(
-      'DAILY_SCORE_TARGET',
-      selectedTarget.toString()
-    );
-
-    if (result.success) {
-      setMessage({
-        text: 'Settings saved successfully!',
-        type: 'success',
-      });
-      if (selectedLanguage) {
-        await fetchUserStats(selectedLanguage);
-      }
-    } else {
-      setMessage({
-        text: result.message || 'Failed to save settings',
-        type: 'error',
-      });
+    const result = await updateUserSetting('UI_LANGUAGE', value);
+    setSavingLanguage(false);
+    if (!result.success) {
+      setUiLanguage(previous);
+      setMessage({ text: t('settings.saveFailed'), type: 'error' });
     }
+  };
 
-    setIsLoading(false);
+  const handleScoreChange = async (value: string) => {
+    const next = parseInt(value, 10);
+    if (!selectedLanguage || Number.isNaN(next) || next === dailyScoreTarget) {
+      return;
+    }
+    const previous = selectedTarget;
+    setSelectedTarget(next);
+    setSavingScore(true);
+    setMessage(null);
+    const result = await updateUserSetting('DAILY_SCORE_TARGET', value);
+    setSavingScore(false);
+    if (result.success) {
+      await fetchUserStats(selectedLanguage);
+    } else {
+      setSelectedTarget(previous);
+      setMessage({ text: t('settings.saveFailed'), type: 'error' });
+    }
   };
 
   return (
     <Container
-      size="2"
+      size="3"
       p="4"
       style={{ flexGrow: 0, alignSelf: 'flex-start', width: '100%' }}
     >
       <Heading size="6" mb="4">
-        Settings
+        {t('settings.title')}
       </Heading>
 
       <Card size="2" style={{ width: '100%' }}>
-        <Flex direction="column" gap="4">
+        <Flex direction="column" gap="5">
           {message && (
             <Box
               p="3"
@@ -94,24 +114,56 @@ const SettingsPage: React.FC = () => {
             </Box>
           )}
 
-          <Box>
-            <Text size="3" weight="bold" as="div">
-              Daily score target
-            </Text>
-            <Text size="2" color="gray" mt="1" as="div">
-              Daily word score goal for the current language.
-            </Text>
-          </Box>
-
-          <Flex gap="3" align="center">
+          <Flex align="center" justify="between" gap="4">
             <Box style={{ flex: 1, minWidth: 0 }}>
+              <Text size="3" weight="bold" as="div">
+                {t('settings.siteLanguage')}
+              </Text>
+              <Text size="2" color="gray" mt="1" as="div">
+                {t('settings.siteLanguageHelp')}
+              </Text>
+            </Box>
+            <Box style={{ width: '280px', flexShrink: 0 }}>
               <Select.Root
-                value={selectedTarget.toString()}
-                onValueChange={value => setSelectedTarget(parseInt(value, 10))}
+                value={uiLanguage}
+                onValueChange={handleLanguageChange}
+                disabled={savingLanguage}
               >
                 <Select.Trigger
                   style={{ width: '100%' }}
-                  aria-label="Daily score target"
+                  aria-label={t('settings.siteLanguage')}
+                />
+                <Select.Content
+                  position="popper"
+                  style={{ width: 'var(--radix-select-trigger-width)' }}
+                >
+                  <Select.Item value="en">{t('settings.english')}</Select.Item>
+                  <Select.Item value="vi">
+                    {t('settings.vietnamese')}
+                  </Select.Item>
+                </Select.Content>
+              </Select.Root>
+            </Box>
+          </Flex>
+
+          <Flex align="center" justify="between" gap="4">
+            <Box style={{ flex: 1, minWidth: 0 }}>
+              <Text size="3" weight="bold" as="div">
+                {t('settings.scoreTarget')}
+              </Text>
+              <Text size="2" color="gray" mt="1" as="div">
+                {t('settings.scoreHelp')}
+              </Text>
+            </Box>
+            <Box style={{ width: '280px', flexShrink: 0 }}>
+              <Select.Root
+                value={selectedTarget.toString()}
+                onValueChange={handleScoreChange}
+                disabled={savingScore || !selectedLanguage}
+              >
+                <Select.Trigger
+                  style={{ width: '100%' }}
+                  aria-label={t('settings.scoreAria')}
                 />
                 <Select.Content
                   position="popper"
@@ -122,7 +174,7 @@ const SettingsPage: React.FC = () => {
                       <Flex align="center" justify="between" gap="4">
                         <Text>{target}</Text>
                         <Text size="1" color="gray">
-                          {getScoreTargetDifficulty(target)}
+                          {t(scoreDifficultyPath[target])}
                         </Text>
                       </Flex>
                     </Select.Item>
@@ -130,17 +182,6 @@ const SettingsPage: React.FC = () => {
                 </Select.Content>
               </Select.Root>
             </Box>
-            <MyButton
-              onClick={handleSave}
-              disabled={
-                isLoading ||
-                selectedTarget === dailyScoreTarget ||
-                !selectedLanguage
-              }
-              variant="solid"
-            >
-              {isLoading ? 'Saving...' : 'Save'}
-            </MyButton>
           </Flex>
         </Flex>
       </Card>

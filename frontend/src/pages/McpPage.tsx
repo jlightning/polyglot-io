@@ -11,61 +11,39 @@ import {
 import { ChevronDownIcon, ChevronRightIcon } from '@radix-ui/react-icons';
 import MyButton from '../components/MyButton';
 import { useAuth } from '../contexts/AuthContext';
+import { useI18n, type MessagePath } from '../i18n';
 
-const MCP_TOOLS = [
-  {
-    name: 'create_lesson',
-    description:
-      'Create lesson (type: manual|text|subtitle); manual = empty shell, sentences required for text/subtitle',
-  },
-  {
-    name: 'add_sentence',
-    description: 'Add one or more sentences to a manual lesson',
-  },
-  {
-    name: 'delete_sentence',
-    description: 'Delete sentences from a manual/manga lesson by sentenceIds[]',
-  },
-  {
-    name: 'mark_word',
-    description:
-      "Mark one or more words: 0=Ignore, 1=Don't remember, 2=Hard to remember, 3=Remembered, 4=Easy to remember, 5=No problem",
-  },
-  {
-    name: 'list_lessons',
-    description: 'List/search lessons (paginated)',
-  },
-  {
-    name: 'list_sentences',
-    description: 'List sentences for a lesson (paginated)',
-  },
-  {
-    name: 'list_words',
-    description: 'List marked words; optional exact words[] filter',
-  },
+const MCP_TOOLS: { name: string; description: MessagePath }[] = [
+  { name: 'create_lesson', description: 'mcp.toolCreateLesson' },
+  { name: 'add_sentence', description: 'mcp.toolAddSentence' },
+  { name: 'delete_sentence', description: 'mcp.toolDeleteSentence' },
+  { name: 'mark_word', description: 'mcp.toolMarkWord' },
+  { name: 'list_lessons', description: 'mcp.toolListLessons' },
+  { name: 'list_sentences', description: 'mcp.toolListSentences' },
+  { name: 'list_words', description: 'mcp.toolListWords' },
 ];
 
-const CONNECTOR_STEPS = [
-  'Open Claude Desktop → Settings → Customize → Connectors.',
-  'Click Add → Add custom connector.',
-  'Name: enter PolyglotIO (or any label you like).',
-  'Remote MCP server URL: paste the URL below (token is already in the query string).',
-  'Leave Advanced settings / OAuth Client ID & Secret empty — Polyglot does not use OAuth.',
-  'Click Add. Claude will connect to your Polyglot account via that URL.',
+const CONNECTOR_STEPS: MessagePath[] = [
+  'mcp.connector1',
+  'mcp.connector2',
+  'mcp.connector3',
+  'mcp.connector4',
+  'mcp.connector5',
+  'mcp.connector6',
 ];
 
-const DEVELOPER_CONFIG_STEPS = [
-  'Open Claude Desktop → Settings → Desktop app → Developer.',
-  'Click Edit Config to open claude_desktop_config.json.',
-  'Merge the JSON below into mcpServers (keep any existing servers).',
-  'Save the file and fully quit + reopen Claude Desktop.',
+const DEVELOPER_CONFIG_STEPS: MessagePath[] = [
+  'mcp.developer1',
+  'mcp.developer2',
+  'mcp.developer3',
+  'mcp.developer4',
 ];
 
-const CURSOR_STEPS = [
-  'Open Cursor → Settings → Cursor Settings → MCP (or Features → MCP).',
-  'Click Add new MCP server / Edit in mcp.json.',
-  'Merge the JSON below into mcpServers (keep any existing servers).',
-  'Save. Cursor should pick up the Polyglot server; reload MCP if needed.',
+const CURSOR_STEPS: MessagePath[] = [
+  'mcp.cursor1',
+  'mcp.cursor2',
+  'mcp.cursor3',
+  'mcp.cursor4',
 ];
 
 const CollapsibleSection = ({
@@ -113,6 +91,7 @@ const CollapsibleSection = ({
 
 const McpPage: React.FC = () => {
   const { token } = useAuth();
+  const { t } = useI18n();
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
   const [connectorOpen, setConnectorOpen] = useState(true);
   const [developerOpen, setDeveloperOpen] = useState(false);
@@ -138,10 +117,10 @@ const McpPage: React.FC = () => {
   const copyText = async (value: string, label: string) => {
     try {
       await navigator.clipboard.writeText(value);
-      setCopyFeedback(`${label} copied`);
+      setCopyFeedback(t('mcp.copied', { label }));
       window.setTimeout(() => setCopyFeedback(null), 2000);
     } catch {
-      setCopyFeedback(`Failed to copy ${label}`);
+      setCopyFeedback(t('mcp.copyFailed', { label }));
       window.setTimeout(() => setCopyFeedback(null), 2000);
     }
   };
@@ -149,19 +128,17 @@ const McpPage: React.FC = () => {
   return (
     <Container size="4" p="4">
       <Heading size="8" mb="4">
-        MCP
+        {t('sidebar.mcp')}
       </Heading>
 
       <Card size="3" style={{ padding: '24px', width: '100%' }}>
         <Text size="2" color="gray" mb="4" as="div">
-          Use Polyglot as a remote MCP server in Claude Desktop or Cursor. Auth
-          is your login token in the URL (`?token=...`) — no Authorization
-          header and no OAuth Client ID/Secret.
+          {t('mcp.intro')}
         </Text>
 
         {!token && (
           <Text size="2" color="red" mb="3" as="div">
-            Sign in to copy your connector URL or config.
+            {t('mcp.signIn')}
           </Text>
         )}
 
@@ -172,7 +149,7 @@ const McpPage: React.FC = () => {
         )}
 
         <CollapsibleSection
-          title="Claude Desktop — custom connector"
+          title={t('mcp.connectorTitle')}
           open={connectorOpen}
           onToggle={() => setConnectorOpen(open => !open)}
         >
@@ -182,33 +159,32 @@ const McpPage: React.FC = () => {
           >
             {CONNECTOR_STEPS.map((step, index) => (
               <Text key={step} size="2" as="div">
-                {index + 1}. {step}
+                {index + 1}. {t(step)}
               </Text>
             ))}
           </Box>
 
           <Text size="2" weight="bold" mb="2" as="div">
-            Remote MCP server URL
+            {t('mcp.urlLabel')}
           </Text>
           <Text size="2" color="gray" mb="2" as="div">
-            Paste into the URL field in Add custom connector. If you log out or
-            get a new token, update the connector URL.
+            {t('mcp.urlHelp')}
           </Text>
 
           <Flex gap="3" mb="3" wrap="wrap">
             <MyButton
-              onClick={() => copyText(mcpUrl, 'URL')}
+              onClick={() => copyText(mcpUrl, t('mcp.url'))}
               disabled={!token}
               variant="solid"
             >
-              Copy URL
+              {t('mcp.copyUrl')}
             </MyButton>
             <MyButton
-              onClick={() => token && copyText(token, 'Token')}
+              onClick={() => token && copyText(token, t('mcp.token'))}
               disabled={!token}
               variant="soft"
             >
-              Copy token only
+              {t('mcp.copyToken')}
             </MyButton>
           </Flex>
 
@@ -229,7 +205,7 @@ const McpPage: React.FC = () => {
         </CollapsibleSection>
 
         <CollapsibleSection
-          title="Claude Desktop — developer Edit Config"
+          title={t('mcp.developerTitle')}
           open={developerOpen}
           onToggle={() => setDeveloperOpen(open => !open)}
         >
@@ -239,7 +215,7 @@ const McpPage: React.FC = () => {
           >
             {DEVELOPER_CONFIG_STEPS.map((step, index) => (
               <Text key={step} size="2" as="div">
-                {index + 1}. {step}
+                {index + 1}. {t(step)}
               </Text>
             ))}
           </Box>
@@ -248,17 +224,16 @@ const McpPage: React.FC = () => {
             claude_desktop_config.json
           </Text>
           <Text size="2" color="gray" mb="2" as="div">
-            Merge under <Code>mcpServers</Code>. Token is embedded in the URL —
-            no headers or OAuth fields.
+            {t('mcp.configHelp')}
           </Text>
 
           <Flex gap="3" mb="3" wrap="wrap">
             <MyButton
-              onClick={() => copyText(mcpConfigJson, 'Config')}
+              onClick={() => copyText(mcpConfigJson, t('mcp.config'))}
               disabled={!token}
               variant="solid"
             >
-              Copy config
+              {t('mcp.copyConfig')}
             </MyButton>
           </Flex>
 
@@ -278,7 +253,7 @@ const McpPage: React.FC = () => {
         </CollapsibleSection>
 
         <CollapsibleSection
-          title="Cursor — MCP settings"
+          title={t('mcp.cursorTitle')}
           open={cursorOpen}
           onToggle={() => setCursorOpen(open => !open)}
         >
@@ -288,7 +263,7 @@ const McpPage: React.FC = () => {
           >
             {CURSOR_STEPS.map((step, index) => (
               <Text key={step} size="2" as="div">
-                {index + 1}. {step}
+                {index + 1}. {t(step)}
               </Text>
             ))}
           </Box>
@@ -297,17 +272,16 @@ const McpPage: React.FC = () => {
             mcp.json
           </Text>
           <Text size="2" color="gray" mb="2" as="div">
-            Merge under <Code>mcpServers</Code>. Token is embedded in the URL —
-            no headers needed.
+            {t('mcp.cursorHelp')}
           </Text>
 
           <Flex gap="3" mb="3" wrap="wrap">
             <MyButton
-              onClick={() => copyText(mcpConfigJson, 'Config')}
+              onClick={() => copyText(mcpConfigJson, t('mcp.config'))}
               disabled={!token}
               variant="solid"
             >
-              Copy config
+              {t('mcp.copyConfig')}
             </MyButton>
           </Flex>
 
@@ -327,7 +301,7 @@ const McpPage: React.FC = () => {
         </CollapsibleSection>
 
         <Text size="3" weight="bold" mb="2" mt="4" as="div">
-          Tools
+          {t('mcp.tools')}
         </Text>
         <Box style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {MCP_TOOLS.map(tool => (
@@ -336,7 +310,7 @@ const McpPage: React.FC = () => {
                 {tool.name}
               </Text>
               <Text size="2" color="gray" as="div">
-                {tool.description}
+                {t(tool.description)}
               </Text>
             </Box>
           ))}

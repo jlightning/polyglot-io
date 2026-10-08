@@ -9,9 +9,11 @@ import React, {
 import axios from 'axios';
 import { useAuth } from './AuthContext';
 import { useLanguage } from './LanguageContext';
+import { useI18n } from '../i18n';
 
 interface UserSettings {
   DAILY_SCORE_TARGET: string;
+  UI_LANGUAGE: string;
 }
 
 interface UserSettingContextType {
@@ -48,6 +50,7 @@ export const UserSettingProvider: React.FC<UserSettingProviderProps> = ({
 }) => {
   const { token, isAuthenticated, axiosInstance } = useAuth();
   const { selectedLanguage, loading: languageLoading } = useLanguage();
+  const { setUiLanguage } = useI18n();
   const [dailyScoreTarget, setDailyScoreTarget] = useState<number>(200);
   const [settings, setSettings] = useState<UserSettings | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -76,6 +79,10 @@ export const UserSettingProvider: React.FC<UserSettingProviderProps> = ({
           10
         );
         setDailyScoreTarget(dailyScoreTargetValue || 200);
+        const uiLanguage = response.data.settings.UI_LANGUAGE;
+        if (uiLanguage === 'en' || uiLanguage === 'vi') {
+          setUiLanguage(uiLanguage);
+        }
       }
     } catch (error) {
       console.error('Error fetching user settings:', error);
@@ -89,6 +96,7 @@ export const UserSettingProvider: React.FC<UserSettingProviderProps> = ({
     axiosInstance,
     selectedLanguage,
     languageLoading,
+    setUiLanguage,
   ]);
 
   const updateUserSetting = useCallback(
@@ -118,6 +126,9 @@ export const UserSettingProvider: React.FC<UserSettingProviderProps> = ({
               setDailyScoreTarget(newValue);
             }
           }
+          if (key === 'UI_LANGUAGE' && (value === 'en' || value === 'vi')) {
+            setUiLanguage(value);
+          }
           // Refresh settings
           await fetchUserSettings();
           return {
@@ -143,7 +154,14 @@ export const UserSettingProvider: React.FC<UserSettingProviderProps> = ({
         };
       }
     },
-    [token, isAuthenticated, axiosInstance, fetchUserSettings, selectedLanguage]
+    [
+      token,
+      isAuthenticated,
+      axiosInstance,
+      fetchUserSettings,
+      selectedLanguage,
+      setUiLanguage,
+    ]
   );
 
   // Fetch settings when authenticated

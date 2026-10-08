@@ -13,7 +13,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useWordMark } from '../contexts/WordMarkContext';
 import { useWordSidebar } from '../contexts/WordSidebarContext';
 import SentenceReConstructor from '../components/SentenceReConstructor';
-import axios from 'axios';
+import { useI18n } from '../i18n';
 
 interface Sentence {
   id: number;
@@ -60,6 +60,7 @@ interface Lesson {
 const SENTENCES_PER_PAGE = 100;
 
 const LessonMangaViewPage: React.FC = () => {
+  const { t } = useI18n();
   const { lessonId } = useParams<{ lessonId: string }>();
   const { axiosInstance, isAuthenticated, isLoading: authLoading } = useAuth();
   const { seedWordMarks } = useWordMark();
@@ -145,7 +146,7 @@ const LessonMangaViewPage: React.FC = () => {
 
           // Check if this is actually a manga lesson
           if (lessonData.lessonType !== 'manga') {
-            setError('This lesson is not a manga lesson');
+            setError(t('manga.notManga'));
             return;
           }
 
@@ -182,22 +183,18 @@ const LessonMangaViewPage: React.FC = () => {
 
           // Words will be added when sentences are loaded for each manga page
         } else {
-          setError(lessonResponse.data.message || 'Failed to load lesson');
+          setError(t('view.loadFailed'));
         }
       } catch (err) {
         console.error('Error fetching lesson:', err);
-        if (axios.isAxiosError(err) && err.response?.data?.message) {
-          setError(err.response.data.message);
-        } else {
-          setError('Failed to load lesson');
-        }
+        setError(t('view.loadFailed'));
       } finally {
         setLoading(false);
       }
     };
 
     fetchLessonInfo();
-  }, [lessonId, isAuthenticated, axiosInstance]);
+  }, [lessonId, isAuthenticated, axiosInstance, t]);
 
   // Load sentences for the current manga page
   const loadSentencesForMangaPage = useCallback(
@@ -368,7 +365,7 @@ const LessonMangaViewPage: React.FC = () => {
 
   const handleDeleteSentence = async (sentenceId: number) => {
     if (!lessonId || deletingSentenceId !== null) return;
-    if (!window.confirm('Delete this sentence?')) return;
+    if (!window.confirm(t('view.deleteConfirm'))) return;
 
     setDeleteError(null);
     setDeletingSentenceId(sentenceId);
@@ -397,15 +394,11 @@ const LessonMangaViewPage: React.FC = () => {
             : null
         );
       } else {
-        setDeleteError(response.data.message || 'Failed to delete sentence');
+        setDeleteError(t('view.deleteFailed'));
       }
     } catch (err) {
       console.error('Delete sentence error:', err);
-      if (axios.isAxiosError(err) && err.response?.data?.message) {
-        setDeleteError(err.response.data.message);
-      } else {
-        setDeleteError('Failed to delete sentence');
-      }
+      setDeleteError(t('view.deleteFailed'));
     } finally {
       setDeletingSentenceId(null);
     }
@@ -690,7 +683,7 @@ const LessonMangaViewPage: React.FC = () => {
             justify="center"
             style={{ minHeight: '50vh' }}
           >
-            <Text size="3">Loading lesson...</Text>
+            <Text size="3">{t('view.loading')}</Text>
           </Flex>
         </Box>
       </Flex>
@@ -711,7 +704,7 @@ const LessonMangaViewPage: React.FC = () => {
             style={{ minHeight: '50vh' }}
           >
             <Text size="3" color="red">
-              Please log in to view lessons
+              {t('view.loginRequired')}
             </Text>
           </Flex>
         </Box>
@@ -728,7 +721,7 @@ const LessonMangaViewPage: React.FC = () => {
         <Box style={{ padding: '16px 24px' }}>
           <Flex direction="column" gap="4">
             <MyButton variant="ghost" asChild>
-              <Link to="/lessons">← Back to Lessons</Link>
+              <Link to="/lessons">← {t('view.back')}</Link>
             </MyButton>
             <Flex
               direction="column"
@@ -737,7 +730,7 @@ const LessonMangaViewPage: React.FC = () => {
               style={{ minHeight: '50vh' }}
             >
               <Text size="3" color="red">
-                {error || 'Lesson not found'}
+                {error || t('view.notFound')}
               </Text>
             </Flex>
           </Flex>
@@ -772,16 +765,18 @@ const LessonMangaViewPage: React.FC = () => {
           <Flex direction="column" gap="2">
             <Flex align="center" justify="between">
               <MyButton variant="ghost" size="2" asChild>
-                <Link to="/lessons">← Back to Lessons</Link>
+                <Link to="/lessons">← {t('view.back')}</Link>
               </MyButton>
               <MyButton variant="soft" size="2" asChild>
                 <Link to={`/words?lessonId=${lessonId}`}>
-                  Words in this lesson
+                  {t('lessonList.wordsInLesson')}
                 </Link>
               </MyButton>
             </Flex>
             <Flex align="center" gap="2">
-              <Heading size="5">{lesson.title} - Manga View</Heading>
+              <Heading size="5">
+                {lesson.title} - {t('view.manga')}
+              </Heading>
               <Badge variant="soft" size="1">
                 {lesson.languageCode.toUpperCase()}
               </Badge>
@@ -817,7 +812,7 @@ const LessonMangaViewPage: React.FC = () => {
               >
                 <Flex direction="column" gap="3" style={{ height: '100%' }}>
                   <Flex align="center" justify="between">
-                    <Heading size="4">Manga Page</Heading>
+                    <Heading size="4">{t('manga.page')}</Heading>
                     <Flex align="center" gap="2">
                       <MyButton
                         variant={isSelectionMode ? 'solid' : 'soft'}
@@ -831,12 +826,14 @@ const LessonMangaViewPage: React.FC = () => {
                         }
                       >
                         {isSelectionMode
-                          ? '✅ Selection Mode'
-                          : '📝 Select Text'}
+                          ? t('manga.selectionOn')
+                          : t('manga.selectText')}
                       </MyButton>
                       <Text size="2" color="gray">
-                        Page {currentMangaPageIndex + 1} of{' '}
-                        {lesson.lessonFiles.length}
+                        {t('pagination.page', {
+                          current: currentMangaPageIndex + 1,
+                          total: lesson.lessonFiles.length,
+                        })}
                       </Text>
                     </Flex>
                   </Flex>
@@ -867,7 +864,7 @@ const LessonMangaViewPage: React.FC = () => {
                             currentMangaPage.imageUrl ||
                             `/api/files/${currentMangaPage.fileS3Key}`
                           }
-                          alt={`Manga page ${currentMangaPageIndex + 1}`}
+                          alt={`${t('manga.page')} ${currentMangaPageIndex + 1}`}
                           style={{
                             maxWidth: '100%',
                             maxHeight: '100%',
@@ -938,7 +935,7 @@ const LessonMangaViewPage: React.FC = () => {
                                 }}
                               />
                               <Text size="3" weight="medium">
-                                Processing OCR...
+                                {t('manga.processingOcr')}
                               </Text>
                             </Flex>
                           </Box>
@@ -956,7 +953,7 @@ const LessonMangaViewPage: React.FC = () => {
                         }}
                       >
                         <Text size="3" color="gray">
-                          No manga page available
+                          {t('manga.noPage')}
                         </Text>
                       </Flex>
                     )}
@@ -986,7 +983,9 @@ const LessonMangaViewPage: React.FC = () => {
                               )
                             }
                           >
-                            {isProcessingOCR ? 'Processing...' : 'Extract Text'}
+                            {isProcessingOCR
+                              ? t('manga.extracting')
+                              : t('manga.extract')}
                           </MyButton>
                           <MyButton
                             size="1"
@@ -1002,7 +1001,7 @@ const LessonMangaViewPage: React.FC = () => {
                               )
                             }
                           >
-                            Clear Selection
+                            {t('manga.clearSelection')}
                           </MyButton>
                         </Flex>
                       </Flex>
@@ -1020,12 +1019,12 @@ const LessonMangaViewPage: React.FC = () => {
                         isSelectionMode
                       }
                     >
-                      ← Previous Page
+                      {t('manga.previousPage')}
                     </MyButton>
                     <Text size="2" color="gray">
                       {isSelectionMode
-                        ? 'Navigation disabled in selection mode'
-                        : 'Use ←→ arrow keys'}
+                        ? t('manga.navDisabled')
+                        : t('manga.navHint')}
                     </Text>
                     <MyButton
                       variant="soft"
@@ -1037,7 +1036,7 @@ const LessonMangaViewPage: React.FC = () => {
                         isSelectionMode
                       }
                     >
-                      Next Page →
+                      {t('manga.nextPage')}
                     </MyButton>
                   </Flex>
                 </Flex>
@@ -1056,9 +1055,11 @@ const LessonMangaViewPage: React.FC = () => {
               >
                 <Flex direction="column" gap="3" style={{ height: '100%' }}>
                   <Flex align="center" justify="between">
-                    <Heading size="4">Sentences</Heading>
+                    <Heading size="4">{t('manga.sentences')}</Heading>
                     <Text size="2" color="gray">
-                      Page {currentMangaPageIndex + 1} sentences
+                      {t('manga.pageSentences', {
+                        page: currentMangaPageIndex + 1,
+                      })}
                     </Text>
                   </Flex>
 
@@ -1096,7 +1097,7 @@ const LessonMangaViewPage: React.FC = () => {
                             }}
                           />
                           <Text size="3" color="gray">
-                            Loading sentences...
+                            {t('manga.loadingSentences')}
                           </Text>
                         </Flex>
                       </Flex>
@@ -1161,10 +1162,10 @@ const LessonMangaViewPage: React.FC = () => {
                                       style={{}}
                                     >
                                       {loadingTranslations[sentence.id]
-                                        ? 'Loading...'
+                                        ? t('common.loading')
                                         : translations[sentence.id]
-                                          ? 'Hide translation'
-                                          : 'Show translation'}
+                                          ? t('view.hideTranslation')
+                                          : t('view.showTranslation')}
                                     </MyButton>
                                     <MyButton
                                       variant="soft"
@@ -1178,8 +1179,8 @@ const LessonMangaViewPage: React.FC = () => {
                                       }
                                     >
                                       {deletingSentenceId === sentence.id
-                                        ? 'Deleting...'
-                                        : 'Delete'}
+                                        ? t('common.deleting')
+                                        : t('common.delete')}
                                     </MyButton>
                                   </Flex>
 
@@ -1193,7 +1194,7 @@ const LessonMangaViewPage: React.FC = () => {
                                       }}
                                     >
                                       <Text size="1" color="gray" mb="1">
-                                        Translation:
+                                        {t('view.translation')}
                                       </Text>
                                       <Text
                                         size="2"
@@ -1218,14 +1219,15 @@ const LessonMangaViewPage: React.FC = () => {
                           !lessonCompleted && (
                             <Box mt="4">
                               <Flex direction="column" gap="3" align="center">
-                                <Heading size="3">🎉 Congratulations!</Heading>
+                                <Heading size="3">
+                                  {t('view.congratulations')}
+                                </Heading>
                                 <Text
                                   size="2"
                                   color="gray"
                                   style={{ textAlign: 'center' }}
                                 >
-                                  You've reached the last page of this manga
-                                  lesson.
+                                  {t('manga.lastPage')}
                                 </Text>
                                 <MyButton
                                   size="2"
@@ -1236,8 +1238,8 @@ const LessonMangaViewPage: React.FC = () => {
                                   style={{}}
                                 >
                                   {isFinishingLesson
-                                    ? 'Finishing...'
-                                    : 'Finish Lesson'}
+                                    ? t('video.finishing')
+                                    : t('video.finish')}
                                 </MyButton>
                               </Flex>
                             </Box>
@@ -1247,17 +1249,18 @@ const LessonMangaViewPage: React.FC = () => {
                         {lessonCompleted && (
                           <Box mt="4">
                             <Flex direction="column" gap="3" align="center">
-                              <Heading size="3">✅ Lesson Completed!</Heading>
+                              <Heading size="3">
+                                {t('view.lessonCompleted')}
+                              </Heading>
                               <Text
                                 size="2"
                                 color="green"
                                 style={{ textAlign: 'center' }}
                               >
-                                Great job! You have successfully completed this
-                                lesson. 🎉
+                                {t('view.completedMessage')}
                               </Text>
                               <MyButton size="2" variant="soft" asChild>
-                                <Link to="/lessons">Back to Lessons</Link>
+                                <Link to="/lessons">{t('view.back')}</Link>
                               </MyButton>
                             </Flex>
                           </Box>

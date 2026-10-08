@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Flex, Text, Dialog, Checkbox } from '@radix-ui/themes';
 import { useAuth } from '../contexts/AuthContext';
+import { useI18n } from '../i18n';
 import dayjs from 'dayjs';
 
 export interface ActionHistoryEntry {
@@ -29,6 +30,7 @@ const WordActionHistoryDialog: React.FC<WordActionHistoryDialogProps> = ({
   languageCode,
 }) => {
   const { axiosInstance } = useAuth();
+  const { t } = useI18n();
   const [actionHistory, setActionHistory] = useState<ActionHistoryEntry[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [showViewLog, setShowViewLog] = useState(false);
@@ -66,15 +68,9 @@ const WordActionHistoryDialog: React.FC<WordActionHistoryDialogProps> = ({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Content style={{ maxWidth: 520, minWidth: 400 }}>
-        <Dialog.Title>Action history</Dialog.Title>
+        <Dialog.Title>{t('history.title')}</Dialog.Title>
         <Dialog.Description size="2" mb="3">
-          {word ? (
-            <>
-              History for <strong>{word}</strong> (difficulty changes and views)
-            </>
-          ) : (
-            'History for this word (difficulty changes and views)'
-          )}
+          {word ? t('history.forWord', { word }) : t('history.forThisWord')}
         </Dialog.Description>
         <Flex align="center" gap="2" mb="3">
           <Checkbox
@@ -89,12 +85,12 @@ const WordActionHistoryDialog: React.FC<WordActionHistoryDialogProps> = ({
             color="gray"
             style={{ cursor: 'pointer' }}
           >
-            Show view log
+            {t('history.showViews')}
           </Text>
         </Flex>
         {loadingHistory ? (
           <Text size="2" color="gray">
-            Loading...
+            {t('common.loading')}
           </Text>
         ) : (
           (() => {
@@ -103,9 +99,7 @@ const WordActionHistoryDialog: React.FC<WordActionHistoryDialogProps> = ({
               : actionHistory.filter(e => e.type !== 'read');
             return filtered.length === 0 ? (
               <Text size="2" color="gray">
-                {showViewLog
-                  ? 'No actions yet for this word'
-                  : 'No difficulty changes (view log is hidden)'}
+                {showViewLog ? t('history.empty') : t('history.emptyMarks')}
               </Text>
             ) : (
               <Flex
@@ -123,14 +117,18 @@ const WordActionHistoryDialog: React.FC<WordActionHistoryDialogProps> = ({
                     }}
                   >
                     <Text size="2" as="div">
-                      {entry.type === 'word_mark' ? (
-                        <>
-                          Difficulty changed from {entry.action.old_mark ?? '—'}{' '}
-                          to {entry.action.new_mark ?? '—'}
-                        </>
-                      ) : (
-                        'Viewed'
-                      )}
+                      {entry.type === 'word_mark'
+                        ? t('history.markChange', {
+                            from:
+                              entry.action.old_mark === undefined
+                                ? '—'
+                                : String(entry.action.old_mark),
+                            to:
+                              entry.action.new_mark === undefined
+                                ? '—'
+                                : String(entry.action.new_mark),
+                          })
+                        : t('history.viewed')}
                     </Text>
                     <Text size="1" color="gray" mt="1">
                       {dayjs(entry.created_at).format('DD/MM/YYYY HH:mm:ss')}

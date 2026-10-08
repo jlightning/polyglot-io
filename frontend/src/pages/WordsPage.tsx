@@ -32,10 +32,8 @@ import Pagination from '../components/Pagination';
 import { useWordSidebar } from '../contexts/WordSidebarContext';
 import { useWordMark } from '../contexts/WordMarkContext';
 import SentenceReConstructor from '../components/SentenceReConstructor';
-import {
-  getDifficultyLabel,
-  getDifficultyColor,
-} from '../constants/difficultyColors';
+import { getDifficultyColor } from '../constants/difficultyColors';
+import { useI18n, difficultyPath } from '../i18n';
 import axios from 'axios';
 import dayjs from 'dayjs';
 
@@ -99,17 +97,10 @@ interface WordsResponse {
 }
 
 const ALL_DIFFICULTY_MARKS = [0, 1, 2, 3, 4, 5] as const;
-const DIFFICULTY_OPTIONS = ALL_DIFFICULTY_MARKS.map(mark => ({
-  value: mark,
-  label: `${mark}. ${getDifficultyLabel(mark)}`,
-}));
-const UNMARKED_OPTION = {
-  value: -1,
-  label: `-1. ${getDifficultyLabel(-1)}`,
-};
 
 const WordsPage: React.FC = () => {
   const { axiosInstance } = useAuth();
+  const { t } = useI18n();
   const { selectedLanguage } = useLanguage();
   const { openWordSidebar } = useWordSidebar();
   const { addWords, seedWordMarks } = useWordMark();
@@ -277,10 +268,7 @@ const WordsPage: React.FC = () => {
       ) {
         setLessonId(null);
         setSelectedLessonTitle(null);
-        setLessonFilterError(
-          message ||
-            'Lesson filter cleared: lesson not found or language mismatch'
-        );
+        setLessonFilterError(message || t('words.lessonCleared'));
       }
     } finally {
       setLoading(false);
@@ -352,9 +340,7 @@ const WordsPage: React.FC = () => {
         if (!response.data.success || !response.data.lesson) {
           setLessonId(null);
           setSelectedLessonTitle(null);
-          setLessonFilterError(
-            'Lesson filter cleared: lesson not found or access denied'
-          );
+          setLessonFilterError(t('words.lessonDenied'));
           return;
         }
         if (
@@ -363,9 +349,7 @@ const WordsPage: React.FC = () => {
         ) {
           setLessonId(null);
           setSelectedLessonTitle(null);
-          setLessonFilterError(
-            'Lesson filter cleared: lesson language does not match'
-          );
+          setLessonFilterError(t('words.lessonMismatch'));
           return;
         }
         setSelectedLessonTitle(response.data.lesson.title);
@@ -374,16 +358,14 @@ const WordsPage: React.FC = () => {
         if (cancelled) return;
         setLessonId(null);
         setSelectedLessonTitle(null);
-        setLessonFilterError(
-          'Lesson filter cleared: lesson not found or access denied'
-        );
+        setLessonFilterError(t('words.lessonDenied'));
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [axiosInstance, lessonId, selectedLanguage]);
+  }, [axiosInstance, lessonId, selectedLanguage, t]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -502,10 +484,17 @@ const WordsPage: React.FC = () => {
     });
   }, [lessonId]);
 
+  const difficultyOptions = ALL_DIFFICULTY_MARKS.map(mark => ({
+    value: mark,
+    label: `${mark}. ${t(difficultyPath(mark))}`,
+  }));
   const visibleDifficultyOptions =
     lessonId !== null
-      ? [UNMARKED_OPTION, ...DIFFICULTY_OPTIONS]
-      : DIFFICULTY_OPTIONS;
+      ? [
+          { value: -1, label: `-1. ${t(difficultyPath(-1))}` },
+          ...difficultyOptions,
+        ]
+      : difficultyOptions;
 
   const allDifficultiesSelected =
     difficultyFilter.length === 0 ||
@@ -517,7 +506,7 @@ const WordsPage: React.FC = () => {
         ALL_DIFFICULTY_MARKS.every(mark => difficultyFilter.includes(mark)) &&
         !difficultyFilter.includes(-1));
   const difficultyTriggerLabel = allDifficultiesSelected
-    ? 'Difficulties'
+    ? t('words.difficulties')
     : difficultyFilter.join(', ');
 
   const handleSort = (field: string) => {
@@ -554,12 +543,12 @@ const WordsPage: React.FC = () => {
 
   const handleLingqImport = async () => {
     if (!lingqApiKey.trim()) {
-      setImportError('Please enter your LingQ API key');
+      setImportError(t('words.lingqKeyRequired'));
       return;
     }
 
     if (!selectedLanguage) {
-      setImportError('Please select a language first');
+      setImportError(t('words.languageFirst'));
       return;
     }
 
@@ -576,12 +565,15 @@ const WordsPage: React.FC = () => {
 
       if (importResponse.data.success) {
         const { data } = importResponse.data;
-        let message = importResponse.data.message;
-
-        if (data && data.totalProcessed > 0) {
-          message = `Successfully processed ${data.totalProcessed} words: ${data.imported} imported, ${data.updated} updated`;
+        let message = '';
+        if (data) {
+          message = t('words.importProcessed', {
+            total: data.totalProcessed,
+            imported: data.imported,
+            updated: data.updated,
+          });
           if (data.errors > 0) {
-            message += `, ${data.errors} errors`;
+            message += t('words.importErrors', { count: data.errors });
           }
         }
 
@@ -595,20 +587,11 @@ const WordsPage: React.FC = () => {
           lessonId
         );
       } else {
-        throw new Error(
-          importResponse.data.message || 'Failed to import words'
-        );
+        setImportError(t('words.importFailed'));
       }
     } catch (error) {
       console.error('LingQ import error:', error);
-      const errorMessage = axios.isAxiosError(error)
-        ? error.response?.data?.message ||
-          error.message ||
-          'Failed to import from LingQ. Please check your API key and try again.'
-        : error instanceof Error
-          ? error.message
-          : 'Failed to import from LingQ. Please check your API key and try again.';
-      setImportError(errorMessage);
+      setImportError(t('words.lingqFailed'));
     } finally {
       setImportLoading(false);
     }
@@ -642,7 +625,7 @@ const WordsPage: React.FC = () => {
       {/* Header */}
       <Flex direction="column" gap="4" mb="6">
         <Flex align="center" justify="between">
-          <Heading size="6">My Words</Heading>
+          <Heading size="6">{t('words.title')}</Heading>
           <Flex gap="2">
             <MyButton
               variant="soft"
@@ -650,19 +633,21 @@ const WordsPage: React.FC = () => {
               disabled={loading}
             >
               <DownloadIcon />
-              Import
+              {t('common.import')}
             </MyButton>
             <MyButton variant="soft" onClick={handleRefresh} disabled={loading}>
               <ReloadIcon />
-              Refresh
+              {t('common.refresh')}
             </MyButton>
           </Flex>
         </Flex>
 
         <Text size="3" color="gray">
           {selectedLanguage
-            ? `Words you've marked while learning ${selectedLanguage.toUpperCase()}`
-            : "All words you've marked across all languages"}
+            ? t('words.forLanguage', {
+                language: selectedLanguage.toUpperCase(),
+              })
+            : t('words.allLanguages')}
         </Text>
       </Flex>
 
@@ -679,7 +664,7 @@ const WordsPage: React.FC = () => {
         {/* Search */}
         <Flex gap="2" style={{ flex: 1, minWidth: '300px' }}>
           <TextField.Root
-            placeholder="Search words or notes..."
+            placeholder={t('words.searchPlaceholder')}
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
             onKeyPress={e => e.key === 'Enter' && handleSearch()}
@@ -690,7 +675,7 @@ const WordsPage: React.FC = () => {
             </TextField.Slot>
           </TextField.Root>
           <MyButton onClick={handleSearch} disabled={loading}>
-            Search
+            {t('common.search')}
           </MyButton>
         </Flex>
 
@@ -757,7 +742,7 @@ const WordsPage: React.FC = () => {
                         setCurrentPage(1);
                       }}
                     >
-                      Just this
+                      {t('words.justThis')}
                     </MyButton>
                   </Flex>
                 );
@@ -788,7 +773,7 @@ const WordsPage: React.FC = () => {
               }}
             >
               <Text truncate style={{ maxWidth: '160px' }}>
-                {selectedLessonTitle || 'All lessons'}
+                {selectedLessonTitle || t('words.allLessons')}
               </Text>
               <ChevronDownIcon width="12" height="12" />
             </MyButton>
@@ -800,7 +785,7 @@ const WordsPage: React.FC = () => {
             <Flex direction="column" gap="2">
               <TextField.Root
                 size="2"
-                placeholder="Search lessons..."
+                placeholder={t('words.searchLessons')}
                 value={lessonSearch}
                 onChange={e => setLessonSearch(e.target.value)}
                 autoFocus
@@ -831,12 +816,12 @@ const WordsPage: React.FC = () => {
                       size="2"
                       weight={lessonId === null ? 'medium' : 'regular'}
                     >
-                      All lessons
+                      {t('words.allLessons')}
                     </Text>
                   </Box>
                   {lessonOptionsLoading && (
                     <Text size="2" color="gray" style={{ padding: '6px 8px' }}>
-                      Loading...
+                      {t('common.loading')}
                     </Text>
                   )}
                   {!lessonOptionsLoading &&
@@ -872,7 +857,7 @@ const WordsPage: React.FC = () => {
                     ))}
                   {!lessonOptionsLoading && lessonOptions.length === 0 && (
                     <Text size="2" color="gray" style={{ padding: '6px 8px' }}>
-                      No lessons found
+                      {t('lessonList.empty')}
                     </Text>
                   )}
                 </Flex>
@@ -891,7 +876,7 @@ const WordsPage: React.FC = () => {
           style={{ minHeight: '300px' }}
         >
           <Text size="3" color="gray">
-            Loading your words...
+            {t('words.loading')}
           </Text>
         </Flex>
       )}
@@ -905,12 +890,12 @@ const WordsPage: React.FC = () => {
           style={{ minHeight: '300px' }}
         >
           <Text size="4" color="gray" mb="2">
-            No words found
+            {t('words.empty')}
           </Text>
           <Text size="3" color="gray">
             {searchTerm || !allDifficultiesSelected
-              ? 'Try adjusting your search or filter criteria'
-              : 'Start marking words in lessons to see them here'}
+              ? t('words.emptyFiltered')
+              : t('words.emptyStart')}
           </Text>
         </Flex>
       )}
@@ -922,16 +907,28 @@ const WordsPage: React.FC = () => {
             <Table.Root>
               <Table.Header>
                 <Table.Row>
-                  {renderSortableHeader('Word', 'word', '16%')}
-                  {renderSortableHeader('Difficulty', 'mark', '10%')}
-                  {renderSortableHeader('Sentences', 'sentence_count', '8%')}
+                  {renderSortableHeader(t('words.colWord'), 'word', '16%')}
+                  {renderSortableHeader(
+                    t('words.colDifficulty'),
+                    'mark',
+                    '10%'
+                  )}
+                  {renderSortableHeader(
+                    t('words.colSentences'),
+                    'sentence_count',
+                    '8%'
+                  )}
                   <Table.ColumnHeaderCell style={{ width: '34%' }}>
-                    Example Sentences
+                    {t('words.colExamples')}
                   </Table.ColumnHeaderCell>
                   <Table.ColumnHeaderCell style={{ width: '22%' }}>
-                    Related Lessons
+                    {t('words.colLessons')}
                   </Table.ColumnHeaderCell>
-                  {renderSortableHeader('Last Updated', 'updated_at', '10%')}
+                  {renderSortableHeader(
+                    t('words.colUpdated'),
+                    'updated_at',
+                    '10%'
+                  )}
                 </Table.Row>
               </Table.Header>
               <Table.Body>
@@ -976,7 +973,7 @@ const WordsPage: React.FC = () => {
                             wordMark.mark === 4 ? '1px dotted #FF9800' : 'none',
                         }}
                       >
-                        {getDifficultyLabel(wordMark.mark)}
+                        {t(difficultyPath(wordMark.mark))}
                       </Badge>
                     </Table.Cell>
 
@@ -1030,7 +1027,7 @@ const WordsPage: React.FC = () => {
                             color="gray"
                             style={{ fontStyle: 'italic' }}
                           >
-                            No sentences available
+                            {t('words.noSentences')}
                           </Text>
                         )}
                       </Flex>
@@ -1057,7 +1054,7 @@ const WordsPage: React.FC = () => {
                             color="gray"
                             style={{ fontStyle: 'italic' }}
                           >
-                            No lessons found
+                            {t('lessonList.empty')}
                           </Text>
                         )}
                       </Flex>
@@ -1088,7 +1085,10 @@ const WordsPage: React.FC = () => {
           {/* Stats */}
           <Flex align="center" justify="center" mt="4">
             <Text size="2" color="gray">
-              Showing {words.length} of {pagination.total} words
+              {t('words.showing', {
+                count: words.length,
+                total: pagination.total,
+              })}
             </Text>
           </Flex>
         </>
@@ -1097,15 +1097,17 @@ const WordsPage: React.FC = () => {
       {/* Import Dialog */}
       <Dialog.Root open={importDialogOpen} onOpenChange={setImportDialogOpen}>
         <Dialog.Content style={{ maxWidth: '600px' }}>
-          <Dialog.Title>Import Words</Dialog.Title>
+          <Dialog.Title>{t('words.importTitle')}</Dialog.Title>
           <Dialog.Description>
-            Import words from various sources to add to your vocabulary.
+            {t('words.importDescription')}
           </Dialog.Description>
 
           <Tabs.Root defaultValue="csv" style={{ marginTop: '20px' }}>
             <Tabs.List>
-              <Tabs.Trigger value="csv">Upload CSV</Tabs.Trigger>
-              <Tabs.Trigger value="lingq">Import from LingQ</Tabs.Trigger>
+              <Tabs.Trigger value="csv">{t('words.uploadCsv')}</Tabs.Trigger>
+              <Tabs.Trigger value="lingq">
+                {t('words.importLingq')}
+              </Tabs.Trigger>
             </Tabs.List>
 
             <Box pt="4">
@@ -1113,8 +1115,7 @@ const WordsPage: React.FC = () => {
               <Tabs.Content value="csv">
                 <Flex direction="column" gap="4">
                   <Text size="3" color="gray">
-                    Upload a CSV file containing your words and their difficulty
-                    marks.
+                    {t('words.csvHelp')}
                   </Text>
 
                   <Box
@@ -1127,14 +1128,14 @@ const WordsPage: React.FC = () => {
                     }}
                   >
                     <Text size="3" color="gray">
-                      CSV upload functionality will be implemented soon.
+                      {t('words.csvSoon')}
                     </Text>
                     <Text
                       size="2"
                       color="gray"
                       style={{ display: 'block', marginTop: '8px' }}
                     >
-                      Expected format: word, language_code, mark, note
+                      {t('words.csvFormat')}
                     </Text>
                   </Box>
                 </Flex>
@@ -1144,7 +1145,7 @@ const WordsPage: React.FC = () => {
               <Tabs.Content value="lingq">
                 <Flex direction="column" gap="4">
                   <Text size="3" color="gray">
-                    Import your LingQs from LingQ.com using your API key.
+                    {t('words.lingqHelp')}
                   </Text>
 
                   {!selectedLanguage && (
@@ -1157,8 +1158,7 @@ const WordsPage: React.FC = () => {
                       }}
                     >
                       <Text size="2" color="amber">
-                        Please select a language first before importing from
-                        LingQ.
+                        {t('words.languageFirstLingq')}
                       </Text>
                     </Box>
                   )}
@@ -1170,10 +1170,10 @@ const WordsPage: React.FC = () => {
                       mb="2"
                       style={{ display: 'block' }}
                     >
-                      LingQ API Key
+                      {t('words.lingqKey')}
                     </Text>
                     <TextField.Root
-                      placeholder="Enter your LingQ API key..."
+                      placeholder={t('words.lingqKeyPlaceholder')}
                       value={lingqApiKey}
                       onChange={e => setLingqApiKey(e.target.value)}
                       disabled={importLoading}
@@ -1184,9 +1184,7 @@ const WordsPage: React.FC = () => {
                       color="gray"
                       style={{ display: 'block', marginTop: '4px' }}
                     >
-                      You can find your API key in your LingQ account settings.
-                      The key will not be stored and is only used for this
-                      import.
+                      {t('words.lingqKeyHelp')}
                     </Text>
                   </Box>
 
@@ -1229,7 +1227,7 @@ const WordsPage: React.FC = () => {
                       onClick={resetImportDialog}
                       disabled={importLoading}
                     >
-                      Reset
+                      {t('words.reset')}
                     </MyButton>
                     <MyButton
                       onClick={handleLingqImport}
@@ -1240,7 +1238,9 @@ const WordsPage: React.FC = () => {
                       }
                       loading={importLoading}
                     >
-                      {importLoading ? 'Importing...' : 'Import from LingQ'}
+                      {importLoading
+                        ? t('words.importing')
+                        : t('words.importLingq')}
                     </MyButton>
                   </Flex>
                 </Flex>
@@ -1255,7 +1255,7 @@ const WordsPage: React.FC = () => {
                 color="gray"
                 onClick={handleImportDialogClose}
               >
-                Close
+                {t('common.close')}
               </MyButton>
             </Dialog.Close>
           </Flex>

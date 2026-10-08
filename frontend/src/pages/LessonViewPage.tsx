@@ -20,7 +20,7 @@ import LessonEditDialog from '../components/LessonEditDialog';
 import SentenceAudioPlayer from '../components/SentenceAudioPlayer';
 import SentenceReConstructor from '../components/SentenceReConstructor';
 import TTSPlayButton from '../components/TTSPlayButton';
-import axios from 'axios';
+import { useI18n } from '../i18n';
 
 interface Sentence {
   id: number;
@@ -67,6 +67,7 @@ interface EditableLesson {
 const SENTENCES_PER_PAGE = 10;
 
 const LessonViewPage: React.FC = () => {
+  const { t } = useI18n();
   const { lessonId } = useParams<{ lessonId: string }>();
 
   const navigate = useNavigate();
@@ -170,15 +171,11 @@ const LessonViewPage: React.FC = () => {
             lessonData.sentences.flatMap((sentence: Sentence) => sentence.words)
           );
         } else {
-          setError(response.data.message || 'Failed to load lesson');
+          setError(t('view.loadFailed'));
         }
       } catch (err) {
         console.error('Error fetching lesson:', err);
-        if (axios.isAxiosError(err) && err.response?.data?.message) {
-          setError(err.response.data.message);
-        } else {
-          setError('Failed to load lesson');
-        }
+        setError(t('view.loadFailed'));
       } finally {
         setLoading(false);
       }
@@ -192,6 +189,7 @@ const LessonViewPage: React.FC = () => {
     axiosInstance,
     progressLoaded,
     refreshTrigger,
+    t,
   ]);
 
   // Track progress when page changes (but not on initial load)
@@ -270,15 +268,11 @@ const LessonViewPage: React.FC = () => {
         setCurrentPage(1);
         setRefreshTrigger(t => t + 1);
       } else {
-        setAddSentenceError(response.data.message || 'Failed to add sentence');
+        setAddSentenceError(t('view.addFailed'));
       }
     } catch (err) {
       console.error('Add sentence error:', err);
-      if (axios.isAxiosError(err) && err.response?.data?.message) {
-        setAddSentenceError(err.response.data.message);
-      } else {
-        setAddSentenceError('Failed to add sentence');
-      }
+      setAddSentenceError(t('view.addFailed'));
     } finally {
       setAddingSentence(false);
     }
@@ -286,7 +280,7 @@ const LessonViewPage: React.FC = () => {
 
   const handleDeleteSentence = async (sentenceId: number) => {
     if (!lessonId || deletingSentenceId !== null) return;
-    if (!window.confirm('Delete this sentence?')) return;
+    if (!window.confirm(t('view.deleteConfirm'))) return;
 
     setDeleteError(null);
     setDeletingSentenceId(sentenceId);
@@ -298,15 +292,11 @@ const LessonViewPage: React.FC = () => {
         setDeleteError(null);
         setRefreshTrigger(t => t + 1);
       } else {
-        setDeleteError(response.data.message || 'Failed to delete sentence');
+        setDeleteError(t('view.deleteFailed'));
       }
     } catch (err) {
       console.error('Delete sentence error:', err);
-      if (axios.isAxiosError(err) && err.response?.data?.message) {
-        setDeleteError(err.response.data.message);
-      } else {
-        setDeleteError('Failed to delete sentence');
-      }
+      setDeleteError(t('view.deleteFailed'));
     } finally {
       setDeletingSentenceId(null);
     }
@@ -390,7 +380,7 @@ const LessonViewPage: React.FC = () => {
           justify="center"
           style={{ minHeight: '50vh' }}
         >
-          <Text size="3">Loading lesson...</Text>
+          <Text size="3">{t('view.loading')}</Text>
         </Flex>
       </Container>
     );
@@ -406,7 +396,7 @@ const LessonViewPage: React.FC = () => {
           style={{ minHeight: '50vh' }}
         >
           <Text size="3" color="red">
-            Please log in to view lessons
+            {t('view.loginRequired')}
           </Text>
         </Flex>
       </Container>
@@ -418,7 +408,7 @@ const LessonViewPage: React.FC = () => {
       <Container size="4" p="4">
         <Flex direction="column" gap="4">
           <MyButton variant="ghost" asChild>
-            <Link to="/lessons">← Back to Lessons</Link>
+            <Link to="/lessons">← {t('view.back')}</Link>
           </MyButton>
           <Flex
             direction="column"
@@ -427,7 +417,7 @@ const LessonViewPage: React.FC = () => {
             style={{ minHeight: '50vh' }}
           >
             <Text size="3" color="red">
-              {error || 'Lesson not found'}
+              {error || t('view.notFound')}
             </Text>
           </Flex>
         </Flex>
@@ -447,7 +437,7 @@ const LessonViewPage: React.FC = () => {
       {/* Header */}
       <Flex direction="column" gap="4" mb="6">
         <MyButton variant="ghost" asChild>
-          <Link to="/lessons">← Back to Lessons</Link>
+          <Link to="/lessons">← {t('view.back')}</Link>
         </MyButton>
         <Flex align="center" gap="3" justify="between">
           <Flex align="center" gap="3">
@@ -457,31 +447,33 @@ const LessonViewPage: React.FC = () => {
           <Flex gap="3">
             {lesson?.lessonType !== 'manga' && (
               <MyButton variant="soft" asChild>
-                <Link to={`/lessons/${lessonId}/video`}>Video View</Link>
+                <Link to={`/lessons/${lessonId}/video`}>{t('view.video')}</Link>
               </MyButton>
             )}
             {lesson?.lessonType === 'manga' && (
               <MyButton variant="soft" asChild>
-                <Link to={`/lessons/${lessonId}/manga`}>Manga View</Link>
+                <Link to={`/lessons/${lessonId}/manga`}>{t('view.manga')}</Link>
               </MyButton>
             )}
             <MyButton variant="soft" asChild>
               <Link to={`/words?lessonId=${lessonId}`}>
-                Words in this lesson
+                {t('lessonList.wordsInLesson')}
               </Link>
             </MyButton>
             <MyButton variant="soft" onClick={() => setIsEditDialogOpen(true)}>
-              Edit Lesson
+              {t('edit.title')}
             </MyButton>
           </Flex>
         </Flex>
         <Flex direction="column" gap="1">
           <Text size="3" color="gray">
-            {lesson.totalSentences} sentences total
+            {t('view.sentenceCount', { count: lesson.totalSentences })}
           </Text>
           {lesson.createdWithPrompt && (
             <Text size="2" color="gray">
-              Created with prompt: {lesson.createdWithPrompt}
+              {t('view.createdWithPrompt', {
+                prompt: lesson.createdWithPrompt,
+              })}
             </Text>
           )}
           {lesson.userProgress && (
@@ -491,12 +483,12 @@ const LessonViewPage: React.FC = () => {
                 lesson.userProgress.status === 'finished' ? 'green' : 'blue'
               }
             >
-              Status:{' '}
+              {t('view.status')}{' '}
               {lesson.userProgress.status === 'reading'
-                ? 'In Progress'
-                : 'Completed'}
+                ? t('view.inProgress')
+                : t('view.completed')}
               {lesson.userProgress.status === 'reading' &&
-                ` • Last read: Page ${lesson.userProgress.shouldNavigateToPage}`}
+                ` • ${t('view.lastRead', { page: lesson.userProgress.shouldNavigateToPage })}`}
               {lesson.userProgress.status === 'finished' && ' 🎉'}
             </Text>
           )}
@@ -510,7 +502,7 @@ const LessonViewPage: React.FC = () => {
         <Card mb="6" style={{ padding: '16px' }}>
           <Flex direction="column" gap="3">
             <Text size="2" weight="medium">
-              Add sentence
+              {t('view.addSentence')}
             </Text>
             <textarea
               value={newSentenceText}
@@ -518,7 +510,7 @@ const LessonViewPage: React.FC = () => {
                 setNewSentenceText(e.target.value);
                 setAddSentenceError(null);
               }}
-              placeholder="Enter a sentence in the lesson language..."
+              placeholder={t('view.sentencePlaceholder')}
               disabled={addingSentence}
               rows={8}
               style={{
@@ -539,7 +531,7 @@ const LessonViewPage: React.FC = () => {
               onClick={handleAddSentence}
               disabled={addingSentence || !newSentenceText.trim()}
             >
-              {addingSentence ? 'Adding...' : 'Add sentence'}
+              {addingSentence ? t('view.adding') : t('view.addSentence')}
             </MyButton>
           </Flex>
         </Card>
@@ -557,7 +549,7 @@ const LessonViewPage: React.FC = () => {
         <Flex direction="column" gap="2">
           {lesson.sentences.length === 0 && lesson.lessonType === 'manual' ? (
             <Text size="2" color="gray">
-              No sentences yet. Add your first sentence above.
+              {t('view.noSentences')}
             </Text>
           ) : (
             lesson.sentences.map((sentence, index) => (
@@ -565,8 +557,9 @@ const LessonViewPage: React.FC = () => {
                 <Flex direction="column" gap="2">
                   <Flex align="center" justify="between">
                     <Text size="2" color="gray">
-                      Sentence{' '}
-                      {(currentPage - 1) * SENTENCES_PER_PAGE + index + 1}
+                      {t('view.sentenceLabel', {
+                        n: (currentPage - 1) * SENTENCES_PER_PAGE + index + 1,
+                      })}
                     </Text>
                     <Flex align="center" gap="2">
                       {sentence.start_time &&
@@ -582,7 +575,7 @@ const LessonViewPage: React.FC = () => {
                           text={sentence.original_text}
                           languageCode={lesson.languageCode}
                           axiosInstance={axiosInstance}
-                          title="Listen"
+                          title={t('view.listen')}
                         />
                       )}
                       {lesson.lessonType === 'manual' && (
@@ -594,8 +587,8 @@ const LessonViewPage: React.FC = () => {
                           disabled={deletingSentenceId === sentence.id}
                         >
                           {deletingSentenceId === sentence.id
-                            ? 'Deleting...'
-                            : 'Delete'}
+                            ? t('common.deleting')
+                            : t('common.delete')}
                         </MyButton>
                       )}
                     </Flex>
@@ -632,10 +625,10 @@ const LessonViewPage: React.FC = () => {
                       style={{}}
                     >
                       {loadingTranslations[sentence.id]
-                        ? 'Loading translation...'
+                        ? t('view.loadingTranslation')
                         : translations[sentence.id]
-                          ? 'Hide translation'
-                          : 'Show translation'}
+                          ? t('view.hideTranslation')
+                          : t('view.showTranslation')}
                     </MyButton>
 
                     {translations[sentence.id] && (
@@ -648,7 +641,7 @@ const LessonViewPage: React.FC = () => {
                         }}
                       >
                         <Text size="2" color="gray" mb="1">
-                          Translation:
+                          {t('view.translation')}
                         </Text>
                         <Text
                           size="3"
@@ -690,7 +683,7 @@ const LessonViewPage: React.FC = () => {
               disabled={isFinishingLesson}
               style={{}}
             >
-              {isFinishingLesson ? 'Finishing Lesson...' : 'Finish Lesson'}
+              {isFinishingLesson ? t('view.finishing') : t('view.finish')}
             </MyButton>
           </Flex>
         )}
