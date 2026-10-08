@@ -1,8 +1,10 @@
+import { SUPPORTED_TRANSLATION_LANGUAGES } from './consts';
 import type { Context } from './index';
 
 // Default settings values
 const DEFAULT_SETTINGS = {
   DAILY_SCORE_TARGET: '200',
+  UI_LANGUAGE: 'en',
 };
 
 // Allowed values for DAILY_SCORE_TARGET
@@ -20,6 +22,7 @@ const ALLOWED_DAILY_SCORE_TARGETS = [
 
 export interface UserSettings {
   DAILY_SCORE_TARGET: string;
+  UI_LANGUAGE: string;
 }
 
 export class UserSettingService {
@@ -34,20 +37,26 @@ export class UserSettingService {
     languageCode?: string
   ): Promise<UserSettings> {
     try {
-      const where: { user_id: number; language_code?: string | null } = {
-        user_id: userId,
-      };
-      if (languageCode) {
-        where.language_code = languageCode;
-      }
+      const where = languageCode
+        ? {
+            user_id: userId,
+            OR: [{ language_code: languageCode }, { language_code: null }],
+          }
+        : { user_id: userId };
 
       const settings = await ctx.prisma.userSetting.findMany({
         where,
       });
 
-      // Build settings object from database records (language-scoped rows take precedence when filtered by language)
+      // Null language_code (global) first, then language-scoped so per-language keys win.
+      const ordered = [...settings].sort((a, b) => {
+        if (a.language_code == null && b.language_code != null) return -1;
+        if (a.language_code != null && b.language_code == null) return 1;
+        return 0;
+      });
+
       const settingsObject: Partial<UserSettings> = {};
-      settings.forEach(setting => {
+      ordered.forEach(setting => {
         settingsObject[setting.setting_key as keyof UserSettings] =
           setting.setting_value;
       });
@@ -90,6 +99,16 @@ export class UserSettingService {
             message: `Invalid value for DAILY_SCORE_TARGET. Allowed values: ${ALLOWED_DAILY_SCORE_TARGETS.join(', ')}`,
           };
         }
+      }
+
+      if (
+        key === 'UI_LANGUAGE' &&
+        !SUPPORTED_TRANSLATION_LANGUAGES.includes(value)
+      ) {
+        return {
+          success: false,
+          message: `Invalid value for UI_LANGUAGE. Allowed values: ${SUPPORTED_TRANSLATION_LANGUAGES.join(', ')}`,
+        };
       }
 
       const langCode = key === 'DAILY_SCORE_TARGET' ? languageCode! : null;

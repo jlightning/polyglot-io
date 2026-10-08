@@ -727,10 +727,12 @@ router.get(
         });
       }
 
+      const targetLanguage = req.query['targetLanguage'];
       const result = await ctx.sentenceService.getSentenceTranslation(
         ctx,
         sentenceId,
-        req.userId!
+        req.userId!,
+        typeof targetLanguage === 'string' ? targetLanguage : undefined
       );
 
       if (result.success) {

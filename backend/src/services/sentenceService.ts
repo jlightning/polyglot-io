@@ -1,4 +1,5 @@
 import z from 'zod';
+import { translationTarget } from './consts';
 import type { Context } from './index';
 import { wrapInTransaction } from './db';
 
@@ -239,6 +240,12 @@ export class SentenceService {
     userId: number,
     orderById: 'asc' | 'desc' = 'asc'
   ): Promise<SentenceWithSplitText[]> {
+    const settings = await ctx.userSettingService.getUserSettings(ctx, userId);
+    const targetLanguage = translationTarget(
+      settings.UI_LANGUAGE,
+      languageCode
+    );
+
     const sentencesToProcess: Array<{
       id: number;
       original_text: string;
@@ -271,7 +278,7 @@ export class SentenceService {
             include: {
               wordTranslations: {
                 where: {
-                  language_code: 'en',
+                  language_code: targetLanguage,
                 },
               },
               wordPronunciations: true,
@@ -341,7 +348,8 @@ export class SentenceService {
             ctx,
             textsToProcess,
             languageCode,
-            userId
+            userId,
+            targetLanguage
           );
 
         const updatePromises = sentencesToProcess.map(
@@ -392,7 +400,7 @@ export class SentenceService {
                 ctx,
                 analysis.words,
                 languageCode,
-                'en',
+                targetLanguage,
                 sentence.id
               );
               await ctx.prisma.sentence.update({
@@ -735,11 +743,20 @@ export class SentenceService {
           .replace(/"/g, '＂');
       }
 
+      const settings = await ctx.userSettingService.getUserSettings(
+        ctx,
+        userId
+      );
+      const targetLanguage = translationTarget(
+        settings.UI_LANGUAGE,
+        lesson.language_code
+      );
       const analysis = await ctx.openaiService.splitSentenceAndTranslate(
         ctx,
         trimmedText,
         lesson.language_code,
-        userId
+        userId,
+        targetLanguage
       );
       const splitText = analysis.words.map(w => w.word);
 
@@ -759,7 +776,7 @@ export class SentenceService {
           ctx,
           analysis.words,
           lesson.language_code,
-          'en',
+          targetLanguage,
           sentence.id
         );
 
@@ -979,12 +996,21 @@ export class SentenceService {
         };
       }
 
+      const settings = await ctx.userSettingService.getUserSettings(
+        ctx,
+        userId
+      );
+      const targetLanguage = translationTarget(
+        settings.UI_LANGUAGE,
+        lesson.language_code
+      );
       const analyses =
         await ctx.openaiService.splitMultipleSentencesAndTranslate(
           ctx,
           trimmed,
           lesson.language_code,
-          userId
+          userId,
+          targetLanguage
         );
 
       await wrapInTransaction(ctx, async ctx => {
@@ -1011,7 +1037,7 @@ export class SentenceService {
               ctx,
               analysis.words,
               lesson.language_code,
-              'en',
+              targetLanguage,
               sentence.id
             );
           }
@@ -1111,7 +1137,8 @@ export class SentenceService {
   async getSentenceTranslation(
     ctx: Context,
     sentenceId: number,
-    userId: number
+    userId: number,
+    targetLanguage?: string
   ): Promise<{
     success: boolean;
     message?: string;
@@ -1145,12 +1172,17 @@ export class SentenceService {
         };
       }
 
+      const resolvedLanguage = translationTarget(
+        targetLanguage,
+        sentence.lesson.language_code
+      );
+
       // Check if translation already exists
       const existingTranslation =
         await ctx.prisma.sentenceTranslation.findFirst({
           where: {
             sentence_id: sentenceId,
-            language_code: 'en', // English translation
+            language_code: resolvedLanguage,
           },
         });
 
@@ -1192,7 +1224,8 @@ export class SentenceService {
         ctx,
         sentence.original_text,
         contextSentences,
-        sentence.lesson.language_code
+        sentence.lesson.language_code,
+        resolvedLanguage
       );
 
       // Store the translation in the database using upsert
@@ -1200,7 +1233,7 @@ export class SentenceService {
         where: {
           sentence_id_language_code: {
             sentence_id: sentenceId,
-            language_code: 'en',
+            language_code: resolvedLanguage,
           },
         },
         update: {
@@ -1208,7 +1241,7 @@ export class SentenceService {
         },
         create: {
           sentence_id: sentenceId,
-          language_code: 'en',
+          language_code: resolvedLanguage,
           translation: translation,
         },
       });

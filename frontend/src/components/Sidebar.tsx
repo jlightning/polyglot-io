@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { Box, Flex, Text, Separator } from '@radix-ui/themes';
+import React, { useEffect, useState } from 'react';
+import { Box, Flex, Text, Separator, Select } from '@radix-ui/themes';
 import MyButton from './MyButton';
 import {
   ReaderIcon,
@@ -14,6 +14,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useUserSettings } from '../contexts/UserSettingContext';
 import LanguageSwitcher from './LanguageSwitcher';
+import { isUiLanguage, useI18n } from '../i18n';
 import dayjs from 'dayjs';
 
 interface SidebarProps {}
@@ -28,8 +29,10 @@ const Sidebar: React.FC<SidebarProps> = () => {
     fetchUserStats,
     isAuthenticated,
   } = useAuth();
-  const { dailyScoreTarget } = useUserSettings();
+  const { dailyScoreTarget, updateUserSetting } = useUserSettings();
   const { selectedLanguage } = useLanguage();
+  const { t, uiLanguage, setUiLanguage } = useI18n();
+  const [savingUiLanguage, setSavingUiLanguage] = useState(false);
   const location = useLocation();
 
   const handleLogout = () => {
@@ -89,14 +92,17 @@ const Sidebar: React.FC<SidebarProps> = () => {
             </Text>
           </Flex>
           <Text size="2" color="gray">
-            Welcome, {user?.username}
+            {t('sidebar.welcome', { name: user ? user.username : '' })}
           </Text>
           <Text
             size="2"
             color={userScore >= dailyScoreTarget ? 'green' : 'yellow'}
             weight="medium"
           >
-            Today's Score: {userScore} / {dailyScoreTarget}
+            {t('sidebar.todayScore', {
+              score: userScore,
+              target: dailyScoreTarget,
+            })}
           </Text>
         </Flex>
 
@@ -104,7 +110,7 @@ const Sidebar: React.FC<SidebarProps> = () => {
         {scoreHistory.length > 0 && (
           <Box mt="3">
             <Text size="2" weight="medium" mb="2" as="div" color="gray">
-              7-Day Score History
+              {t('sidebar.history')}
             </Text>
             <Flex
               direction="row"
@@ -191,7 +197,19 @@ const Sidebar: React.FC<SidebarProps> = () => {
                         flexDirection: 'column',
                         justifyContent: 'flex-end',
                       }}
-                      title={`${dayjs(day.date).format('DD/MM/YYYY')}: ${totalScore} pts${backfilledAmount > 0 ? ` (${actualScore} actual + ${backfilledAmount} backfilled)` : ''}`}
+                      title={
+                        backfilledAmount > 0
+                          ? t('sidebar.scoreTooltipBackfill', {
+                              date: dayjs(day.date).format('DD/MM/YYYY'),
+                              score: totalScore,
+                              actual: actualScore,
+                              backfilled: backfilledAmount,
+                            })
+                          : t('sidebar.scoreTooltip', {
+                              date: dayjs(day.date).format('DD/MM/YYYY'),
+                              score: totalScore,
+                            })
+                      }
                     >
                       {/* Zero score indicator */}
                       {totalScore === 0 ? (
@@ -237,9 +255,16 @@ const Sidebar: React.FC<SidebarProps> = () => {
                       )}
                     </Box>
                     <Text size="1" color="gray" style={{ fontSize: '10px' }}>
-                      {new Date(day.date)
-                        .toLocaleDateString('en', { weekday: 'short' })
-                        .slice(0, 1)}
+                      {uiLanguage === 'zh'
+                        ? new Date(day.date).toLocaleDateString('zh-CN', {
+                            weekday: 'narrow',
+                          })
+                        : new Date(day.date)
+                            .toLocaleDateString(
+                              uiLanguage === 'vi' ? 'vi' : 'en',
+                              { weekday: 'short' }
+                            )
+                            .slice(0, 1)}
                     </Text>
                   </Flex>
                 );
@@ -251,7 +276,7 @@ const Sidebar: React.FC<SidebarProps> = () => {
         {/* Known Words - moved below chart */}
         <Box mt="3">
           <Text size="2" color="blue" weight="medium">
-            Known Words: {knownWordsCount}
+            {t('sidebar.knownWords', { count: knownWordsCount })}
           </Text>
         </Box>
       </Box>
@@ -261,7 +286,7 @@ const Sidebar: React.FC<SidebarProps> = () => {
       {/* Language Switcher */}
       <Box p="4">
         <Text size="2" weight="medium" mb="3" as="div">
-          Language
+          {t('sidebar.learningLanguage')}
         </Text>
         <LanguageSwitcher />
       </Box>
@@ -271,7 +296,7 @@ const Sidebar: React.FC<SidebarProps> = () => {
       {/* Navigation */}
       <Box p="4" flexGrow="1">
         <Text size="2" weight="medium" mb="3" as="div">
-          Navigation
+          {t('sidebar.navigation')}
         </Text>
         <Flex direction="column" gap="2">
           <MyButton
@@ -281,7 +306,7 @@ const Sidebar: React.FC<SidebarProps> = () => {
           >
             <Link to="/lessons">
               <ReaderIcon />
-              Lessons
+              {t('sidebar.lessons')}
             </Link>
           </MyButton>
           <MyButton
@@ -291,7 +316,7 @@ const Sidebar: React.FC<SidebarProps> = () => {
           >
             <Link to="/words">
               <BookmarkIcon />
-              Words
+              {t('sidebar.words')}
             </Link>
           </MyButton>
           <MyButton
@@ -301,7 +326,7 @@ const Sidebar: React.FC<SidebarProps> = () => {
           >
             <Link to="/charts">
               <DashboardIcon />
-              Charts
+              {t('sidebar.charts')}
             </Link>
           </MyButton>
           <MyButton
@@ -311,7 +336,7 @@ const Sidebar: React.FC<SidebarProps> = () => {
           >
             <Link to="/mcp">
               <CodeIcon />
-              MCP
+              {t('sidebar.mcp')}
             </Link>
           </MyButton>
         </Flex>
@@ -320,6 +345,36 @@ const Sidebar: React.FC<SidebarProps> = () => {
       {/* Footer */}
       <Box p="4">
         <Flex direction="column" gap="2">
+          <Text size="2" weight="medium" as="div">
+            {t('settings.siteLanguage')}
+          </Text>
+          <Select.Root
+            value={uiLanguage}
+            disabled={savingUiLanguage}
+            onValueChange={async value => {
+              if (!isUiLanguage(value) || value === uiLanguage) {
+                return;
+              }
+              const previous = uiLanguage;
+              setUiLanguage(value);
+              setSavingUiLanguage(true);
+              const result = await updateUserSetting('UI_LANGUAGE', value);
+              setSavingUiLanguage(false);
+              if (!result.success) {
+                setUiLanguage(previous);
+              }
+            }}
+          >
+            <Select.Trigger
+              style={{ width: '100%' }}
+              aria-label={t('settings.siteLanguage')}
+            />
+            <Select.Content>
+              <Select.Item value="en">{t('settings.english')}</Select.Item>
+              <Select.Item value="vi">{t('settings.vietnamese')}</Select.Item>
+              <Select.Item value="zh">{t('settings.chinese')}</Select.Item>
+            </Select.Content>
+          </Select.Root>
           <MyButton
             variant={isSettingsActive ? 'solid' : 'soft'}
             style={{ width: '100%', justifyContent: 'flex-start' }}
@@ -327,7 +382,7 @@ const Sidebar: React.FC<SidebarProps> = () => {
           >
             <Link to="/settings">
               <GearIcon />
-              Settings
+              {t('sidebar.settings')}
             </Link>
           </MyButton>
           <MyButton
@@ -337,7 +392,7 @@ const Sidebar: React.FC<SidebarProps> = () => {
             style={{ width: '100%', justifyContent: 'flex-start' }}
           >
             <ExitIcon />
-            Logout
+            {t('sidebar.logout')}
           </MyButton>
         </Flex>
       </Box>

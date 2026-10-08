@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, Flex, Text, Box } from '@radix-ui/themes';
 import MyButton from './MyButton';
-import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
+import { useI18n } from '../i18n';
 
 interface Sentence {
   id: number;
@@ -24,6 +24,7 @@ const SentenceRetimeDialog: React.FC<SentenceRetimeDialogProps> = ({
   onOpenChange,
   onSuccess,
 }) => {
+  const { t } = useI18n();
   const { axiosInstance } = useAuth();
   const [timeOffset, setTimeOffset] = useState<string>('');
   const [moveSubsequent, setMoveSubsequent] = useState(false);
@@ -41,7 +42,7 @@ const SentenceRetimeDialog: React.FC<SentenceRetimeDialogProps> = ({
 
   // Format time for display (MM:SS.mmm)
   const formatTime = (time: number | null): string => {
-    if (time === null) return 'N/A';
+    if (time === null) return t('retime.na');
     const minutes = Math.floor(time / 60);
     const seconds = Math.floor(time % 60);
     const milliseconds = Math.floor((time % 1) * 1000);
@@ -70,23 +71,23 @@ const SentenceRetimeDialog: React.FC<SentenceRetimeDialogProps> = ({
 
   const handleSubmit = async () => {
     if (!sentence) {
-      setError('No sentence selected');
+      setError(t('retime.noSentence'));
       return;
     }
 
     if (!timeOffset.trim()) {
-      setError('Please enter a time offset');
+      setError(t('retime.offsetRequired'));
       return;
     }
 
     const offset = parseFloat(timeOffset);
     if (isNaN(offset)) {
-      setError('Time offset must be a valid number');
+      setError(t('retime.offsetInvalid'));
       return;
     }
 
     if (sentence.start_time === null || sentence.end_time === null) {
-      setError('Sentence does not have timing data to adjust');
+      setError(t('retime.noTiming'));
       return;
     }
 
@@ -110,15 +111,11 @@ const SentenceRetimeDialog: React.FC<SentenceRetimeDialogProps> = ({
         // Close dialog
         onOpenChange(false);
       } else {
-        setError(response.data.message || 'Failed to update sentence timing');
+        setError(t('retime.failed'));
       }
     } catch (err) {
       console.error('Error updating sentence timing:', err);
-      if (axios.isAxiosError(err) && err.response?.data?.message) {
-        setError(err.response.data.message);
-      } else {
-        setError('Failed to update sentence timing. Please try again.');
-      }
+      setError(t('retime.failedRetry'));
     } finally {
       setLoading(false);
     }
@@ -129,10 +126,9 @@ const SentenceRetimeDialog: React.FC<SentenceRetimeDialogProps> = ({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Content style={{ maxWidth: 500 }}>
-        <Dialog.Title>Retime Sentence</Dialog.Title>
+        <Dialog.Title>{t('retime.title')}</Dialog.Title>
         <Dialog.Description size="2" mb="4">
-          Adjust the timing of this sentence. Use positive values to move
-          forward and negative values to move backward.
+          {t('retime.description')}
         </Dialog.Description>
 
         <Flex direction="column" gap="4">
@@ -140,14 +136,14 @@ const SentenceRetimeDialog: React.FC<SentenceRetimeDialogProps> = ({
           {sentence && (
             <Box>
               <Text size="2" weight="medium" mb="2" as="div">
-                Current Timing:
+                {t('retime.current')}
               </Text>
               <Flex direction="column" gap="1">
                 <Text size="2" color="gray">
-                  Start: {formatTime(sentence.start_time)}
+                  {t('retime.start', { time: formatTime(sentence.start_time) })}
                 </Text>
                 <Text size="2" color="gray">
-                  End: {formatTime(sentence.end_time)}
+                  {t('retime.end', { time: formatTime(sentence.end_time) })}
                 </Text>
               </Flex>
             </Box>
@@ -156,7 +152,7 @@ const SentenceRetimeDialog: React.FC<SentenceRetimeDialogProps> = ({
           {/* Time Offset Input */}
           <Box>
             <Text size="2" weight="medium" mb="2" as="div">
-              Time Offset (seconds) *
+              {t('retime.offset')}
             </Text>
             <input
               type="number"
@@ -166,7 +162,7 @@ const SentenceRetimeDialog: React.FC<SentenceRetimeDialogProps> = ({
                 setTimeOffset(e.target.value);
                 setError(null);
               }}
-              placeholder="e.g., 0.5 or -0.3"
+              placeholder={t('retime.offsetPlaceholder')}
               disabled={loading}
               style={{
                 width: '100%',
@@ -177,7 +173,7 @@ const SentenceRetimeDialog: React.FC<SentenceRetimeDialogProps> = ({
               }}
             />
             <Text size="1" color="gray" mt="1">
-              Use decimals for milliseconds (e.g., 0.5 = 500ms)
+              {t('retime.offsetHint')}
             </Text>
           </Box>
 
@@ -191,14 +187,18 @@ const SentenceRetimeDialog: React.FC<SentenceRetimeDialogProps> = ({
               }}
             >
               <Text size="2" weight="medium" mb="2" as="div">
-                Preview:
+                {t('retime.preview')}
               </Text>
               <Flex direction="column" gap="1">
                 <Text size="2">
-                  New start time: {formatTime(preview.newStartTime)}
+                  {t('retime.newStart', {
+                    time: formatTime(preview.newStartTime),
+                  })}
                 </Text>
                 <Text size="2">
-                  New end time: {formatTime(preview.newEndTime)}
+                  {t('retime.newEnd', {
+                    time: formatTime(preview.newEndTime),
+                  })}
                 </Text>
               </Flex>
             </Box>
@@ -225,12 +225,11 @@ const SentenceRetimeDialog: React.FC<SentenceRetimeDialogProps> = ({
                 htmlFor="moveSubsequent"
                 style={{ cursor: 'pointer' }}
               >
-                Move subsequent sentences
+                {t('retime.moveSubsequent')}
               </Text>
             </Flex>
             <Text size="1" color="gray" mt="1" style={{ marginLeft: '24px' }}>
-              If checked, all sentences after this one will be moved by the same
-              amount
+              {t('retime.moveHint')}
             </Text>
           </Box>
 
@@ -254,14 +253,14 @@ const SentenceRetimeDialog: React.FC<SentenceRetimeDialogProps> = ({
           <Flex gap="3" mt="4" justify="end">
             <Dialog.Close>
               <MyButton variant="soft" color="gray" disabled={loading}>
-                Cancel
+                {t('common.cancel')}
               </MyButton>
             </Dialog.Close>
             <MyButton
               onClick={handleSubmit}
               disabled={loading || !timeOffset.trim()}
             >
-              {loading ? 'Updating...' : 'Apply'}
+              {loading ? t('common.updating') : t('common.apply')}
             </MyButton>
           </Flex>
         </Flex>

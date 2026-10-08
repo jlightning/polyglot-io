@@ -18,9 +18,9 @@ import {
   DrawingPinIcon,
   DrawingPinFilledIcon,
 } from '@radix-ui/react-icons';
-import axios from 'axios';
 import dayjs from 'dayjs';
 import { useAuth } from '../contexts/AuthContext';
+import { useI18n } from '../i18n';
 import AudioPlayer from './AudioPlayer';
 import LessonEditDialog from './LessonEditDialog';
 
@@ -60,6 +60,7 @@ const LessonList: React.FC<LessonListProps> = ({
   statusFilter,
   typeFilter,
 }) => {
+  const { t } = useI18n();
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -69,7 +70,7 @@ const LessonList: React.FC<LessonListProps> = ({
   const fetchLessons = useCallback(async () => {
     if (!selectedLanguage) {
       setLoading(false);
-      setError('Please select a language to view lessons');
+      setError(t('lessonList.selectLanguage'));
       return;
     }
 
@@ -99,19 +100,15 @@ const LessonList: React.FC<LessonListProps> = ({
       if (response.data.success) {
         setLessons(response.data.lessons || []);
       } else {
-        setError(response.data.message || 'Failed to load lessons');
+        setError(t('lessonList.loadFailed'));
       }
     } catch (err) {
       console.error('Error fetching lessons:', err);
-      if (axios.isAxiosError(err) && err.response?.data?.message) {
-        setError(err.response.data.message);
-      } else {
-        setError('Failed to load lessons');
-      }
+      setError(t('lessonList.loadFailed'));
     } finally {
       setLoading(false);
     }
-  }, [selectedLanguage, search, statusFilter, typeFilter, axiosInstance]);
+  }, [selectedLanguage, search, statusFilter, typeFilter, axiosInstance, t]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -205,15 +202,11 @@ const LessonList: React.FC<LessonListProps> = ({
         // Remove the deleted lesson from the list
         setLessons(lessons.filter(lesson => lesson.id !== lessonId));
       } else {
-        setError(response.data.message || 'Failed to delete lesson');
+        setError(t('lessonList.deleteFailed'));
       }
     } catch (err) {
       console.error('Error deleting lesson:', err);
-      if (axios.isAxiosError(err) && err.response?.data?.message) {
-        setError(err.response.data.message);
-      } else {
-        setError('Failed to delete lesson');
-      }
+      setError(t('lessonList.deleteFailed'));
     } finally {
       setDeletingLessonId(null);
     }
@@ -248,11 +241,7 @@ const LessonList: React.FC<LessonListProps> = ({
       );
     } catch (err) {
       console.error('Error splitting sentences:', err);
-      if (axios.isAxiosError(err) && err.response?.data?.message) {
-        setError(err.response.data.message);
-      } else {
-        setError('Failed to split sentences');
-      }
+      setError(t('lessonList.splitFailed'));
     }
   };
 
@@ -267,11 +256,7 @@ const LessonList: React.FC<LessonListProps> = ({
       await fetchLessons();
     } catch (err) {
       console.error('Error toggling pin:', err);
-      if (axios.isAxiosError(err) && err.response?.data?.message) {
-        setError(err.response?.data?.message ?? 'Failed to update pin');
-      } else {
-        setError('Failed to update pin');
-      }
+      setError(t('lessonList.pinFailed'));
     } finally {
       setPinningLessonId(null);
     }
@@ -280,7 +265,7 @@ const LessonList: React.FC<LessonListProps> = ({
   if (loading) {
     return (
       <Card>
-        <Text>Loading lessons...</Text>
+        <Text>{t('lessonList.loading')}</Text>
       </Card>
     );
   }
@@ -290,7 +275,7 @@ const LessonList: React.FC<LessonListProps> = ({
       <Card>
         <Text color="red">{error}</Text>
         <MyButton onClick={fetchLessons} variant="soft" mt="2">
-          Retry
+          {t('common.retry')}
         </MyButton>
       </Card>
     );
@@ -301,10 +286,10 @@ const LessonList: React.FC<LessonListProps> = ({
       <Card>
         <Flex direction="column" align="center" gap="2" p="4">
           <Text size="3" color="gray">
-            No lessons found
+            {t('lessonList.empty')}
           </Text>
           <Text size="2" color="gray">
-            No lessons found for the selected language.
+            {t('lessonList.emptyLanguage')}
           </Text>
         </Flex>
       </Card>
@@ -333,10 +318,10 @@ const LessonList: React.FC<LessonListProps> = ({
                     }
                   >
                     {lesson.processingStatus === 'completed'
-                      ? '✓ Ready'
+                      ? t('lessonList.ready')
                       : lesson.processingStatus === 'pending'
-                        ? '⏳ Processing'
-                        : '❌ Failed'}
+                        ? t('lessonList.processing')
+                        : t('lessonList.failed')}
                   </Badge>
                   {lesson.userProgress &&
                     lesson.processingStatus === 'completed' && (
@@ -349,26 +334,37 @@ const LessonList: React.FC<LessonListProps> = ({
                         }
                       >
                         {lesson.userProgress.status === 'finished'
-                          ? '✓ Completed'
-                          : '📖 In Progress'}
+                          ? t('lessonList.completed')
+                          : t('lessonList.inProgress')}
                       </Badge>
                     )}
                   {lesson.lessonType && (
                     <Badge variant="outline" color="gray">
-                      {lesson.lessonType.charAt(0).toUpperCase() +
-                        lesson.lessonType.slice(1)}
+                      {lesson.lessonType === 'text'
+                        ? t('lessonType.text')
+                        : lesson.lessonType === 'subtitle'
+                          ? t('lessonType.subtitle')
+                          : lesson.lessonType === 'manga'
+                            ? t('lessonType.manga')
+                            : lesson.lessonType === 'manual'
+                              ? t('lessonType.manual')
+                              : lesson.lessonType === 'generated'
+                                ? t('lessonType.generated')
+                                : lesson.lessonType}
                     </Badge>
                   )}
                   {lesson.isSplittingSentences && (
                     <Badge variant="soft" color="yellow">
-                      ⏳ Splitting sentences…
                       {lesson.sentenceSplitProgress
-                        ? ` ${lesson.sentenceSplitProgress.splitCount} / ${lesson.sentenceSplitProgress.totalCount}`
-                        : ''}
+                        ? t('lessonList.splittingProgress', {
+                            done: lesson.sentenceSplitProgress.splitCount,
+                            total: lesson.sentenceSplitProgress.totalCount,
+                          })
+                        : t('lessonList.splitting')}
                     </Badge>
                   )}
                   <Text size="2" color="gray">
-                    Lesson #{lesson.id}
+                    {t('lessonList.lessonNumber', { id: lesson.id })}
                   </Text>
                 </Flex>
 
@@ -380,7 +376,7 @@ const LessonList: React.FC<LessonListProps> = ({
                   {lesson.imageUrl && (
                     <Flex align="center" gap="2">
                       <Text size="2" weight="medium">
-                        Image:
+                        {t('lessonList.image')}
                       </Text>
                       <a
                         href={lesson.imageUrl}
@@ -388,7 +384,7 @@ const LessonList: React.FC<LessonListProps> = ({
                         rel="noopener noreferrer"
                         style={{ color: 'var(--accent-9)' }}
                       >
-                        <Text size="2">View Image</Text>
+                        <Text size="2">{t('lessonList.viewImage')}</Text>
                       </a>
                     </Flex>
                   )}
@@ -396,7 +392,7 @@ const LessonList: React.FC<LessonListProps> = ({
                   {lesson.fileUrl && (
                     <Flex align="center" gap="2">
                       <Text size="2" weight="medium">
-                        File:
+                        {t('lessonList.file')}
                       </Text>
                       <a
                         href={lesson.fileUrl}
@@ -404,7 +400,7 @@ const LessonList: React.FC<LessonListProps> = ({
                         rel="noopener noreferrer"
                         style={{ color: 'var(--accent-9)' }}
                       >
-                        <Text size="2">Download File</Text>
+                        <Text size="2">{t('lessonList.downloadFile')}</Text>
                       </a>
                     </Flex>
                   )}
@@ -412,31 +408,36 @@ const LessonList: React.FC<LessonListProps> = ({
                   {lesson.audioUrl && (
                     <Box>
                       <Text size="2" weight="medium" mb="2" as="div">
-                        Audio:
+                        {t('lessonList.audio')}
                       </Text>
                       <AudioPlayer
                         audioUrl={lesson.audioUrl}
-                        title={`${lesson.title} - Audio`}
+                        title={t('lessonList.audioTitle', {
+                          title: lesson.title,
+                        })}
                       />
                     </Box>
                   )}
                 </Flex>
 
                 <Text size="1" color="gray">
-                  Created: {dayjs(lesson.createdAt).format('DD/MM/YYYY')}
+                  {t('lessonList.created', {
+                    date: dayjs(lesson.createdAt).format('DD/MM/YYYY'),
+                  })}
                 </Text>
 
                 {lesson.createdWithPrompt && (
                   <Text size="2" color="gray" as="div">
-                    Prompt: {lesson.createdWithPrompt}
+                    {t('lessonList.prompt', {
+                      prompt: lesson.createdWithPrompt,
+                    })}
                   </Text>
                 )}
 
                 {lesson.processingStatus === 'pending' && (
                   <Box mt="3">
                     <Text size="2" color="orange">
-                      📤 Your lesson is being processed. This may take a few
-                      minutes for manga lessons with multiple pages.
+                      {t('lessonList.processingNote')}
                     </Text>
                   </Box>
                 )}
@@ -444,8 +445,7 @@ const LessonList: React.FC<LessonListProps> = ({
                 {lesson.processingStatus === 'failed' && (
                   <Box mt="3">
                     <Text size="2" color="red">
-                      ⚠️ Processing failed. Please try uploading your lesson
-                      again or contact support if the issue persists.
+                      {t('lessonList.failedNote')}
                     </Text>
                   </Box>
                 )}
@@ -454,32 +454,32 @@ const LessonList: React.FC<LessonListProps> = ({
                   {lesson.processingStatus !== 'completed' ? (
                     <MyButton variant="soft" size="2" disabled>
                       <EyeOpenIcon />
-                      View Lesson
+                      {t('lessonList.view')}
                     </MyButton>
                   ) : (
                     <MyButton variant="soft" size="2" asChild>
                       <Link to={`/lessons/${lesson.id}`}>
                         <EyeOpenIcon />
-                        View Lesson
+                        {t('lessonList.view')}
                       </Link>
                     </MyButton>
                   )}
                   <MyButton variant="soft" size="2" asChild>
                     <Link to={`/words?lessonId=${lesson.id}`}>
-                      Words in this lesson
+                      {t('lessonList.wordsInLesson')}
                     </Link>
                   </MyButton>
                   {lesson.lessonType === 'subtitle' &&
                     (lesson.processingStatus !== 'completed' ? (
                       <MyButton variant="soft" size="2" disabled>
                         <VideoIcon />
-                        View Lesson with Video
+                        {t('lessonList.viewVideo')}
                       </MyButton>
                     ) : (
                       <MyButton variant="soft" size="2" asChild>
                         <Link to={`/lessons/${lesson.id}/video`}>
                           <VideoIcon />
-                          View Lesson with Video
+                          {t('lessonList.viewVideo')}
                         </Link>
                       </MyButton>
                     ))}
@@ -495,8 +495,8 @@ const LessonList: React.FC<LessonListProps> = ({
                       onClick={() => handleSplitAllSentences(lesson.id)}
                     >
                       {lesson.isSplittingSentences
-                        ? 'Splitting...'
-                        : 'Split all sentences'}
+                        ? t('lessonList.splittingButton')
+                        : t('lessonList.splitAll')}
                     </MyButton>
                   )}
                 </Flex>
@@ -508,7 +508,11 @@ const LessonList: React.FC<LessonListProps> = ({
                   color={lesson.isPinned ? 'blue' : 'gray'}
                   disabled={pinningLessonId === lesson.id}
                   onClick={() => handleTogglePin(lesson)}
-                  title={lesson.isPinned ? 'Unpin lesson' : 'Pin lesson'}
+                  title={
+                    lesson.isPinned
+                      ? t('lessonList.unpin')
+                      : t('lessonList.pin')
+                  }
                 >
                   {lesson.isPinned ? (
                     <DrawingPinFilledIcon />
@@ -539,16 +543,15 @@ const LessonList: React.FC<LessonListProps> = ({
                     </IconButton>
                   </Dialog.Trigger>
                   <Dialog.Content style={{ maxWidth: 450 }}>
-                    <Dialog.Title>Delete Lesson</Dialog.Title>
+                    <Dialog.Title>{t('lessonList.deleteTitle')}</Dialog.Title>
                     <Dialog.Description size="2" mb="4">
-                      Are you sure you want to delete this lesson? This action
-                      cannot be undone.
+                      {t('lessonList.deleteConfirm')}
                     </Dialog.Description>
 
                     <Flex gap="3" mt="4" justify="end">
                       <Dialog.Close>
                         <MyButton variant="soft" color="gray">
-                          Cancel
+                          {t('common.cancel')}
                         </MyButton>
                       </Dialog.Close>
                       <Dialog.Close>
@@ -559,8 +562,8 @@ const LessonList: React.FC<LessonListProps> = ({
                           disabled={deletingLessonId === lesson.id}
                         >
                           {deletingLessonId === lesson.id
-                            ? 'Deleting...'
-                            : 'Delete'}
+                            ? t('common.deleting')
+                            : t('common.delete')}
                         </MyButton>
                       </Dialog.Close>
                     </Flex>

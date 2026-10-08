@@ -1,4 +1,5 @@
 import { Agent } from '@openai/agents';
+import { TRANSLATION_LANGUAGE_NAMES } from '../../consts';
 import { OPENAI_MODEL } from '../consts';
 import { BaseAgentContext } from './index';
 import {
@@ -9,7 +10,7 @@ import z from 'zod';
 import { LanguageRule } from './utils';
 
 export type SentenceSplitterContext = BaseAgentContext &
-  CheckUserWordMarksContext & { sentence: string };
+  CheckUserWordMarksContext & { sentence: string; targetLanguage: string };
 
 export const sentenceSplitterAgent = new Agent({
   name: 'SentenceSplitterAgent',
@@ -17,7 +18,8 @@ export const sentenceSplitterAgent = new Agent({
     ctx: { context: SentenceSplitterContext },
     agent: unknown
   ) => {
-    const { languageCode, languageName } = ctx.context;
+    const { languageCode, languageName, targetLanguage } = ctx.context;
+    const targetName = TRANSLATION_LANGUAGE_NAMES[targetLanguage] ?? 'English';
 
     const languageRules = new LanguageRule({
       zh: [
@@ -32,6 +34,12 @@ export const sentenceSplitterAgent = new Agent({
         '- Split Arabic numerals from counters, currency, measures, units, or time/counting expressions glued immediately after digits with no space (e.g. "100년" → "100" + "년", "50명" → "50" + "명", "500원" → "500" + "원", "30분" → "30" + "분").',
         '- For spelled-out numbers written as one chunk before a fused counter/unit, split quantity from unit (e.g. "오백년" → "오백" + "년"). When the numeral word and counter are separated by spacing, keep them as distinct words per the spaced form (e.g. "한 개" → "한" + "개").',
         '- Also provide pronunciation in romanized form (romanization)',
+      ],
+      en: [
+        '- Split on spaces and punctuation. Keep each dictionary word as one unit.',
+        '- Keep contractions as one word (e.g. "don\'t", "I\'m", "they\'re").',
+        '- Keep hyphenated compounds as one word when they are a single term (e.g. "well-known").',
+        '- Also provide pronunciation in IPA.',
       ],
       ja: [
         '- Keep て、た、ない、ちゃう、ば、ている/てる、ておく/とく、ます/ません/ました/ましょう、られる/れる、させる/せる、たら/なら、ないで form of word as 1 word (do not split the auxiliary from the verb stem):',
@@ -95,6 +103,7 @@ export const sentenceSplitterAgent = new Agent({
       'Your task is to:',
       `1. Split the given sentence into individual meaningful words that make sense for a language learner (excluding punctuation marks)`,
       '2. Return the words as an array of strings in their original order of appearance',
+      `3. Provide one concise ${targetName} translation for each word`,
       '',
       'Guidelines:',
       '- Split compound words appropriately for the language',
@@ -113,7 +122,7 @@ export const sentenceSplitterAgent = new Agent({
     words: z.array(
       z.object({
         word: z.string(),
-        englishTranslation: z.string(),
+        translation: z.string(),
         pronunciation: z.string(),
         pronunciationType: z.enum([
           'hiragana',

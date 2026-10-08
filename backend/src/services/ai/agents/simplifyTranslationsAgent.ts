@@ -1,4 +1,5 @@
 import { Agent } from '@openai/agents';
+import { TRANSLATION_LANGUAGE_NAMES } from '../../consts';
 import { OPENAI_MODEL } from '../consts';
 import { BaseAgentContext } from './index';
 import z from 'zod';
@@ -18,6 +19,7 @@ export const simplifyTranslationsAgent = new Agent({
   ) => {
     const { languageCode, languageName, word, translations, targetLanguage } =
       ctx.context;
+    const targetName = TRANSLATION_LANGUAGE_NAMES[targetLanguage] ?? 'English';
 
     const languageRules = new LanguageRule({
       ja: [
@@ -28,7 +30,7 @@ export const simplifyTranslationsAgent = new Agent({
     return [
       'You are a language expert that simplifies word translations.',
       '',
-      `The word "${word}" in ${languageName} (language code: ${languageCode}) has ${translations.length} translations in ${targetLanguage}.`,
+      `The word "${word}" in ${languageName} (language code: ${languageCode}) has ${translations.length} translations in ${targetName}.`,
       'Your task is to simplify the list to minimal list.',
       '',
       'Guidelines:',
