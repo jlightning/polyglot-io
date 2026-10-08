@@ -71,6 +71,15 @@ yarn dev
 - Translate sentences and generate speech for words/sentences (OpenAI TTS)
 - Track lesson progress, word history, and learning charts
 - Import vocabulary from LingQ
+- Use the site in English, Vietnamese, or Chinese, separately from the language you are studying
+
+## Languages
+
+Study languages are Japanese, Korean, English, and Chinese.
+
+The site interface is English, Vietnamese (`vi`), or Chinese (`zh`). That setting is stored on the account with no study language. The login page keeps the last choice in the browser.
+
+Word and sentence translations use the site language. If it is missing, or it is the same language you are studying, the translation is English. Splitting a lesson saves each word gloss in that same language. Opening a word that has no gloss yet generates one and saves it.
 
 ## Common Commands
 
