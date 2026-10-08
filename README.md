@@ -66,12 +66,14 @@ yarn dev
 ## What You Can Do
 
 - Create text, subtitle, manga (OCR), manual, and AI-generated lessons
-- Watch videos with synchronized subtitles and clickable words
-- Mark words with difficulty levels and personal notes
-- Translate sentences and generate speech for words/sentences (OpenAI TTS)
-- Track lesson progress, word history, and learning charts
+- Read a lesson as text, as video with synchronized subtitles, or as manga pages
+- Click a word for its gloss, pronunciation, and your mark
+- Mark words from ignore through known, with notes and an action history
+- Show a sentence translation, and play speech for a word or sentence
+- Set a daily score target and review progress on charts
 - Import vocabulary from LingQ
 - Use the site in English, Vietnamese, or Chinese, separately from the language you are studying
+- Connect Claude Desktop or Cursor over MCP to create lessons, add or delete sentences, mark words, and list lessons, sentences, and words
 
 ## Languages
 
