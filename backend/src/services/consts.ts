@@ -1,5 +1,5 @@
 export const NUMBER_OF_TRANSLATION_TO_REDUCE = 5;
-export const PLIMIT_CONCURRENCY = 10;
+export const PLIMIT_CONCURRENCY = 20;
 export const TRANSLATION_LANGUAGE_NAMES: Record<string, string> = {
   en: 'English',
   vi: 'Vietnamese',
