@@ -176,9 +176,25 @@ const SettingsPage: React.FC = () => {
                   style={{ width: 'var(--radix-select-trigger-width)' }}
                 >
                   {ALLOWED_SCORE_TARGETS.map(target => (
-                    <Select.Item key={target} value={target.toString()}>
-                      <Flex align="center" justify="between" gap="4">
-                        <Text>{target}</Text>
+                    <Select.Item
+                      key={target}
+                      value={target.toString()}
+                      className="score-target-item"
+                    >
+                      <Flex
+                        align="center"
+                        justify="between"
+                        gap="3"
+                        style={{ width: '100%' }}
+                      >
+                        <Text
+                          style={{
+                            fontVariantNumeric: 'tabular-nums',
+                            flexShrink: 0,
+                          }}
+                        >
+                          {target}
+                        </Text>
                         <Text size="1" color="gray">
                           {t(scoreDifficultyPath[target])}
                         </Text>

@@ -16,6 +16,12 @@
   }
 }
 
+/* Score target options: number on the left, label on the right */
+.score-target-item > span:last-child {
+  flex: 1;
+  min-width: 0;
+}
+
 /* Word badge hover effects */
 .word-badge:hover {
   transform: translateY(-1px);
