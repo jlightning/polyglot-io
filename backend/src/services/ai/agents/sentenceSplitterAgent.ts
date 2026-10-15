@@ -94,6 +94,7 @@ export const sentenceSplitterAgent = new Agent({
         '  - Name honorific suffixes "さん", "くん" as their own words (e.g. "田中" + "さん", "太郎" + "くん"; if the name has family + given parts, separate those too, then the suffix)',
         '- Keep glued numeral + classifier/unit/time as one word when they express one measured quantity (e.g. "100年", "50人", "10分", "百年").',
         '- Also provide pronunciation in hiragana',
+        '- If the original sentence already has a reading in brackets right after a kanji, drop those brackets from the word and use that reading as the pronunciation (e.g. "帰(けえ)んな" → word "帰んな", pronunciation "けえんな"). Do not leave the bracketed reading in the word, and do not add one that was not in the sentence.',
         '- If a word is a dialectal form or a colloquial contraction, clearly indicate this and provide the corresponding standard Japanese in the translation.',
       ],
       other: [
