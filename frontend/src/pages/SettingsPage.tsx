@@ -12,6 +12,7 @@ import { useUserSettings } from '../contexts/UserSettingContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { ALLOWED_SCORE_TARGETS } from '../constants/scoreConstants';
+import { languageFlag } from '../constants/languageFlags';
 import { isUiLanguage, useI18n, type MessagePath } from '../i18n';
 
 const scoreDifficultyPath: Record<
@@ -137,11 +138,15 @@ const SettingsPage: React.FC = () => {
                   position="popper"
                   style={{ width: 'var(--radix-select-trigger-width)' }}
                 >
-                  <Select.Item value="en">{t('settings.english')}</Select.Item>
-                  <Select.Item value="vi">
-                    {t('settings.vietnamese')}
+                  <Select.Item value="en">
+                    {`${languageFlag('en')} ${t('settings.english')}`}
                   </Select.Item>
-                  <Select.Item value="zh">{t('settings.chinese')}</Select.Item>
+                  <Select.Item value="vi">
+                    {`${languageFlag('vi')} ${t('settings.vietnamese')}`}
+                  </Select.Item>
+                  <Select.Item value="zh">
+                    {`${languageFlag('zh')} ${t('settings.chinese')}`}
+                  </Select.Item>
                 </Select.Content>
               </Select.Root>
             </Box>

@@ -12,6 +12,7 @@ import {
 import { MagnifyingGlassIcon } from '@radix-ui/react-icons';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useI18n } from '../i18n';
+import { languageFlag } from '../constants/languageFlags';
 import LessonList from '../components/LessonList';
 import LessonUpload from '../components/LessonUpload';
 
@@ -76,7 +77,10 @@ const LessonPage: React.FC = () => {
                     original === localized
                       ? original
                       : `${original} (${localized})`;
-                  return t('lessons.showing', { name: displayName });
+                  const flag = languageFlag(selectedLanguage);
+                  return t('lessons.showing', {
+                    name: flag ? `${flag} ${displayName}` : displayName,
+                  });
                 })()
               : t('lessons.loadingLanguage')}
           </Text>

@@ -15,6 +15,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useUserSettings } from '../contexts/UserSettingContext';
 import LanguageSwitcher from './LanguageSwitcher';
 import { isUiLanguage, useI18n } from '../i18n';
+import { languageFlag } from '../constants/languageFlags';
 import dayjs from 'dayjs';
 
 interface SidebarProps {}
@@ -370,9 +371,15 @@ const Sidebar: React.FC<SidebarProps> = () => {
               aria-label={t('settings.siteLanguage')}
             />
             <Select.Content>
-              <Select.Item value="en">{t('settings.english')}</Select.Item>
-              <Select.Item value="vi">{t('settings.vietnamese')}</Select.Item>
-              <Select.Item value="zh">{t('settings.chinese')}</Select.Item>
+              <Select.Item value="en">
+                {`${languageFlag('en')} ${t('settings.english')}`}
+              </Select.Item>
+              <Select.Item value="vi">
+                {`${languageFlag('vi')} ${t('settings.vietnamese')}`}
+              </Select.Item>
+              <Select.Item value="zh">
+                {`${languageFlag('zh')} ${t('settings.chinese')}`}
+              </Select.Item>
             </Select.Content>
           </Select.Root>
           <MyButton

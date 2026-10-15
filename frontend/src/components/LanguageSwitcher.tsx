@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Select, Text, Flex } from '@radix-ui/themes';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useI18n } from '../i18n';
+import { languageFlag } from '../constants/languageFlags';
 
 const LanguageSwitcher: React.FC = () => {
   const { t, uiLanguage } = useI18n();
@@ -60,14 +61,15 @@ const LanguageSwitcher: React.FC = () => {
                 new Intl.DisplayNames([uiLanguage], { type: 'language' }).of(
                   language.code
                 ) || language.name;
+              const label =
+                original === localized
+                  ? original
+                  : `${original} (${localized})`;
+              const flag = languageFlag(language.code);
               return (
                 <Select.Item key={language.code} value={language.code}>
                   <Flex align="center" gap="2">
-                    <Text>
-                      {original === localized
-                        ? original
-                        : `${original} (${localized})`}
-                    </Text>
+                    <Text>{flag ? `${flag} ${label}` : label}</Text>
                   </Flex>
                 </Select.Item>
               );
