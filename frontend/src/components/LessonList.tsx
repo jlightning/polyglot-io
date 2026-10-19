@@ -17,6 +17,7 @@ import {
   Pencil1Icon,
   DrawingPinIcon,
   DrawingPinFilledIcon,
+  CheckIcon,
 } from '@radix-ui/react-icons';
 import dayjs from 'dayjs';
 import { useAuth } from '../contexts/AuthContext';
@@ -66,6 +67,9 @@ const LessonList: React.FC<LessonListProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [deletingLessonId, setDeletingLessonId] = useState<number | null>(null);
   const [pinningLessonId, setPinningLessonId] = useState<number | null>(null);
+  const [finishingLessonId, setFinishingLessonId] = useState<number | null>(
+    null
+  );
   const { axiosInstance, isAuthenticated } = useAuth();
   const fetchLessons = useCallback(async () => {
     if (!selectedLanguage) {
@@ -242,6 +246,44 @@ const LessonList: React.FC<LessonListProps> = ({
     } catch (err) {
       console.error('Error splitting sentences:', err);
       setError(t('lessonList.splitFailed'));
+    }
+  };
+
+  const handleFinishLesson = async (lesson: Lesson) => {
+    const sentenceId = lesson.userProgress?.readTillSentenceId;
+    if (!sentenceId || finishingLessonId !== null) return;
+
+    try {
+      setFinishingLessonId(lesson.id);
+      const response = await axiosInstance.post(
+        `/api/lessons/${lesson.id}/progress/sentence`,
+        { sentenceId, finishLesson: true }
+      );
+
+      if (!response.data.success) {
+        setError(t('lessonList.finishFailed'));
+        return;
+      }
+
+      if (statusFilter === 'reading') {
+        setLessons(prev => prev.filter(item => item.id !== lesson.id));
+      } else {
+        setLessons(prev =>
+          prev.map(item =>
+            item.id === lesson.id && item.userProgress
+              ? {
+                  ...item,
+                  userProgress: { ...item.userProgress, status: 'finished' },
+                }
+              : item
+          )
+        );
+      }
+    } catch (err) {
+      console.error('Error finishing lesson:', err);
+      setError(t('lessonList.finishFailed'));
+    } finally {
+      setFinishingLessonId(null);
     }
   };
 
@@ -469,6 +511,21 @@ const LessonList: React.FC<LessonListProps> = ({
                       {t('lessonList.wordsInLesson')}
                     </Link>
                   </MyButton>
+                  {lesson.userProgress?.status === 'reading' &&
+                    lesson.processingStatus === 'completed' && (
+                      <MyButton
+                        variant="soft"
+                        size="2"
+                        color="green"
+                        disabled={finishingLessonId === lesson.id}
+                        onClick={() => handleFinishLesson(lesson)}
+                      >
+                        <CheckIcon />
+                        {finishingLessonId === lesson.id
+                          ? t('lessonList.finishing')
+                          : t('lessonList.finish')}
+                      </MyButton>
+                    )}
                   {lesson.lessonType === 'subtitle' &&
                     (lesson.processingStatus !== 'completed' ? (
                       <MyButton variant="soft" size="2" disabled>
