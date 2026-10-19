@@ -712,12 +712,16 @@ export class LessonService {
         language_code: languageCode,
       };
 
-      // Full-text search, with contains fallback for short/partial queries
+      // Title collation is case-sensitive, so match with LOWER instead of contains
       if (filters?.search) {
-        whereClause.OR = [
-          { title: { search: filters.search } },
-          { title: { contains: filters.search } },
-        ];
+        const escaped = filters.search.replace(/[\\%_]/g, char => `\\${char}`);
+        const matched = await ctx.prisma.$queryRaw<{ id: number }[]>`
+          SELECT id FROM lesson
+          WHERE created_by = ${userId}
+            AND language_code = ${languageCode}
+            AND LOWER(title) LIKE CONCAT('%', LOWER(${escaped}), '%')
+        `;
+        whereClause.AND = [{ id: { in: matched.map(row => Number(row.id)) } }];
       }
 
       // Add lesson type filter
