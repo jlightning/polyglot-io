@@ -782,24 +782,37 @@ export class LessonService {
       });
       const pinnedIds = pinnedPins.map(p => p.lesson_id);
 
-      // Load pinned lessons then unpinned, combine (pinned first)
-      const pinnedLessons = await ctx.prisma.lesson.findMany({
-        where: {
-          id: { in: pinnedIds },
-          ...whereClause,
-        },
-        include: { lessonFiles: true },
-        orderBy: { id: 'desc' },
-      });
-      const unpinnedLessons = await ctx.prisma.lesson.findMany({
-        where: {
-          id: { notIn: pinnedIds },
-          ...whereClause,
-        },
-        include: { lessonFiles: true },
-        orderBy: { id: 'desc' },
-      });
-      const allLessons = [...pinnedLessons, ...unpinnedLessons];
+      // Series order replaces pin order. A series id on whereClause would
+      // overwrite the pin id filter below and return every lesson twice.
+      const seriesLessons = seriesLessonOrder
+        ? await ctx.prisma.lesson.findMany({
+            where: whereClause,
+            include: { lessonFiles: true },
+          })
+        : [];
+      const pinnedLessons = seriesLessonOrder
+        ? []
+        : await ctx.prisma.lesson.findMany({
+            where: {
+              ...whereClause,
+              id: { in: pinnedIds },
+            },
+            include: { lessonFiles: true },
+            orderBy: { id: 'desc' },
+          });
+      const unpinnedLessons = seriesLessonOrder
+        ? []
+        : await ctx.prisma.lesson.findMany({
+            where: {
+              ...whereClause,
+              id: { notIn: pinnedIds },
+            },
+            include: { lessonFiles: true },
+            orderBy: { id: 'desc' },
+          });
+      const allLessons = seriesLessonOrder
+        ? seriesLessons
+        : [...pinnedLessons, ...unpinnedLessons];
       const total = allLessons.length;
       const skip = (page - 1) * limit;
       const lessons = shouldPaginate
