@@ -690,6 +690,7 @@ export class LessonService {
       type?: 'text' | 'subtitle' | 'manga' | 'manual' | 'generated';
       page?: number;
       limit?: number;
+      seriesId?: number;
     }
   ): Promise<LessonResponse> {
     try {
@@ -737,6 +738,38 @@ export class LessonService {
             status: filters.status as UserLessonProgressStatus,
           },
         };
+      }
+
+      let seriesLessonOrder: number[] | undefined;
+      if (filters?.seriesId !== undefined) {
+        const series = await ctx.prisma.series.findFirst({
+          where: {
+            id: filters.seriesId,
+            language_code: languageCode,
+            seriesUsers: { some: { user_id: userId } },
+          },
+          select: {
+            seriesLessons: {
+              orderBy: { position: 'asc' },
+              select: { lesson_id: true },
+            },
+          },
+        });
+        if (!series) {
+          return {
+            success: false,
+            message: 'Series not found or access denied',
+          };
+        }
+        seriesLessonOrder = series.seriesLessons.map(row => row.lesson_id);
+        if (seriesLessonOrder.length === 0) {
+          return {
+            success: true,
+            message: 'Lessons retrieved successfully',
+            lessons: [],
+          };
+        }
+        whereClause.id = { in: seriesLessonOrder };
       }
 
       // Load pinned lesson IDs (same filters)
@@ -875,10 +908,17 @@ export class LessonService {
         })
       );
 
+      const order = seriesLessonOrder;
+      const lessonsInOrder = order
+        ? [...lessonsWithUrls].sort(
+            (a, b) => order.indexOf(a.id) - order.indexOf(b.id)
+          )
+        : lessonsWithUrls;
+
       return {
         success: true,
         message: 'Lessons retrieved successfully',
-        lessons: lessonsWithUrls,
+        lessons: lessonsInOrder,
         ...(shouldPaginate && {
           pagination: {
             page,

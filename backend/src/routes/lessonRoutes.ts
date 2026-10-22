@@ -325,6 +325,16 @@ router.get('/language/:languageCode', async (req: Request, res: Response) => {
       | 'manga'
       | 'manual'
       | undefined;
+    let seriesId: number | undefined;
+    if (req.query['seriesId'] !== undefined) {
+      seriesId = parseInt(String(req.query['seriesId']), 10);
+      if (isNaN(seriesId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid series ID',
+        });
+      }
+    }
 
     // Validate status enum
     if (status && !['reading', 'finished'].includes(status)) {
@@ -350,6 +360,7 @@ router.get('/language/:languageCode', async (req: Request, res: Response) => {
       ...(search && { search }),
       ...(status && { status }),
       ...(type && { type }),
+      ...(seriesId !== undefined && { seriesId }),
     };
 
     const result = await ctx.lessonService.getLessonsByLanguage(

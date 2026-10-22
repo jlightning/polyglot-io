@@ -9,13 +9,20 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useI18n } from '../i18n';
 
 interface LessonUploadProps {
-  onLessonUploaded: () => void;
+  onLessonUploaded: (lessonId?: number) => void;
+  languageCode?: string;
+  redirectToLesson?: boolean;
 }
 
-const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
+const LessonUpload: React.FC<LessonUploadProps> = ({
+  onLessonUploaded,
+  languageCode,
+  redirectToLesson = true,
+}) => {
   const { t } = useI18n();
   const navigate = useNavigate();
-  const { selectedLanguage } = useLanguage();
+  const { selectedLanguage: contextLanguage } = useLanguage();
+  const selectedLanguage = languageCode || contextLanguage;
   const [isOpen, setIsOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [activeTab, setActiveTab] = useState('text');
@@ -343,8 +350,7 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
         if (imageInput) imageInput.value = '';
         if (filesInput) filesInput.value = '';
 
-        // Notify parent component to refresh lesson list
-        onLessonUploaded();
+        onLessonUploaded(response.data.lesson?.id);
 
         // Close dialog after a short delay
         setTimeout(() => {
@@ -387,12 +393,14 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
         setSuccess(t('upload.manualSuccess'));
         setManualTitle('');
 
-        onLessonUploaded();
+        onLessonUploaded(response.data.lesson.id);
 
         setTimeout(() => {
           setIsOpen(false);
           setSuccess(null);
-          navigate(`/lessons/${response.data.lesson.id}`);
+          if (redirectToLesson) {
+            navigate(`/lessons/${response.data.lesson.id}`);
+          }
         }, 1500);
       } else {
         setError(t('upload.createFailed'));
@@ -435,11 +443,13 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
         setSuccess(t('upload.aiSuccess'));
         setAiGenerateTitle('');
         setAiGeneratePrompt('');
-        onLessonUploaded();
+        onLessonUploaded(response.data.lesson.id);
         setTimeout(() => {
           setIsOpen(false);
           setSuccess(null);
-          navigate(`/lessons/${response.data.lesson.id}`);
+          if (redirectToLesson) {
+            navigate(`/lessons/${response.data.lesson.id}`);
+          }
         }, 1500);
       } else {
         setError(t('upload.generateFailed'));
@@ -561,8 +571,7 @@ const LessonUpload: React.FC<LessonUploadProps> = ({ onLessonUploaded }) => {
         if (fileInput) fileInput.value = '';
         if (audioInput) audioInput.value = '';
 
-        // Notify parent component to refresh lesson list
-        onLessonUploaded();
+        onLessonUploaded(response.data.lesson?.id);
 
         // Close dialog after a short delay
         setTimeout(() => {

@@ -53,6 +53,8 @@ interface LessonListProps {
   search?: string;
   statusFilter?: 'reading' | 'finished';
   typeFilter?: 'text' | 'subtitle' | 'manga' | 'manual' | 'generated';
+  seriesId?: number;
+  trailing?: (lesson: Lesson, index: number, count: number) => React.ReactNode;
 }
 
 const LessonList: React.FC<LessonListProps> = ({
@@ -61,6 +63,8 @@ const LessonList: React.FC<LessonListProps> = ({
   search,
   statusFilter,
   typeFilter,
+  seriesId,
+  trailing,
 }) => {
   const { t } = useI18n();
   const [lessons, setLessons] = useState<Lesson[]>([]);
@@ -108,6 +112,9 @@ const LessonList: React.FC<LessonListProps> = ({
       if (typeFilter) {
         params.append('type', typeFilter);
       }
+      if (seriesId !== undefined) {
+        params.append('seriesId', String(seriesId));
+      }
 
       const queryString = params.toString();
       const url = queryString ? `${endpoint}?${queryString}` : endpoint;
@@ -125,7 +132,15 @@ const LessonList: React.FC<LessonListProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [selectedLanguage, search, statusFilter, typeFilter, axiosInstance, t]);
+  }, [
+    selectedLanguage,
+    search,
+    statusFilter,
+    typeFilter,
+    axiosInstance,
+    t,
+    seriesId,
+  ]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -393,7 +408,7 @@ const LessonList: React.FC<LessonListProps> = ({
   return (
     <Box>
       <Flex direction="column" gap="3">
-        {lessons.map(lesson => (
+        {lessons.map((lesson, index) => (
           <Card key={lesson.id}>
             <Flex justify="between" align="start" gap="3">
               <Flex direction="column" gap="2" flexGrow="1">
@@ -624,6 +639,7 @@ const LessonList: React.FC<LessonListProps> = ({
               </Flex>
 
               <Flex gap="2" align="start">
+                {trailing?.(lesson, index, lessons.length)}
                 <IconButton
                   variant="ghost"
                   color={lesson.isPinned ? 'blue' : 'gray'}

@@ -5,12 +5,10 @@ import {
   Flex,
   Heading,
   Text,
-  Card,
   Dialog,
   TextField,
   Select,
   IconButton,
-  Badge,
 } from '@radix-ui/themes';
 import {
   ArrowUpIcon,
@@ -19,23 +17,17 @@ import {
   Pencil1Icon,
 } from '@radix-ui/react-icons';
 import MyButton from '../components/MyButton';
+import LessonUpload from '../components/LessonUpload';
+import LessonList from '../components/LessonList';
 import { useAuth } from '../contexts/AuthContext';
 import { useI18n } from '../i18n';
-
-interface SeriesLessonItem {
-  id: number;
-  title: string;
-  lessonType: 'text' | 'subtitle' | 'manga' | 'manual' | 'generated';
-  processingStatus: 'pending' | 'completed' | 'failed';
-  position: number;
-}
 
 interface SeriesDetail {
   id: number;
   title: string;
   languageCode: string;
   createdAt: string;
-  lessons: SeriesLessonItem[];
+  lessons: { id: number }[];
 }
 
 const SeriesDetailPage: React.FC = () => {
@@ -57,6 +49,7 @@ const SeriesDetailPage: React.FC = () => {
   const [adding, setAdding] = useState(false);
   const [movingLessonId, setMovingLessonId] = useState<number | null>(null);
   const [removingLessonId, setRemovingLessonId] = useState<number | null>(null);
+  const [lessonListVersion, setLessonListVersion] = useState(0);
 
   const fetchSeries = useCallback(
     async (silent: boolean) => {
@@ -143,6 +136,7 @@ const SeriesDetailPage: React.FC = () => {
         setAddOpen(false);
         setSelectedLessonId('');
         await fetchSeries(true);
+        setLessonListVersion(version => version + 1);
       } else {
         setError(t('series.addFailed'));
       }
@@ -168,6 +162,7 @@ const SeriesDetailPage: React.FC = () => {
       );
       if (response.data.success) {
         await fetchSeries(true);
+        setLessonListVersion(version => version + 1);
       } else {
         setError(t('series.moveFailed'));
       }
@@ -195,6 +190,7 @@ const SeriesDetailPage: React.FC = () => {
           ...series,
           lessons: series.lessons.filter(lesson => lesson.id !== lessonId),
         });
+        setLessonListVersion(version => version + 1);
       } else {
         setError(t('series.removeFailed'));
       }
@@ -238,6 +234,29 @@ const SeriesDetailPage: React.FC = () => {
                 <Pencil1Icon />
                 {t('series.rename')}
               </MyButton>
+              <LessonUpload
+                languageCode={series.languageCode}
+                redirectToLesson={false}
+                onLessonUploaded={lessonId => {
+                  if (!lessonId) {
+                    return;
+                  }
+                  void axiosInstance
+                    .post(`/api/series/${series.id}/lessons`, { lessonId })
+                    .then(response => {
+                      if (response.data.success) {
+                        void fetchSeries(true);
+                        setLessonListVersion(version => version + 1);
+                      } else {
+                        setError(t('series.addFailed'));
+                      }
+                    })
+                    .catch(err => {
+                      console.error('Error adding created lesson:', err);
+                      setError(t('series.addFailed'));
+                    });
+                }}
+              />
               <Dialog.Root
                 open={addOpen}
                 onOpenChange={open => {
@@ -336,91 +355,42 @@ const SeriesDetailPage: React.FC = () => {
           {series.lessons.length === 0 ? (
             <Text color="gray">{t('series.emptyLessons')}</Text>
           ) : (
-            <Flex direction="column" gap="3">
-              {series.lessons.map((lesson, index) => (
-                <Card key={lesson.id}>
-                  <Flex justify="between" align="center" gap="3">
-                    <Flex direction="column" gap="1">
-                      {lesson.processingStatus === 'completed' ? (
-                        <Link
-                          to={`/lessons/${lesson.id}`}
-                          style={{
-                            color: 'var(--accent-11)',
-                            textDecoration: 'none',
-                          }}
-                        >
-                          <Text size="3" weight="medium">
-                            {lesson.title}
-                          </Text>
-                        </Link>
-                      ) : (
-                        <Text size="3" weight="medium">
-                          {lesson.title}
-                        </Text>
-                      )}
-                      <Flex gap="2">
-                        <Badge variant="soft">
-                          {lesson.lessonType === 'text'
-                            ? t('lessonType.text')
-                            : lesson.lessonType === 'subtitle'
-                              ? t('lessonType.subtitle')
-                              : lesson.lessonType === 'manga'
-                                ? t('lessonType.manga')
-                                : lesson.lessonType === 'manual'
-                                  ? t('lessonType.manual')
-                                  : t('lessonType.generated')}
-                        </Badge>
-                        <Badge
-                          color={
-                            lesson.processingStatus === 'failed'
-                              ? 'red'
-                              : lesson.processingStatus === 'pending'
-                                ? 'orange'
-                                : 'green'
-                          }
-                        >
-                          {lesson.processingStatus === 'completed'
-                            ? t('lessonList.ready')
-                            : lesson.processingStatus === 'failed'
-                              ? t('lessonList.failed')
-                              : t('lessonList.processing')}
-                        </Badge>
-                      </Flex>
-                    </Flex>
-                    <Flex gap="1">
-                      <IconButton
-                        variant="ghost"
-                        disabled={index === 0 || movingLessonId === lesson.id}
-                        onClick={() => handleMove(lesson.id, 'up')}
-                        title={t('series.moveUp')}
-                      >
-                        <ArrowUpIcon />
-                      </IconButton>
-                      <IconButton
-                        variant="ghost"
-                        disabled={
-                          index === series.lessons.length - 1 ||
-                          movingLessonId === lesson.id
-                        }
-                        onClick={() => handleMove(lesson.id, 'down')}
-                        title={t('series.moveDown')}
-                      >
-                        <ArrowDownIcon />
-                      </IconButton>
-                      <IconButton
-                        variant="ghost"
-                        color="red"
-                        disabled={removingLessonId === lesson.id}
-                        onClick={() => handleRemove(lesson.id)}
-                        title={t('series.removeLesson')}
-                      >
-                        <Cross2Icon />
-                      </IconButton>
-                    </Flex>
-                  </Flex>
-                </Card>
-              ))}
-            </Flex>
+            <LessonList
+              selectedLanguage={series.languageCode}
+              refreshTrigger={lessonListVersion}
+              seriesId={series.id}
+              trailing={(lesson, index, count) => (
+                <>
+                  <IconButton
+                    variant="ghost"
+                    disabled={index === 0 || movingLessonId === lesson.id}
+                    onClick={() => handleMove(lesson.id, 'up')}
+                    title={t('series.moveUp')}
+                  >
+                    <ArrowUpIcon />
+                  </IconButton>
+                  <IconButton
+                    variant="ghost"
+                    disabled={
+                      index === count - 1 || movingLessonId === lesson.id
+                    }
+                    onClick={() => handleMove(lesson.id, 'down')}
+                    title={t('series.moveDown')}
+                  >
+                    <ArrowDownIcon />
+                  </IconButton>
+                  <IconButton
+                    variant="ghost"
+                    color="red"
+                    disabled={removingLessonId === lesson.id}
+                    onClick={() => handleRemove(lesson.id)}
+                    title={t('series.removeLesson')}
+                  >
+                    <Cross2Icon />
+                  </IconButton>
+                </>
+              )}
+            />
           )}
 
           <Dialog.Root open={renameOpen} onOpenChange={setRenameOpen}>
