@@ -12,7 +12,11 @@ import {
   TextField,
   IconButton,
 } from '@radix-ui/themes';
-import { Pencil1Icon, TrashIcon } from '@radix-ui/react-icons';
+import {
+  MagnifyingGlassIcon,
+  Pencil1Icon,
+  TrashIcon,
+} from '@radix-ui/react-icons';
 import MyButton from '../components/MyButton';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -41,10 +45,21 @@ const SeriesPage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<SeriesSummary | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
 
   const language = languages.find(lang => lang.code === selectedLanguage);
   const languageName =
     language?.localName || language?.name || selectedLanguage;
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 500);
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [searchTerm]);
 
   const fetchSeries = useCallback(async () => {
     if (!selectedLanguage) {
@@ -56,8 +71,13 @@ const SeriesPage: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
+      const params = new URLSearchParams();
+      if (debouncedSearchTerm) {
+        params.set('search', debouncedSearchTerm);
+      }
+      const query = params.toString();
       const response = await axiosInstance.get(
-        `/api/series/language/${selectedLanguage}`
+        `/api/series/language/${selectedLanguage}${query ? `?${query}` : ''}`
       );
       if (response.data.success) {
         setSeriesList(response.data.series || []);
@@ -70,7 +90,7 @@ const SeriesPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [selectedLanguage, axiosInstance, t]);
+  }, [selectedLanguage, debouncedSearchTerm, axiosInstance, t]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -215,6 +235,17 @@ const SeriesPage: React.FC = () => {
 
       <Separator size="4" mb="4" />
 
+      <TextField.Root
+        mb="4"
+        placeholder={t('series.searchPlaceholder')}
+        value={searchTerm}
+        onChange={event => setSearchTerm(event.target.value)}
+      >
+        <TextField.Slot>
+          <MagnifyingGlassIcon height="16" width="16" />
+        </TextField.Slot>
+      </TextField.Root>
+
       {error && (
         <Text color="red" mb="4" as="div">
           {error}
@@ -224,7 +255,9 @@ const SeriesPage: React.FC = () => {
       {loading ? (
         <Text color="gray">{t('series.loading')}</Text>
       ) : seriesList.length === 0 ? (
-        <Text color="gray">{t('series.empty')}</Text>
+        <Text color="gray">
+          {debouncedSearchTerm ? t('series.searchEmpty') : t('series.empty')}
+        </Text>
       ) : (
         <Flex direction="column" gap="3">
           {seriesList.map(series => (

@@ -120,6 +120,8 @@
     "showing": "Showing series for: {name}",
     "loadingLanguage": "Loading language...",
     "selectLanguage": "Please select a language to view series",
+    "searchPlaceholder": "Search series by title...",
+    "searchEmpty": "No series match your search",
     "create": "Create series",
     "createTitle": "Create series",
     "name": "Title",

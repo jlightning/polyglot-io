@@ -50,14 +50,37 @@ export class SeriesService {
     ctx: Context,
     userId: number,
     languageCode: string,
-    lessonId?: number
+    lessonId?: number,
+    search?: string
   ) {
     try {
+      const where: Prisma.SeriesWhereInput = {
+        language_code: languageCode,
+        seriesUsers: { some: { user_id: userId } },
+      };
+
+      if (search) {
+        const escaped = search.replace(/[\\%_]/g, char => `\\${char}`);
+        const matched = await ctx.prisma.$queryRaw<{ id: number }[]>`
+          SELECT series.id FROM series
+          INNER JOIN series_user ON series_user.series_id = series.id
+          WHERE series_user.user_id = ${userId}
+            AND series.language_code = ${languageCode}
+            AND LOWER(series.title) LIKE CONCAT('%', LOWER(${escaped}), '%')
+        `;
+        const ids = matched.map(row => Number(row.id));
+        if (ids.length === 0) {
+          return {
+            success: true,
+            message: 'Series retrieved successfully',
+            series: [],
+          };
+        }
+        where.id = { in: ids };
+      }
+
       const rows = await ctx.prisma.series.findMany({
-        where: {
-          language_code: languageCode,
-          seriesUsers: { some: { user_id: userId } },
-        },
+        where,
         orderBy: { id: 'desc' },
         include: {
           _count: { select: { seriesLessons: true } },

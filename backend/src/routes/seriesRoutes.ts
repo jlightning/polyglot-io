@@ -61,11 +61,18 @@ router.get('/language/:languageCode', async (req: Request, res: Response) => {
       }
     }
 
+    const searchQuery = req.query['search'];
+    const search =
+      typeof searchQuery === 'string' && searchQuery.trim()
+        ? searchQuery.trim()
+        : undefined;
+
     const result = await ctx.seriesService.getSeriesByLanguage(
       ctx,
       req.userId!,
       languageCode,
-      lessonId
+      lessonId,
+      search
     );
 
     if (result.success) {
