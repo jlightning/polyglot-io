@@ -1,6 +1,7 @@
 import type { UserService } from './authService';
 import type { ConfigService } from './configService';
 import type { LessonService } from './lessonService';
+import type { SeriesService } from './seriesService';
 import type { SentenceService } from './sentenceService';
 import type { WordService } from './wordService';
 import type { UserLessonProgressService } from './userLessonProgressService';
@@ -24,6 +25,7 @@ export type Context = {
   authService: UserService;
   configService: ConfigService;
   lessonService: LessonService;
+  seriesService: SeriesService;
   sentenceService: SentenceService;
   wordService: WordService;
   userLessonProgressService: UserLessonProgressService;

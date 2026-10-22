@@ -8,6 +8,7 @@ import {
   Dialog,
   IconButton,
   Box,
+  Select,
 } from '@radix-ui/themes';
 import MyButton from './MyButton';
 import {
@@ -70,6 +71,18 @@ const LessonList: React.FC<LessonListProps> = ({
   const [finishingLessonId, setFinishingLessonId] = useState<number | null>(
     null
   );
+  const [addToSeriesLesson, setAddToSeriesLesson] = useState<Lesson | null>(
+    null
+  );
+  const [seriesOptions, setSeriesOptions] = useState<
+    { id: number; title: string; containsLesson: boolean }[]
+  >([]);
+  const [seriesOptionsLoading, setSeriesOptionsLoading] = useState(false);
+  const [selectedSeriesId, setSelectedSeriesId] = useState('');
+  const [addingToSeries, setAddingToSeries] = useState(false);
+  const [seriesDialogError, setSeriesDialogError] = useState<string | null>(
+    null
+  );
   const { axiosInstance, isAuthenticated } = useAuth();
   const fetchLessons = useCallback(async () => {
     if (!selectedLanguage) {
@@ -119,6 +132,45 @@ const LessonList: React.FC<LessonListProps> = ({
       fetchLessons();
     }
   }, [isAuthenticated, refreshTrigger, fetchLessons]);
+
+  useEffect(() => {
+    if (!addToSeriesLesson || !selectedLanguage) {
+      return;
+    }
+
+    let cancelled = false;
+    setSeriesOptionsLoading(true);
+    setSeriesDialogError(null);
+    void axiosInstance
+      .get(
+        `/api/series/language/${selectedLanguage}?lessonId=${addToSeriesLesson.id}`
+      )
+      .then(response => {
+        if (cancelled) {
+          return;
+        }
+        if (response.data.success) {
+          setSeriesOptions(response.data.series || []);
+        } else {
+          setSeriesDialogError(t('series.loadFailed'));
+        }
+      })
+      .catch(err => {
+        console.error('Error fetching series:', err);
+        if (!cancelled) {
+          setSeriesDialogError(t('series.loadFailed'));
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setSeriesOptionsLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [addToSeriesLesson, selectedLanguage, axiosInstance, t]);
 
   // Auto-refresh for pending lesson uploads
   useEffect(() => {
@@ -511,6 +563,18 @@ const LessonList: React.FC<LessonListProps> = ({
                       {t('lessonList.wordsInLesson')}
                     </Link>
                   </MyButton>
+                  <MyButton
+                    variant="soft"
+                    size="2"
+                    onClick={() => {
+                      setSelectedSeriesId('');
+                      setSeriesOptions([]);
+                      setSeriesDialogError(null);
+                      setAddToSeriesLesson(lesson);
+                    }}
+                  >
+                    {t('series.addToSeries')}
+                  </MyButton>
                   {lesson.userProgress?.status === 'reading' &&
                     lesson.processingStatus === 'completed' && (
                       <MyButton
@@ -631,6 +695,102 @@ const LessonList: React.FC<LessonListProps> = ({
           </Card>
         ))}
       </Flex>
+
+      <Dialog.Root
+        open={addToSeriesLesson !== null}
+        onOpenChange={open => {
+          if (!open) {
+            setAddToSeriesLesson(null);
+            setSelectedSeriesId('');
+            setSeriesDialogError(null);
+          }
+        }}
+      >
+        <Dialog.Content style={{ maxWidth: 450 }}>
+          <Dialog.Title>{t('series.addToSeriesTitle')}</Dialog.Title>
+          {seriesOptionsLoading ? (
+            <Text color="gray" mt="3" as="div">
+              {t('common.loading')}
+            </Text>
+          ) : seriesOptions.length === 0 ? (
+            <Text color="gray" mt="3" as="div">
+              {t('series.noSeries')}
+            </Text>
+          ) : (
+            <Select.Root
+              value={selectedSeriesId}
+              onValueChange={setSelectedSeriesId}
+            >
+              <Select.Trigger
+                placeholder={t('series.selectSeries')}
+                style={{ width: '100%', marginTop: 12 }}
+              />
+              <Select.Content>
+                {seriesOptions.map(series => (
+                  <Select.Item
+                    key={series.id}
+                    value={String(series.id)}
+                    disabled={series.containsLesson}
+                  >
+                    {series.containsLesson
+                      ? `${series.title} (${t('series.alreadyInSeries')})`
+                      : series.title}
+                  </Select.Item>
+                ))}
+              </Select.Content>
+            </Select.Root>
+          )}
+          {seriesDialogError && (
+            <Text color="red" mt="3" as="div">
+              {seriesDialogError}
+            </Text>
+          )}
+          <Flex gap="3" mt="4" justify="end">
+            <Dialog.Close>
+              <MyButton variant="soft" color="gray">
+                {t('common.cancel')}
+              </MyButton>
+            </Dialog.Close>
+            <MyButton
+              disabled={
+                addingToSeries ||
+                !selectedSeriesId ||
+                seriesOptions.find(
+                  series => String(series.id) === selectedSeriesId
+                )?.containsLesson === true
+              }
+              onClick={() => {
+                if (!addToSeriesLesson || !selectedSeriesId) {
+                  return;
+                }
+                setAddingToSeries(true);
+                setSeriesDialogError(null);
+                void axiosInstance
+                  .post(`/api/series/${selectedSeriesId}/lessons`, {
+                    lessonId: addToSeriesLesson.id,
+                  })
+                  .then(response => {
+                    if (response.data.success) {
+                      setAddToSeriesLesson(null);
+                      setSelectedSeriesId('');
+                    } else {
+                      setSeriesDialogError(t('series.addFailed'));
+                    }
+                  })
+                  .catch(err => {
+                    console.error('Error adding lesson to series:', err);
+                    setSeriesDialogError(t('series.addFailed'));
+                  })
+                  .finally(() => {
+                    setAddingToSeries(false);
+                  });
+              }}
+            >
+              {addingToSeries ? t('series.adding') : t('series.addToSeries')}
+            </MyButton>
+          </Flex>
+        </Dialog.Content>
+      </Dialog.Root>
     </Box>
   );
 };

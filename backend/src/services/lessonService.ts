@@ -1035,6 +1035,12 @@ export class LessonService {
 
       // Delete lesson and all associated records in a transaction
       await wrapInTransaction(ctx, async ctx => {
+        await ctx.prisma.seriesLesson.deleteMany({
+          where: {
+            lesson_id: lessonId,
+          },
+        });
+
         await ctx.prisma.userLessonProgress.deleteMany({
           where: {
             lesson_id: lessonId,

@@ -6,6 +6,7 @@ import dayjs from 'dayjs';
 import authRoutes from './routes/authRoutes';
 import configRoutes from './routes/configRoutes';
 import lessonRoutes from './routes/lessonRoutes';
+import seriesRoutes from './routes/seriesRoutes';
 import s3Routes from './routes/s3Routes';
 import wordRoutes from './routes/wordRoutes';
 import userScoreRoutes from './routes/userScoreRoutes';
@@ -62,6 +63,7 @@ app.use('/api/auth', authRoutes);
 // Protected routes - require authentication
 app.use('/api/config', authenticateToken, configRoutes);
 app.use('/api/lessons', authenticateToken, lessonRoutes);
+app.use('/api/series', authenticateToken, seriesRoutes);
 app.use('/api/s3', authenticateToken, s3Routes);
 app.use('/api/words', authenticateToken, wordRoutes);
 app.use('/api/user-score', authenticateToken, userScoreRoutes);

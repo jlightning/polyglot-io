@@ -3,6 +3,7 @@ import type { Context } from '../services';
 import { UserService } from '../services/authService';
 import { ConfigService } from '../services/configService';
 import { LessonService } from '../services/lessonService';
+import { SeriesService } from '../services/seriesService';
 import { SentenceService } from '../services/sentenceService';
 import { WordService } from '../services/wordService';
 import { UserLessonProgressService } from '../services/userLessonProgressService';
@@ -24,6 +25,7 @@ export const ctx: Context = {
   authService: new UserService(),
   configService: new ConfigService(),
   lessonService: new LessonService(),
+  seriesService: new SeriesService(),
   sentenceService: new SentenceService(),
   wordService: new WordService(),
   userLessonProgressService: new UserLessonProgressService(),

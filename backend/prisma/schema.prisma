@@ -33,6 +33,8 @@ model User {
   userActionLogs       UserActionLog[]
   userSettings         UserSetting[]
   lessonUserPins       LessonUserPin[]
+  createdSeries        Series[]
+  seriesUsers          SeriesUser[]
 
   @@map("user")
 }
@@ -69,6 +71,7 @@ model Lesson {
   userLessonProgresses UserLessonProgress[]
   lessonFiles          LessonFile[]
   lessonUserPins       LessonUserPin[]
+  seriesLessons        SeriesLesson[]
 
   @@fulltext([title])
   @@map("lesson")
@@ -120,6 +123,48 @@ model LessonUserPin {
 
   @@unique([user_id, lesson_id])
   @@map("lesson_user_pin")
+}
+
+model Series {
+  id            Int      @id @default(autoincrement())
+  created_by    Int
+  title         String   @db.VarChar(255)
+  language_code String   @db.VarChar(10)
+  created_at    DateTime @default(now()) @db.Timestamp(0)
+  updated_at    DateTime @default(now()) @updatedAt @db.Timestamp(0)
+
+  creator       User           @relation(fields: [created_by], references: [id])
+  seriesUsers   SeriesUser[]
+  seriesLessons SeriesLesson[]
+
+  @@map("series")
+}
+
+model SeriesUser {
+  id         Int      @id @default(autoincrement())
+  series_id  Int
+  user_id    Int
+  created_at DateTime @default(now()) @db.Timestamp(0)
+
+  series Series @relation(fields: [series_id], references: [id])
+  user   User   @relation(fields: [user_id], references: [id])
+
+  @@unique([series_id, user_id])
+  @@map("series_user")
+}
+
+model SeriesLesson {
+  id         Int      @id @default(autoincrement())
+  series_id  Int
+  lesson_id  Int
+  position   Int
+  created_at DateTime @default(now()) @db.Timestamp(0)
+
+  series Series @relation(fields: [series_id], references: [id])
+  lesson Lesson @relation(fields: [lesson_id], references: [id])
+
+  @@unique([series_id, lesson_id])
+  @@map("series_lesson")
 }
 
 model Sentence {

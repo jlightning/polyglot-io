@@ -12,6 +12,8 @@ import { UserSettingProvider } from './contexts/UserSettingContext';
 import {
   AuthPage,
   LessonPage,
+  SeriesPage,
+  SeriesDetailPage,
   LessonViewPage,
   LessonVideoViewPage,
   LessonMangaViewPage,
@@ -70,6 +72,11 @@ const AppContent: React.FC = () => {
                       element={<Navigate to="/lessons" replace />}
                     />
                     <Route path="/lessons" element={<LessonPage />} />
+                    <Route path="/series" element={<SeriesPage />} />
+                    <Route
+                      path="/series/:seriesId"
+                      element={<SeriesDetailPage />}
+                    />
                     <Route
                       path="/lessons/:lessonId"
                       element={<LessonViewPage />}

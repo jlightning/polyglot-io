@@ -3,6 +3,7 @@ import { Box, Flex, Text, Separator, Select } from '@radix-ui/themes';
 import MyButton from './MyButton';
 import {
   ReaderIcon,
+  LayersIcon,
   ExitIcon,
   BookmarkIcon,
   GearIcon,
@@ -48,6 +49,7 @@ const Sidebar: React.FC<SidebarProps> = () => {
   }, [isAuthenticated, selectedLanguage, fetchUserStats]);
 
   const isLessonsActive = location.pathname.startsWith('/lessons');
+  const isSeriesActive = location.pathname.startsWith('/series');
   const isWordsActive = location.pathname === '/words';
   const isChartsActive = location.pathname === '/charts';
   const isMcpActive = location.pathname === '/mcp';
@@ -308,6 +310,16 @@ const Sidebar: React.FC<SidebarProps> = () => {
             <Link to="/lessons">
               <ReaderIcon />
               {t('sidebar.lessons')}
+            </Link>
+          </MyButton>
+          <MyButton
+            variant={isSeriesActive ? 'solid' : 'soft'}
+            style={{ justifyContent: 'flex-start' }}
+            asChild
+          >
+            <Link to="/series">
+              <LayersIcon />
+              {t('sidebar.series')}
             </Link>
           </MyButton>
           <MyButton
