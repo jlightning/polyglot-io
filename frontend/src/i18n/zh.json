@@ -120,6 +120,7 @@
     "showing": "正在显示系列：{name}",
     "loadingLanguage": "正在加载语言...",
     "selectLanguage": "请选择语言以查看系列",
+    "statusPending": "未开始",
     "searchPlaceholder": "按标题搜索系列...",
     "searchEmpty": "没有符合搜索的系列",
     "create": "创建系列",

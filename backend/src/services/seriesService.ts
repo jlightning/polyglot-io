@@ -1,8 +1,61 @@
 import { Prisma } from '@prisma/client';
 import type { Context } from './index';
 import { wrapInTransaction } from './db';
+import { withKysely } from './kysely';
 
 export class SeriesService {
+  private async progressStatusBySeries(
+    ctx: Context,
+    userId: number,
+    seriesIds: number[]
+  ) {
+    const statuses = new Map<number, 'completed' | 'in_progress' | 'pending'>();
+    if (seriesIds.length === 0) {
+      return statuses;
+    }
+
+    const rows = await withKysely(ctx)
+      .selectFrom('series_lesson as sl')
+      .leftJoin('user_lesson_progress as p', join =>
+        join
+          .onRef('p.lesson_id', '=', 'sl.lesson_id')
+          .on('p.user_id', '=', userId)
+      )
+      .select(eb => [
+        'sl.series_id',
+        eb.fn.count('sl.id').as('total'),
+        eb.fn
+          .sum<
+            number | string | null
+          >(eb.case().when('p.status', '=', 'finished').then(1).else(0).end())
+          .as('finished'),
+        eb.fn
+          .sum<
+            number | string | null
+          >(eb.case().when('p.status', '=', 'reading').then(1).else(0).end())
+          .as('reading'),
+      ])
+      .where('sl.series_id', 'in', seriesIds)
+      .groupBy('sl.series_id')
+      .execute();
+
+    for (const row of rows) {
+      const total = Number(row.total);
+      const finished = Number(row.finished);
+      const reading = Number(row.reading);
+      const seriesId = Number(row.series_id);
+      if (total > 0 && finished === total) {
+        statuses.set(seriesId, 'completed');
+      } else if (finished === 0 && reading === 0) {
+        statuses.set(seriesId, 'pending');
+      } else {
+        statuses.set(seriesId, 'in_progress');
+      }
+    }
+
+    return statuses;
+  }
+
   async createSeries(
     ctx: Context,
     userId: number,
@@ -87,6 +140,12 @@ export class SeriesService {
         },
       });
 
+      const statusBySeries = await this.progressStatusBySeries(
+        ctx,
+        userId,
+        rows.map(row => row.id)
+      );
+
       const containedSeriesIds = new Set<number>();
       if (lessonId !== undefined && rows.length > 0) {
         const memberships = await ctx.prisma.seriesLesson.findMany({
@@ -110,6 +169,7 @@ export class SeriesService {
           languageCode: row.language_code,
           lessonCount: row._count.seriesLessons,
           createdAt: row.created_at,
+          status: statusBySeries.get(row.id) ?? 'pending',
           ...(lessonId !== undefined
             ? { containsLesson: containedSeriesIds.has(row.id) }
             : {}),
@@ -155,6 +215,10 @@ export class SeriesService {
         };
       }
 
+      const statusBySeries = await this.progressStatusBySeries(ctx, userId, [
+        series.id,
+      ]);
+
       return {
         success: true,
         message: 'Series retrieved successfully',
@@ -163,6 +227,7 @@ export class SeriesService {
           title: series.title,
           languageCode: series.language_code,
           createdAt: series.created_at,
+          status: statusBySeries.get(series.id) ?? 'pending',
           lessons: series.seriesLessons.map(row => ({
             id: row.lesson.id,
             title: row.lesson.title,

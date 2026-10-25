@@ -8,6 +8,7 @@ import {
   Box,
   Separator,
   Card,
+  Badge,
   Dialog,
   TextField,
   IconButton,
@@ -28,6 +29,7 @@ interface SeriesSummary {
   languageCode: string;
   lessonCount: number;
   createdAt: string;
+  status: 'completed' | 'in_progress' | 'pending';
 }
 
 const SeriesPage: React.FC = () => {
@@ -264,17 +266,35 @@ const SeriesPage: React.FC = () => {
             <Card key={series.id}>
               <Flex justify="between" align="center" gap="3">
                 <Box>
-                  <Link
-                    to={`/series/${series.id}`}
-                    style={{
-                      color: 'var(--accent-11)',
-                      textDecoration: 'none',
-                    }}
-                  >
-                    <Text size="4" weight="medium">
-                      {series.title}
-                    </Text>
-                  </Link>
+                  <Flex align="center" gap="2">
+                    <Link
+                      to={`/series/${series.id}`}
+                      style={{
+                        color: 'var(--accent-11)',
+                        textDecoration: 'none',
+                      }}
+                    >
+                      <Text size="4" weight="medium">
+                        {series.title}
+                      </Text>
+                    </Link>
+                    <Badge
+                      variant="soft"
+                      color={
+                        series.status === 'completed'
+                          ? 'green'
+                          : series.status === 'in_progress'
+                            ? 'orange'
+                            : 'gray'
+                      }
+                    >
+                      {series.status === 'completed'
+                        ? t('lessonList.completed')
+                        : series.status === 'in_progress'
+                          ? t('lessonList.inProgress')
+                          : t('series.statusPending')}
+                    </Badge>
+                  </Flex>
                   <Text size="2" color="gray" as="div">
                     {t('series.lessonCount', { count: series.lessonCount })}
                   </Text>

@@ -120,6 +120,7 @@
     "showing": "Đang xem chuỗi bài: {name}",
     "loadingLanguage": "Đang tải ngôn ngữ...",
     "selectLanguage": "Hãy chọn ngôn ngữ để xem chuỗi bài",
+    "statusPending": "Chưa học",
     "searchPlaceholder": "Tìm chuỗi bài theo tiêu đề...",
     "searchEmpty": "Không có chuỗi bài khớp tìm kiếm",
     "create": "Tạo chuỗi bài",

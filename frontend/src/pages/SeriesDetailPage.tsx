@@ -6,6 +6,7 @@ import {
   Heading,
   Text,
   Dialog,
+  Badge,
   TextField,
   Select,
   IconButton,
@@ -27,6 +28,7 @@ interface SeriesDetail {
   title: string;
   languageCode: string;
   createdAt: string;
+  status: 'completed' | 'in_progress' | 'pending';
   lessons: { id: number }[];
 }
 
@@ -222,7 +224,25 @@ const SeriesDetailPage: React.FC = () => {
       ) : (
         <>
           <Flex justify="between" align="center" mt="4" mb="4" gap="3">
-            <Heading size="6">{series.title}</Heading>
+            <Flex align="center" gap="3">
+              <Heading size="6">{series.title}</Heading>
+              <Badge
+                variant="soft"
+                color={
+                  series.status === 'completed'
+                    ? 'green'
+                    : series.status === 'in_progress'
+                      ? 'orange'
+                      : 'gray'
+                }
+              >
+                {series.status === 'completed'
+                  ? t('lessonList.completed')
+                  : series.status === 'in_progress'
+                    ? t('lessonList.inProgress')
+                    : t('series.statusPending')}
+              </Badge>
+            </Flex>
             <Flex gap="2">
               <MyButton
                 variant="soft"
