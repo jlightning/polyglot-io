@@ -105,8 +105,7 @@ export class SentenceService {
         const trimmedWord = wordObj.word?.trim();
         const trimmedTranslation = wordObj.translation?.trim();
 
-        // Skip empty words after trimming
-        if (!trimmedWord || !trimmedTranslation) {
+        if (!trimmedWord) {
           continue;
         }
 
@@ -125,22 +124,23 @@ export class SentenceService {
           },
         });
 
-        // Upsert the translation
-        await ctx.prisma.wordTranslation.upsert({
-          where: {
-            word_id_language_code_translation: {
+        if (trimmedTranslation) {
+          await ctx.prisma.wordTranslation.upsert({
+            where: {
+              word_id_language_code_translation: {
+                word_id: word.id,
+                language_code: targetLanguage,
+                translation: trimmedTranslation,
+              },
+            },
+            update: {},
+            create: {
               word_id: word.id,
               language_code: targetLanguage,
               translation: trimmedTranslation,
             },
-          },
-          update: {},
-          create: {
-            word_id: word.id,
-            language_code: targetLanguage,
-            translation: trimmedTranslation,
-          },
-        });
+          });
+        }
 
         // Store pronunciation if provided
         if (wordObj.pronunciation && wordObj.pronunciationType) {
