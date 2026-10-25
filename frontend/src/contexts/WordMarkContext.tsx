@@ -216,7 +216,7 @@ export const WordMarkProvider: React.FC<WordMarkProviderProps> = ({
       setWordMarks(prev => {
         const next = new Map(prev);
         for (const { word, mark } of words) {
-          if (mark !== null) {
+          if (mark !== null && mark >= 0) {
             next.set(word, mark);
             next.set(wordWithAsciiDigits(word), mark);
             next.set(wordWithFullWidthDigits(word), mark);
@@ -228,7 +228,7 @@ export const WordMarkProvider: React.FC<WordMarkProviderProps> = ({
         const next = new Set(prev);
         for (const { word, mark } of words) {
           next.add(word);
-          if (mark !== null) {
+          if (mark !== null && mark >= 0) {
             next.add(wordWithAsciiDigits(word));
             next.add(wordWithFullWidthDigits(word));
           }
@@ -241,7 +241,7 @@ export const WordMarkProvider: React.FC<WordMarkProviderProps> = ({
       const aliases = [
         ...new Set(
           words.flatMap(({ word, mark }) => {
-            if (mark !== null) return [];
+            if (mark !== null && mark >= 0) return [];
             return [
               wordWithAsciiDigits(word),
               wordWithFullWidthDigits(word),

@@ -92,12 +92,11 @@ const SentenceReConstructor: React.FC<SentenceReConstructorProps> = ({
           margin: '0',
           padding: '2px 0',
           fontSize,
-          ...(wordMark !== undefined
-            ? getDifficultyStyles(wordMark)
-            : {
+          ...(wordMark === undefined || wordMark < 0
+            ? {
                 background: '#f44336',
-                //  border: '1px solid transparent'
-              }),
+              }
+            : getDifficultyStyles(wordMark)),
           cursor: 'pointer',
         }}
         className={className}
