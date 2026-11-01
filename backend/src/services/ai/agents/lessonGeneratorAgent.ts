@@ -3,6 +3,7 @@ import { OPENAI_MODEL } from '../consts';
 import { BaseAgentContext } from './index';
 import {
   checkUserWordMarksTool,
+  listUserWordsTool,
   type CheckUserWordMarksContext,
 } from './tools';
 import z from 'zod';
@@ -25,7 +26,8 @@ export const lessonGeneratorAgent = new Agent({
       `Generate a short lesson in ${languageName} (language code: ${languageCode}).`,
       `Target difficulty level: ${difficulty}. Use vocabulary, grammar, and sentence structures appropriate for this level.`,
       '',
-      'Before writing, plan candidate vocabulary for the topic and call check_user_word_marks once with those words.',
+      'Before writing, call list_user_words to see words this user already marked. Filter by mark, search a substring, and sort by last mark date (asc = oldest first, desc = newest first). Use it to pick scaffolding and practice words.',
+      'Then plan candidate vocabulary for the topic and call check_user_word_marks once with those words.',
       "Mark scale: 0=Ignore, 1=Don't remember, 2=Hard to remember, 3=Remembered, 4=Easy to remember, 5=No problem; null=unmarked.",
       'Use marks to generate a better lesson. Scale new/unmarked load by difficulty (unique content words, not particles/function words):',
       '- Beginner: mostly mark 4–5 scaffolding; ~10–20% unmarked or mark 1. Keep sentences simple.',
@@ -40,7 +42,7 @@ export const lessonGeneratorAgent = new Agent({
       'Maximum 2048 characters. You may use newlines between sentences if you like.',
     ].join('\n');
   },
-  tools: [checkUserWordMarksTool],
+  tools: [checkUserWordMarksTool, listUserWordsTool],
   outputType: z.object({
     text: z.string(),
   }),
