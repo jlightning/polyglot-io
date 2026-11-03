@@ -14,7 +14,7 @@ import {
   LessonPage,
   SeriesPage,
   SeriesDetailPage,
-  LessonViewPage,
+  LessonRouterPage,
   LessonVideoViewPage,
   LessonMangaViewPage,
   WordsPage,
@@ -79,7 +79,7 @@ const AppContent: React.FC = () => {
                     />
                     <Route
                       path="/lessons/:lessonId"
-                      element={<LessonViewPage />}
+                      element={<LessonRouterPage />}
                     />
                     <Route
                       path="/lessons/:lessonId/video"

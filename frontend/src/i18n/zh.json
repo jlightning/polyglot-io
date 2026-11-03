@@ -324,6 +324,8 @@
     "back": "返回课程列表",
     "loginRequired": "请登录后查看课程",
     "sentenceCount": "共 {count} 个句子",
+    "originalText": "原文",
+    "sentences": "句子",
     "createdWithPrompt": "创建提示：{prompt}",
     "status": "状态：",
     "lastRead": "上次读到：第 {page} 页",

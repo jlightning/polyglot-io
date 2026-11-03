@@ -454,6 +454,14 @@ const LessonViewPage: React.FC = () => {
             <Badge variant="soft">{lesson.languageCode.toUpperCase()}</Badge>
           </Flex>
           <Flex gap="3">
+            {(lesson.lessonType === 'text' ||
+              lesson.lessonType === 'generated') && (
+              <MyButton variant="soft" asChild>
+                <Link to={`/lessons/${lessonId}`}>
+                  {t('view.originalText')}
+                </Link>
+              </MyButton>
+            )}
             {lesson?.lessonType !== 'manga' && (
               <MyButton variant="soft" asChild>
                 <Link to={`/lessons/${lessonId}/video`}>{t('view.video')}</Link>

@@ -552,6 +552,44 @@ router.post(
   }
 );
 
+router.get('/:lessonId/original-text', async (req: Request, res: Response) => {
+  try {
+    const lessonId = parseInt(req.params['lessonId'] || '0');
+
+    if (isNaN(lessonId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid lesson ID',
+      });
+    }
+
+    const result = await ctx.lessonService.getOriginalLessonText(
+      ctx,
+      req.userId!,
+      lessonId
+    );
+
+    if (result.success) {
+      return res.json({
+        success: true,
+        text: result.text,
+        words: result.words,
+      });
+    }
+
+    return res.status(result.status).json({
+      success: false,
+      message: result.message,
+    });
+  } catch (error) {
+    console.error('Get original lesson text route error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+});
+
 // Get sentences for a specific lesson with pagination
 router.get('/:lessonId/sentences', async (req: Request, res: Response) => {
   try {

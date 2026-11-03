@@ -1426,4 +1426,85 @@ export class LessonService {
 
     return { success: true, httpStatus: 202 };
   }
+
+  async getOriginalLessonText(
+    ctx: Context,
+    userId: number,
+    lessonId: number
+  ): Promise<{
+    success: boolean;
+    status: number;
+    message?: string;
+    text?: string;
+    words?: { word: string; sentenceId: number }[];
+  }> {
+    const lesson = await ctx.prisma.lesson.findFirst({
+      where: { id: lessonId, created_by: userId },
+      include: {
+        lessonFiles: { orderBy: { id: 'asc' }, take: 1 },
+        sentences: {
+          orderBy: { id: 'asc' },
+          select: {
+            id: true,
+            original_text: true,
+            split_text: true,
+            start_time: true,
+            end_time: true,
+          },
+        },
+      },
+    });
+
+    if (!lesson) {
+      return {
+        success: false,
+        status: 404,
+        message: 'Lesson not found or access denied',
+      };
+    }
+
+    if (
+      lesson.lesson_type !== LessonType.text &&
+      lesson.lesson_type !== LessonType.generated
+    ) {
+      return {
+        success: false,
+        status: 400,
+        message:
+          'Original text is only available for text and generated lessons',
+      };
+    }
+
+    const fileKey = lesson.lessonFiles[0]?.file_s3_key;
+    if (!fileKey) {
+      return {
+        success: false,
+        status: 404,
+        message: 'Lesson file not found',
+      };
+    }
+
+    const text = await ctx.s3Service.getFileContent(ctx, fileKey);
+    const processed: { id: number; split_text: string[] | null }[] = [];
+    for (let i = 0; i < lesson.sentences.length; i += PLIMIT_CONCURRENCY) {
+      const batch = await ctx.sentenceService.processSentenceSplitText(
+        ctx,
+        lesson.sentences.slice(i, i + PLIMIT_CONCURRENCY),
+        lesson.language_code,
+        userId,
+        'asc'
+      );
+      processed.push(...batch);
+    }
+
+    const words: { word: string; sentenceId: number }[] = [];
+    for (const sentence of processed) {
+      if (!sentence.split_text) continue;
+      for (const word of sentence.split_text) {
+        words.push({ word, sentenceId: sentence.id });
+      }
+    }
+
+    return { success: true, status: 200, text, words };
+  }
 }
