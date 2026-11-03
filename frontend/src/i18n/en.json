@@ -569,7 +569,7 @@
     "cursor4": "Save. Cursor should pick up the Polyglot server; reload MCP if needed.",
     "cursorHelp": "Merge under mcpServers. Token is embedded in the URL — no headers needed.",
     "tools": "Tools",
-    "toolCreateLesson": "Create lesson (type: manual|text|subtitle); manual = empty shell, sentences required for text/subtitle",
+    "toolCreateLesson": "Create lesson (type: manual|text|subtitle); manual = empty shell, originalText required for text/subtitle",
     "toolAddSentence": "Add one or more sentences to a manual lesson",
     "toolDeleteSentence": "Delete sentences from a manual/manga lesson by sentenceIds[]",
     "toolMarkWord": "Mark one or more words: 0=Ignore, 1=Don't remember, 2=Hard to remember, 3=Remembered, 4=Easy to remember, 5=No problem",

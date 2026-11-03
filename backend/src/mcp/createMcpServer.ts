@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import pLimit from 'p-limit';
 import type { Context } from '../services';
@@ -57,9 +58,14 @@ export function createPolyglotMcpServer(
         'Lessons:',
         '- create_lesson requires type: "manual" | "text" | "subtitle".',
         '- type=manual → createManualLesson (empty shell only):',
-        '  - Do not send sentences[]; add content later with add_sentence.',
+        '  - Do not send originalText; add content later with add_sentence.',
         '- type=text|subtitle → createLesson with that lesson_type:',
-        '  - sentences[] required (raw sentence strings).',
+        '  - originalText required (the full source). The server stores it and splits it into sentences.',
+        '- For SRT, ASS, and YouTube transcripts use type=subtitle and pass the raw text as originalText.',
+        '  Do not split cues yourself and do not strip timestamps.',
+        '  - SRT: numbered cues with timestamps like 00:00:01,000 --> 00:00:04,000.',
+        '  - ASS/SSA: script text including [Script Info], [V4+ Styles], or [Events].',
+        '  - YouTube transcript: one timestamp per line (M:SS or H:MM:SS), dialogue on the following lines until the next timestamp. Text above the first timestamp is ignored.',
         '- Manga/file upload is not supported here.',
         '',
         'Sentences:',
@@ -96,36 +102,42 @@ export function createPolyglotMcpServer(
     {
       description: [
         'Create a lesson. Requires type: "manual" | "text" | "subtitle".',
-        'manual → createManualLesson empty shell; do not send sentences[] (use add_sentence).',
-        'text|subtitle → createLesson with that lesson_type; sentences[] required.',
+        'manual → createManualLesson empty shell; do not send originalText (use add_sentence).',
+        'text|subtitle → originalText required. The server stores it and splits it into sentences.',
+        'SRT, ASS/SSA, and YouTube transcripts: type=subtitle and pass the raw text unchanged, including timestamps.',
+        'SRT uses numbered cues (00:00:01,000 --> 00:00:04,000). ASS includes [Script Info], [V4+ Styles], or [Events]. YouTube is one M:SS or H:MM:SS line, then dialogue until the next timestamp.',
         'Manga/file upload not supported.',
       ].join(' '),
       inputSchema: CreateLessonInputSchema,
       outputSchema: CreateLessonOutputSchema,
     },
-    async ({ title, languageCode, type, sentences }) => {
+    async ({ title, languageCode, type, originalText }) => {
       if (type === 'text' || type === 'subtitle') {
-        if (!sentences || sentences.length === 0) {
+        const text = originalText?.trim() ?? '';
+        if (!text) {
           return toolResult({
             success: false,
-            message: `sentences[] is required when type is ${type}`,
+            message: `originalText is required when type is ${type}`,
           });
         }
+
+        const fileKey = `lessons/${userId}/${randomUUID()}.txt`;
+        await ctx.s3Service.uploadObject(ctx, fileKey, text, 'text/plain');
 
         const result = await ctx.lessonService.createLesson(ctx, userId, {
           title,
           languageCode,
-          sentences,
+          fileKey,
           lessonType: type,
         });
         return toolResult(result);
       }
 
-      if (sentences?.length) {
+      if (originalText?.trim()) {
         return toolResult({
           success: false,
           message:
-            'sentences[] is not allowed for type=manual; create empty shell then use add_sentence',
+            'originalText is not allowed for type=manual; create empty shell then use add_sentence',
         });
       }
 

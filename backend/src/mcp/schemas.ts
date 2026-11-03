@@ -31,11 +31,12 @@ export const CreateLessonInputSchema = z.object({
     .describe(
       'manual → createManualLesson; text|subtitle → createLesson with that lesson_type'
     ),
-  sentences: z
-    .array(z.string().min(1))
+  originalText: z
+    .string()
+    .min(1)
     .optional()
     .describe(
-      'Required for text|subtitle. Do not send for manual (use add_sentence after create).'
+      'Full source text. Required for text|subtitle; the server stores it and splits it into sentences. For SRT, ASS/SSA, or a YouTube transcript, pass the raw text unchanged (keep timestamps) and set type=subtitle. Do not send for manual.'
     ),
 });
 

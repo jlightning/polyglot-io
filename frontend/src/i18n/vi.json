@@ -569,7 +569,7 @@
     "cursor4": "Lưu. Cursor sẽ nhận server Polyglot; tải lại MCP nếu cần.",
     "cursorHelp": "Gộp dưới mcpServers. Token nằm trong URL — không cần header.",
     "tools": "Công cụ",
-    "toolCreateLesson": "Tạo bài học (type: manual|text|subtitle); manual là khung trống, text/subtitle cần câu",
+    "toolCreateLesson": "Tạo bài học (type: manual|text|subtitle); manual là khung trống, text/subtitle cần nguyên văn",
     "toolAddSentence": "Thêm một hoặc nhiều câu vào bài học thủ công",
     "toolDeleteSentence": "Xóa câu khỏi bài thủ công/manga bằng sentenceIds[]",
     "toolMarkWord": "Đánh dấu một hoặc nhiều từ: 0=Bỏ qua, 1=Không nhớ, 2=Khó nhớ, 3=Đã nhớ, 4=Dễ nhớ, 5=Không vấn đề",

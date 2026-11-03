@@ -569,7 +569,7 @@
     "cursor4": "保存。Cursor 应会识别 Polyglot 服务器；如有需要请重新加载 MCP。",
     "cursorHelp": "合并到 mcpServers 下。令牌已包含在 URL 中，不需要请求头。",
     "tools": "工具",
-    "toolCreateLesson": "创建课程（类型：manual|text|subtitle）；manual 是空课程，text/subtitle 需要句子",
+    "toolCreateLesson": "创建课程（类型：manual|text|subtitle）；manual 是空课程，text/subtitle 需要原文",
     "toolAddSentence": "向手动课程添加一个或多个句子",
     "toolDeleteSentence": "按 sentenceIds[] 从手动/漫画课程删除句子",
     "toolMarkWord": "标记一个或多个单词：0=忽略，1=不记得，2=很难记住，3=记住了，4=很容易记住，5=没问题",
