@@ -36,6 +36,7 @@ export interface CreateManualLessonData {
   languageCode: string;
   imageKey?: string;
   audioKey?: string;
+  fileKey?: string;
   sentences?: string[];
   lessonType?: 'manual' | 'generated';
   createdWithPrompt?: string;
@@ -244,7 +245,7 @@ export class LessonService {
         await ctx.prisma.lessonFile.create({
           data: {
             lesson_id: lesson.id,
-            file_s3_key: null,
+            file_s3_key: lessonData.fileKey ?? null,
           },
         });
         return lesson;

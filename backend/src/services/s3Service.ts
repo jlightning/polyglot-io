@@ -167,6 +167,26 @@ export class S3Service {
     return `https://${this.bucketName}.s3.${region}.amazonaws.com/${key}`;
   }
 
+  async uploadObject(
+    ctx: Context,
+    key: string,
+    body: string | Buffer,
+    contentType: string
+  ): Promise<void> {
+    if (!this.s3Client) {
+      this.initialize(ctx);
+    }
+
+    await this.s3Client.send(
+      new PutObjectCommand({
+        Bucket: this.bucketName,
+        Key: key,
+        Body: body,
+        ContentType: contentType,
+      })
+    );
+  }
+
   /**
    * Delete a file from S3
    */

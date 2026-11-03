@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { Router, Request, Response } from 'express';
 import { LessonType } from '@prisma/client';
 import { ctx } from './index';
@@ -204,12 +205,16 @@ router.post('/generate', async (req: Request, res: Response) => {
       });
     }
 
+    const fileKey = `lessons/${req.userId}/${randomUUID()}.txt`;
+    await ctx.s3Service.uploadObject(ctx, fileKey, text.trim(), 'text/plain');
+
     const result = await ctx.lessonService.createManualLesson(
       ctx,
       req.userId!,
       {
         title: title.trim(),
         languageCode: languageCode.trim(),
+        fileKey,
         sentences,
         lessonType: LessonType.generated,
         createdWithPrompt: prompt.trim(),
