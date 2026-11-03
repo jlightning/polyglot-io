@@ -13,6 +13,7 @@ import {
 import MyButton from '../components/MyButton';
 import LessonEditDialog from '../components/LessonEditDialog';
 import LessonOriginalTextReConstructor from '../components/LessonOriginalTextReConstructor';
+import TTSPlayButton from '../components/TTSPlayButton';
 import { useAuth } from '../contexts/AuthContext';
 import { useWordMark } from '../contexts/WordMarkContext';
 import { useWordSidebar } from '../contexts/WordSidebarContext';
@@ -172,6 +173,14 @@ const LessonOriginalTextViewPage: React.FC<{
         </Text>
       ) : (
         <Card mb="6" style={{ padding: '16px' }}>
+          <Flex justify="end" mb="2">
+            <TTSPlayButton
+              text={text}
+              languageCode={lesson.languageCode}
+              axiosInstance={axiosInstance}
+              title={t('view.listen')}
+            />
+          </Flex>
           <Box style={{ lineHeight: '1.6', fontSize: 'var(--font-size-4)' }}>
             <LessonOriginalTextReConstructor
               text={text}
