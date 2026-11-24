@@ -28,6 +28,38 @@ function parseYoutubeTimestampLineMs(line: string): number | null {
   return (min * 60 + s) * 1000;
 }
 
+/**
+ * Clock glued to the same time in words, then dialogue.
+ * "0:1515 seconds…", "1:011 minute, 1 second…", "8:008 minutes…".
+ */
+function parseVerboseTimestampLine(
+  line: string
+): { startMs: number; dialogue: string } | null {
+  const trimmed = line.trim();
+  const clock = /^(\d+):(\d{2})/.exec(trimmed);
+  if (!clock) return null;
+
+  const minutes = parseInt(clock[1]!, 10);
+  const seconds = parseInt(clock[2]!, 10);
+  if (seconds > 59) return null;
+
+  const minuteLabel = minutes === 1 ? 'minute' : 'minutes';
+  const secondLabel = seconds === 1 ? 'second' : 'seconds';
+  const verbose =
+    minutes === 0
+      ? `${seconds} ${secondLabel}`
+      : seconds === 0
+        ? `${minutes} ${minuteLabel}`
+        : `${minutes} ${minuteLabel}, ${seconds} ${secondLabel}`;
+  const prefix = `${clock[1]}:${clock[2]}${verbose}`;
+  if (!trimmed.startsWith(prefix)) return null;
+
+  return {
+    startMs: (minutes * 60 + seconds) * 1000,
+    dialogue: trimmed.slice(prefix.length).trim(),
+  };
+}
+
 // Mapping of all half-width katakana (半角カタカナ) to full-width katakana
 export const halfWidthToFullWidthKatakana: { [key: string]: string } = {
   '\uFF65': '\u30FB', // ･ → ・ (middle dot)
@@ -444,6 +476,92 @@ export class TextProcessingService {
     }
   }
 
+  private isVerboseTimestampTranscriptLike(content: string): boolean {
+    const lines = content
+      .replace(/\r\n/g, '\n')
+      .replace(/\r/g, '\n')
+      .split('\n');
+    let matches = 0;
+    for (const line of lines) {
+      if (parseVerboseTimestampLine(line) === null) continue;
+      matches++;
+      if (matches >= YOUTUBE_MIN_CUES_FOR_DETECTION) return true;
+    }
+    return false;
+  }
+
+  /**
+   * One cue per line: clock glued to an English duration, then dialogue.
+   */
+  parseVerboseTimestampContent(
+    ctx: Context,
+    content: string
+  ): ProcessedSentence[] {
+    try {
+      const lines = content
+        .replace(/\r\n/g, '\n')
+        .replace(/\r/g, '\n')
+        .split('\n');
+      const cues: { startMs: number; rawText: string }[] = [];
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+
+        const parsed = parseVerboseTimestampLine(trimmed);
+        if (!parsed) {
+          const prev = cues[cues.length - 1];
+          if (prev) prev.rawText = `${prev.rawText} ${trimmed}`;
+          continue;
+        }
+        if (parsed.dialogue.length > 0) {
+          cues.push({ startMs: parsed.startMs, rawText: parsed.dialogue });
+        }
+      }
+
+      if (cues.length === 0) {
+        throw new Error(
+          'No transcript cues found. Expected lines like 0:1515 seconds then dialogue.'
+        );
+      }
+
+      const out: ProcessedSentence[] = [];
+
+      for (let i = 0; i < cues.length; i++) {
+        const cue = cues[i]!;
+        const endMs =
+          cues[i + 1]?.startMs ?? cue.startMs + YOUTUBE_LAST_CUE_END_OFFSET_MS;
+
+        let normalized = this.normalizeKatakana(ctx, cue.rawText.trim());
+        if (!normalized) continue;
+
+        const sentenceTexts =
+          this.splitNormalizedTextIntoSentenceTexts(normalized);
+        const texts = sentenceTexts.length > 0 ? sentenceTexts : [normalized];
+
+        for (const text of texts) {
+          out.push({
+            text,
+            startTime: cue.startMs,
+            endTime: endMs,
+          });
+        }
+      }
+
+      if (out.length === 0) {
+        throw new Error('Transcript contained no dialogue text.');
+      }
+
+      return out;
+    } catch (error) {
+      console.error('Error parsing verbose timestamp transcript:', error);
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(
+        `Failed to parse verbose timestamp transcript: ${message}`
+      );
+    }
+  }
+
   /**
    * Determine file type based on content or file extension
    */
@@ -451,7 +569,7 @@ export class TextProcessingService {
     ctx: Context,
     content: string,
     fileName?: string
-  ): 'srt' | 'txt' | 'ass' | 'youtube_transcript' {
+  ): 'srt' | 'txt' | 'ass' | 'youtube_transcript' | 'verbose_timestamp' {
     // Check if content looks like ASS format (starts with [Script Info] or [V4+ Styles] or [Events])
     const assPattern = /^\[Script Info\]|^\[V4\+? Styles\]|^\[Events\]/m;
     if (assPattern.test(content)) {
@@ -483,6 +601,10 @@ export class TextProcessingService {
       return 'youtube_transcript';
     }
 
+    if (this.isVerboseTimestampTranscriptLike(content)) {
+      return 'verbose_timestamp';
+    }
+
     // Default to txt
     return 'txt';
   }
@@ -504,6 +626,8 @@ export class TextProcessingService {
         return this.parseAssContent(ctx, content);
       case 'youtube_transcript':
         return this.parseYoutubeTranscriptContent(ctx, content);
+      case 'verbose_timestamp':
+        return this.parseVerboseTimestampContent(ctx, content);
       case 'txt':
         return this.parseTxtContent(ctx, content);
       default:

@@ -36,7 +36,7 @@ export const CreateLessonInputSchema = z.object({
     .min(1)
     .optional()
     .describe(
-      'Full source text. Required for text|subtitle; the server stores it and splits it into sentences. For SRT, ASS/SSA, or a YouTube transcript, pass the raw text unchanged (keep timestamps) and set type=subtitle. Do not send for manual.'
+      'Full source text. Required for text|subtitle; the server stores it and splits it into sentences. For SRT, ASS/SSA, a YouTube transcript, or a verbose-duration transcript (clock glued to words, e.g. "0:1515 seconds…", "1:011 minute, 1 second…"), pass the raw text unchanged (keep timestamps) and set type=subtitle. Do not send for manual.'
     ),
 });
 

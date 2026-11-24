@@ -134,7 +134,8 @@ export class LessonService {
           lessonType =
             detectedFileType === 'srt' ||
             detectedFileType === 'ass' ||
-            detectedFileType === 'youtube_transcript'
+            detectedFileType === 'youtube_transcript' ||
+            detectedFileType === 'verbose_timestamp'
               ? LessonType.subtitle
               : LessonType.text;
         } catch (error) {
